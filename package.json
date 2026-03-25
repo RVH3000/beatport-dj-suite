@@ -1,0 +1,47 @@
+{
+  "name": "beatport-dj-suite",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "author": "Robert H.",
+  "description": "Beatport DJ Suite — Scanner, Analyse, Playlist-Management & Automation (macOS)",
+  "main": "electron-app/main.mjs",
+  "scripts": {
+    "desktop:dev": "electron .",
+    "desktop:dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
+    "desktop:dir:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir",
+    "test": "node --test tests/**/*.test.mjs",
+    "check": "node scripts/check-scanner.mjs",
+    "smoke:beatport": "node scripts/smoke-beatport.mjs",
+    "beatport:scan": "node tools/bpx.mjs scan",
+    "beatport:delete": "node tools/bpx.mjs delete"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.roberth.beatport.djsuite",
+    "productName": "Beatport DJ Suite",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron-app/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+  }
+}
