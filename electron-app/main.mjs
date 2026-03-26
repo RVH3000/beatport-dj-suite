@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -28,6 +28,14 @@ import {
   runDiscover,
   runScan,
 } from "./scanner/cdp-scanner.mjs";
+import { SQLiteCacheStore, resolveCacheDbPath } from "./cache/sqlite-cache.mjs";
+import { generateExport } from "./data/export-formats.mjs";
+import {
+  BeatportXhrClient,
+  loadApiContext,
+  normalizePlaylist,
+  normalizeTrack,
+} from "./scanner/xhr-scanner.mjs";
 import { SessionManager } from "./auth/session-manager.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -257,6 +265,125 @@ app.whenReady().then(() => {
   ipcMain.handle("scanner:get-live-status", async () => {
     try {
       return await readLiveStatus();
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  // ── Analysis-Endpunkte ──────────────────────────────────────────────────
+  ipcHandle("analysis:get-track-data", async (config) => {
+    const cache = new SQLiteCacheStore(config);
+    return await cache.getAllTrackRows();
+  });
+
+  ipcHandle("analysis:get-overlap-matrix", async (config) => {
+    const cache = new SQLiteCacheStore(config);
+    return await cache.getPlaylistOverlapMatrix();
+  });
+
+  // ── Export-Endpunkte ────────────────────────────────────────────────────
+  ipcMain.handle("export:choose-save-path", async (_event, options = {}) => {
+    const win = BrowserWindow.getFocusedWindow();
+    const filters = {
+      rekordbox: [{ name: "Rekordbox XML", extensions: ["xml"] }],
+      traktor: [{ name: "Traktor NML", extensions: ["nml"] }],
+      json: [{ name: "JSON", extensions: ["json"] }],
+      jsonl: [{ name: "JSON Lines", extensions: ["jsonl"] }],
+    };
+    const result = await dialog.showSaveDialog(win, {
+      title: options.title || "Export speichern",
+      defaultPath: options.defaultName || "beatport-export",
+      filters: filters[options.format] || [{ name: "Alle", extensions: ["*"] }],
+    });
+    if (result.canceled || !result.filePath) return { canceled: true };
+    return { canceled: false, filePath: result.filePath };
+  });
+
+  ipcHandle("export:generate", async (config, query) => {
+    const format = query?.format;
+    const outputPath = query?.outputPath;
+    if (!format || !outputPath) {
+      throw new Error("Format und Ausgabepfad erforderlich.");
+    }
+    const cache = new SQLiteCacheStore(config);
+    const tracks = await cache.getAllTrackRows();
+    if (!tracks || tracks.length === 0) {
+      throw new Error("Keine Track-Daten im Cache. Bitte zuerst einen Scan durchführen.");
+    }
+    return await generateExport(tracks, format, outputPath);
+  });
+
+  // ── Playlist WIZ — XHR-basierte CRUD-Operationen ─────────────────────────
+  // Hilfsfunktion: XHR-Client aus exportiertem API-Kontext erstellen
+  async function createXhrClient() {
+    try {
+      const context = await loadApiContext();
+      return new BeatportXhrClient(context);
+    } catch {
+      throw new Error(
+        "API-Kontext nicht verfügbar. Bitte im Scanner-Tab: Auth → API-Kontext exportieren."
+      );
+    }
+  }
+
+  ipcMain.handle("playlist:list", async () => {
+    try {
+      const client = await createXhrClient();
+      return await client.discoverAllPlaylists();
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("playlist:tracks", async (_event, playlistId) => {
+    try {
+      const client = await createXhrClient();
+      return await client.fetchPlaylistTracks(playlistId);
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("playlist:create", async (_event, name) => {
+    try {
+      const client = await createXhrClient();
+      return normalizePlaylist(await client.createPlaylist(name));
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("playlist:rename", async (_event, playlistId, newName) => {
+    try {
+      const client = await createXhrClient();
+      return normalizePlaylist(await client.renamePlaylist(playlistId, newName));
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("playlist:delete", async (_event, playlistId) => {
+    try {
+      const client = await createXhrClient();
+      return await client.deletePlaylist(playlistId);
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("playlist:add-tracks", async (_event, playlistId, trackIds) => {
+    try {
+      const client = await createXhrClient();
+      return await client.addTracksToPlaylist(playlistId, trackIds);
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("playlist:remove-tracks", async (_event, playlistId, trackIds) => {
+    try {
+      const client = await createXhrClient();
+      return await client.removeTracksFromPlaylist(playlistId, trackIds);
     } catch (error) {
       throw new Error(toErrorMessage(error));
     }

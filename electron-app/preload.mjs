@@ -38,6 +38,26 @@ contextBridge.exposeInMainWorld("scannerApi", {
     ipcRenderer.invoke("scanner:open-run-folder", folderPath),
 });
 
+contextBridge.exposeInMainWorld("playlistApi", {
+  list: () => ipcRenderer.invoke("playlist:list"),
+  tracks: (playlistId) => ipcRenderer.invoke("playlist:tracks", playlistId),
+  create: (name) => ipcRenderer.invoke("playlist:create", name),
+  rename: (playlistId, newName) => ipcRenderer.invoke("playlist:rename", playlistId, newName),
+  remove: (playlistId) => ipcRenderer.invoke("playlist:delete", playlistId),
+  addTracks: (playlistId, trackIds) => ipcRenderer.invoke("playlist:add-tracks", playlistId, trackIds),
+  removeTracks: (playlistId, trackIds) => ipcRenderer.invoke("playlist:remove-tracks", playlistId, trackIds),
+});
+
+contextBridge.exposeInMainWorld("exportApi", {
+  chooseSavePath: (options) => ipcRenderer.invoke("export:choose-save-path", options),
+  generate: (config, query) => ipcRenderer.invoke("export:generate", config, query),
+});
+
+contextBridge.exposeInMainWorld("analysisApi", {
+  getTrackData: (config) => ipcRenderer.invoke("analysis:get-track-data", config),
+  getOverlapMatrix: (config) => ipcRenderer.invoke("analysis:get-overlap-matrix", config),
+});
+
 contextBridge.exposeInMainWorld("authApi", {
   getStatus: (config) => ipcRenderer.invoke("auth:get-status", config),
   openLoginWindow: (config) => ipcRenderer.invoke("auth:open-login-window", config),

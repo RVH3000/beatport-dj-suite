@@ -642,6 +642,61 @@ export class SQLiteCacheStore {
     await runSql(this.dbPath, statements.join("\n"));
   }
 
+  async getAllTrackRows() {
+    await this.init();
+    return await runSql(
+      this.dbPath,
+      `
+      SELECT
+        t.track_id AS trackId,
+        t.track_title AS trackTitle,
+        t.artists,
+        t.genre,
+        t.label,
+        t.bpm,
+        t.musical_key AS key,
+        t.mix_name AS mixName,
+        t.release_year AS releaseYear,
+        t.playlist_key AS playlistKey,
+        p.name AS playlistName,
+        p.playlist_id AS playlistId
+      FROM playlist_tracks t
+      JOIN playlists p ON p.playlist_key = t.playlist_key
+      WHERE p.sync_state <> 'missing'
+      ORDER BY p.name, t.track_index;
+      `,
+      { json: true }
+    );
+  }
+
+  async getPlaylistOverlapMatrix() {
+    await this.init();
+    return await runSql(
+      this.dbPath,
+      `
+      SELECT
+        a.playlist_key AS playlistA,
+        pa.name AS nameA,
+        b.playlist_key AS playlistB,
+        pb.name AS nameB,
+        COUNT(DISTINCT a.track_id) AS sharedTracks
+      FROM playlist_tracks a
+      JOIN playlist_tracks b
+        ON a.track_id = b.track_id
+        AND a.track_id IS NOT NULL
+        AND a.track_id <> ''
+        AND a.playlist_key < b.playlist_key
+      JOIN playlists pa ON pa.playlist_key = a.playlist_key AND pa.sync_state <> 'missing'
+      JOIN playlists pb ON pb.playlist_key = b.playlist_key AND pb.sync_state <> 'missing'
+      GROUP BY a.playlist_key, b.playlist_key
+      HAVING sharedTracks >= 2
+      ORDER BY sharedTracks DESC
+      LIMIT 200;
+      `,
+      { json: true }
+    );
+  }
+
   async writeExportRecord(exportKey, exportPath, rowCount = 0) {
     await this.init();
     await runSql(

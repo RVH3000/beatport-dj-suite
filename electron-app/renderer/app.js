@@ -1,3 +1,8 @@
+// ─── Tab-Module (lazy-loaded) ────────────────────────────────────────────────
+let analysisModule = null;
+let exportModule = null;
+let playlistWizModule = null;
+
 // ─── Tab-Navigation ─────────────────────────────────────────────────────────
 (function initTabs() {
   const tabBar = document.querySelector(".tab-bar");
@@ -27,6 +32,15 @@
     if (panel) {
       panel.classList.add("active");
       panel.hidden = false;
+    }
+
+    // Lazy-load Tab-Module
+    if (targetId === "tab-analyse") {
+      loadAnalysisTab();
+    } else if (targetId === "tab-export") {
+      loadExportTab();
+    } else if (targetId === "tab-playlist") {
+      loadPlaylistWizTab();
     }
   });
 
@@ -2335,6 +2349,44 @@ async function bootstrap() {
         runDiscovery().catch(() => {});
       }
     }, 250);
+  }
+}
+
+// ─── Analyse-Tab Lazy-Loader ────────────────────────────────────────────────
+async function loadAnalysisTab() {
+  try {
+    if (!analysisModule) {
+      analysisModule = await import("./tabs/analysis.js");
+    }
+    const config = getCurrentConfig();
+    await analysisModule.loadAnalysisData(config);
+  } catch (err) {
+    console.error("[analysis] Laden fehlgeschlagen:", err);
+  }
+}
+
+// getCurrentConfig global bereitstellen für Tab-Module (export.js etc.)
+window.getCurrentConfig = getCurrentConfig;
+
+async function loadPlaylistWizTab() {
+  try {
+    if (!playlistWizModule) {
+      playlistWizModule = await import("./tabs/playlist-wiz.js");
+    }
+    await playlistWizModule.initPlaylistWiz();
+  } catch (err) {
+    console.error("[playlist-wiz] Laden fehlgeschlagen:", err);
+  }
+}
+
+async function loadExportTab() {
+  try {
+    if (!exportModule) {
+      exportModule = await import("./tabs/export.js");
+    }
+    exportModule.renderExportTab();
+  } catch (err) {
+    console.error("[export] Laden fehlgeschlagen:", err);
   }
 }
 
