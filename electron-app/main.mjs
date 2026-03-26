@@ -37,6 +37,8 @@ import {
   normalizeTrack,
 } from "./scanner/xhr-scanner.mjs";
 import { SessionManager } from "./auth/session-manager.mjs";
+import * as LexiconClient from "./api/lexicon-client.mjs";
+import * as DjplaylistsClient from "./api/djplaylists-client.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -486,6 +488,140 @@ app.whenReady().then(() => {
       return { ok: false, message: result };
     }
     return { ok: true };
+  });
+
+  // ── Sync-Pipeline: Lexicon + DJPlaylists.fm ────────────────────────────────
+
+  // Pfad für Sync-Presets (userData)
+  function getSyncPresetsPath() {
+    return path.join(app.getPath("userData"), "sync-presets.json");
+  }
+
+  // Standard-Presets aus dem Projekt laden
+  async function loadDefaultPresets() {
+    const defaultPath = path.join(__dirname, "data", "sync-presets.json");
+    try {
+      const raw = await fs.readFile(defaultPath, "utf8");
+      return JSON.parse(raw);
+    } catch {
+      return { playlists: [], config: {} };
+    }
+  }
+
+  ipcMain.handle("sync:check-lexicon", async () => {
+    try {
+      return await LexiconClient.checkConnection();
+    } catch (err) {
+      return { connected: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:check-djplaylists", async () => {
+    try {
+      return await DjplaylistsClient.checkConnection();
+    } catch (err) {
+      return { reachable: false, authenticated: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:explore-apis", async () => {
+    const [lexicon, djplaylists] = await Promise.allSettled([
+      LexiconClient.exploreApi(),
+      // DJPlaylists.fm Explore: typishe REST-Pfade
+      (async () => {
+        const paths = ["/api", "/api/playlists", "/api/v1/playlists", "/api/user/playlists", "/api/import/beatport"];
+        const results = {};
+        for (const p of paths) {
+          try {
+            const data = await DjplaylistsClient.getMyPlaylists().catch(() => null);
+            results[p] = { ok: data !== null };
+          } catch {
+            results[p] = { ok: false };
+          }
+        }
+        return results;
+      })(),
+    ]);
+    return {
+      lexicon: lexicon.status === "fulfilled" ? lexicon.value : { error: String(lexicon.reason) },
+      djplaylists: djplaylists.status === "fulfilled" ? djplaylists.value : { error: String(djplaylists.reason) },
+    };
+  });
+
+  ipcMain.handle("sync:save-auth", async (_event, { apiKey, sessionCookie }) => {
+    try {
+      if (apiKey) DjplaylistsClient.setApiKey(apiKey);
+      if (sessionCookie) DjplaylistsClient.setSessionCookie(sessionCookie);
+
+      // In Presets persistieren
+      const presetsPath = getSyncPresetsPath();
+      let presets;
+      try {
+        presets = JSON.parse(await fs.readFile(presetsPath, "utf8"));
+      } catch {
+        presets = await loadDefaultPresets();
+      }
+      presets.config = presets.config ?? {};
+      presets.config.djplaylistsApiKey = apiKey ?? "";
+      presets.config.djplaylistsSessionCookie = sessionCookie ?? "";
+      await fs.writeFile(presetsPath, JSON.stringify(presets, null, 2), "utf8");
+
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:import-to-djplaylists", async (_event, options = {}) => {
+    try {
+      const result = await DjplaylistsClient.importBeatportPlaylist(options);
+      return result;
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:import-to-lexicon", async (_event, options = {}) => {
+    try {
+      const result = await LexiconClient.importFromDjplaylists(options);
+      return result;
+    } catch (err) {
+      // Kein harter Fehler — Lexicon-API möglicherweise nicht dokumentiert
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:trigger-engine-export", async (_event, options = {}) => {
+    try {
+      const result = await LexiconClient.triggerEngineDjExport(options);
+      return result;
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:get-presets", async () => {
+    const presetsPath = getSyncPresetsPath();
+    try {
+      const raw = await fs.readFile(presetsPath, "utf8");
+      const presets = JSON.parse(raw);
+      // Auth in Laufzeit wiederherstellen
+      if (presets.config?.djplaylistsApiKey) DjplaylistsClient.setApiKey(presets.config.djplaylistsApiKey);
+      if (presets.config?.djplaylistsSessionCookie) DjplaylistsClient.setSessionCookie(presets.config.djplaylistsSessionCookie);
+      return presets;
+    } catch {
+      return await loadDefaultPresets();
+    }
+  });
+
+  ipcMain.handle("sync:save-presets", async (_event, presets) => {
+    try {
+      const presetsPath = getSyncPresetsPath();
+      await fs.writeFile(presetsPath, JSON.stringify(presets, null, 2), "utf8");
+      return { ok: true };
+    } catch (err) {
+      throw new Error(toErrorMessage(err));
+    }
   });
 
   createWindow();

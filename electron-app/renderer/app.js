@@ -2,6 +2,7 @@
 let analysisModule = null;
 let exportModule = null;
 let playlistWizModule = null;
+let syncModule = null;
 
 // ─── Tab-Navigation ─────────────────────────────────────────────────────────
 (function initTabs() {
@@ -41,6 +42,8 @@ let playlistWizModule = null;
       loadExportTab();
     } else if (targetId === "tab-playlist") {
       loadPlaylistWizTab();
+    } else if (targetId === "tab-sync") {
+      loadSyncTab();
     }
   });
 
@@ -2376,6 +2379,17 @@ async function loadPlaylistWizTab() {
     await playlistWizModule.initPlaylistWiz();
   } catch (err) {
     console.error("[playlist-wiz] Laden fehlgeschlagen:", err);
+  }
+}
+
+async function loadSyncTab() {
+  try {
+    if (!syncModule) {
+      syncModule = await import("./tabs/sync.js");
+    }
+    await syncModule.initSyncTab();
+  } catch (err) {
+    console.error("[sync] Laden fehlgeschlagen:", err);
   }
 }
 

@@ -844,3 +844,138 @@ summary {
     align-items: flex-start;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SYNC-PIPELINE — Pipeline-Visualisierung
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.pipeline-section {
+  overflow-x: auto;
+}
+
+.pipeline-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.25rem 0.5rem;
+  min-width: 680px;
+}
+
+.pipeline-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 100px;
+  padding: 0.75rem 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  text-align: center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pipeline-node--active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.pipeline-node--done {
+  border-color: #22c55e;
+  background: color-mix(in srgb, #22c55e 8%, var(--panel-bg));
+}
+
+.pipeline-node--error {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel-bg));
+}
+
+.pipeline-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.pipeline-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pipeline-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.pipeline-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  margin-top: 0.2rem;
+}
+
+.pipeline-badge.idle   { background: var(--border); color: var(--text-muted); }
+.pipeline-badge.ok     { background: #22c55e; color: #fff; }
+.pipeline-badge.warn   { background: #f59e0b; color: #fff; }
+.pipeline-badge.error  { background: var(--danger); color: #fff; }
+.pipeline-badge.running { background: var(--accent); color: #fff; animation: pipeline-pulse 1s infinite; }
+
+@keyframes pipeline-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+.pipeline-arrow {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 0 0.1rem;
+}
+
+/* ── Sync Log ────────────────────────────────────────────────────────────────── */
+
+.sync-log {
+  background: #0d0d0d;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-family: "SF Mono", "Fira Mono", "Cascadia Code", monospace;
+  font-size: 0.75rem;
+  max-height: 280px;
+  overflow-y: auto;
+  color: #d0d0d0;
+}
+
+.log-entry {
+  margin: 0;
+  padding: 0.1rem 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-entry.ok    { color: #4ade80; }
+.log-entry.error { color: #f87171; }
+.log-entry.warn  { color: #fbbf24; }
+.log-entry.step  { color: #60a5fa; }
+.log-entry.info  { color: #d0d0d0; }
+
+/* ── Status-Farben (shared) ──────────────────────────────────────────────────── */
+
+.status-ok   { color: #4ade80; }
+.status-err  { color: #f87171; }
+.status-warn { color: #fbbf24; }
+.status-info { color: var(--text-muted); }
+
+/* ── Preset-Table Button ─────────────────────────────────────────────────────── */
+
+.btn-sm {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.btn-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }

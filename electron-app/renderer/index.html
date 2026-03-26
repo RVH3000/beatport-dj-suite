@@ -22,6 +22,7 @@
       <button class="tab active" role="tab" aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-sync"        data-tab="sync">Sync-Pipeline</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-automation" data-tab="automation">Automation</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-export"     data-tab="export">Export</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-settings"   data-tab="settings">Einstellungen</button>
@@ -333,7 +334,21 @@
     </main>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 4: Automation                                                  -->
+    <!-- TAB 4: Sync-Pipeline                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-sync" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" id="sync-content">
+        <section class="panel span-full placeholder-panel">
+          <h2>Sync-Pipeline</h2>
+          <p class="placeholder-text">
+            Beatport Streaming → DJPlaylists.fm → Lexicon DJ → Engine DJ → USB / Prime 4+
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 5: Automation                                                  -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <main id="tab-automation" class="tab-panel" role="tabpanel" hidden>
       <div class="layout">

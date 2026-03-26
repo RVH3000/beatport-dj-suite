@@ -68,3 +68,16 @@ contextBridge.exposeInMainWorld("authApi", {
   setMode: (config, mode) => ipcRenderer.invoke("auth:set-mode", config, mode),
   exportApiContext: (config) => ipcRenderer.invoke("auth:export-api-context", config),
 });
+
+// Sync-Pipeline: Beatport → DJPlaylists.fm → Lexicon → Engine DJ → USB/Prime 4+
+contextBridge.exposeInMainWorld("syncApi", {
+  checkLexicon:         ()        => ipcRenderer.invoke("sync:check-lexicon"),
+  checkDjplaylists:     ()        => ipcRenderer.invoke("sync:check-djplaylists"),
+  exploreApis:          ()        => ipcRenderer.invoke("sync:explore-apis"),
+  saveAuth:             (auth)    => ipcRenderer.invoke("sync:save-auth", auth),
+  importToDjplaylists:  (opts)    => ipcRenderer.invoke("sync:import-to-djplaylists", opts),
+  importToLexicon:      (opts)    => ipcRenderer.invoke("sync:import-to-lexicon", opts),
+  triggerEngineExport:  (opts)    => ipcRenderer.invoke("sync:trigger-engine-export", opts),
+  getPresets:           ()        => ipcRenderer.invoke("sync:get-presets"),
+  savePresets:          (presets) => ipcRenderer.invoke("sync:save-presets", presets),
+});
