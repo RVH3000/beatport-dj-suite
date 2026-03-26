@@ -71,13 +71,22 @@ contextBridge.exposeInMainWorld("authApi", {
 
 // Sync-Pipeline: Beatport → DJPlaylists.fm → Lexicon → Engine DJ → USB/Prime 4+
 contextBridge.exposeInMainWorld("syncApi", {
-  checkLexicon:         ()        => ipcRenderer.invoke("sync:check-lexicon"),
-  checkDjplaylists:     ()        => ipcRenderer.invoke("sync:check-djplaylists"),
-  exploreApis:          ()        => ipcRenderer.invoke("sync:explore-apis"),
-  saveAuth:             (auth)    => ipcRenderer.invoke("sync:save-auth", auth),
-  importToDjplaylists:  (opts)    => ipcRenderer.invoke("sync:import-to-djplaylists", opts),
-  importToLexicon:      (opts)    => ipcRenderer.invoke("sync:import-to-lexicon", opts),
-  triggerEngineExport:  (opts)    => ipcRenderer.invoke("sync:trigger-engine-export", opts),
-  getPresets:           ()        => ipcRenderer.invoke("sync:get-presets"),
-  savePresets:          (presets) => ipcRenderer.invoke("sync:save-presets", presets),
+  // Verbindungsstatus
+  checkLexicon:             ()              => ipcRenderer.invoke("sync:check-lexicon"),
+  checkDjplaylists:         ()              => ipcRenderer.invoke("sync:check-djplaylists"),
+  exploreApis:              ()              => ipcRenderer.invoke("sync:explore-apis"),
+  // Lexicon-Library-Zugriff (Port 48624, /v1/)
+  getLexiconPlaylists:      ()              => ipcRenderer.invoke("sync:get-lexicon-playlists"),
+  getLexiconPlaylistTracks: (id)            => ipcRenderer.invoke("sync:get-lexicon-playlist-tracks", id),
+  getLexiconTracksSample:   (limit)         => ipcRenderer.invoke("sync:get-lexicon-tracks-sample", limit),
+  getDjplaylistsStatus:     ()              => ipcRenderer.invoke("sync:get-djplaylists-status"),
+  // Authentifizierung
+  saveAuth:                 (auth)          => ipcRenderer.invoke("sync:save-auth", auth),
+  // Pipeline-Schritte
+  importToDjplaylists:      (opts)          => ipcRenderer.invoke("sync:import-to-djplaylists", opts),
+  importToLexicon:          (opts)          => ipcRenderer.invoke("sync:import-to-lexicon", opts),
+  triggerEngineExport:      (opts)          => ipcRenderer.invoke("sync:trigger-engine-export", opts),
+  // Presets
+  getPresets:               ()              => ipcRenderer.invoke("sync:get-presets"),
+  savePresets:              (presets)       => ipcRenderer.invoke("sync:save-presets", presets),
 });

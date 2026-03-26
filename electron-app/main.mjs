@@ -527,20 +527,7 @@ app.whenReady().then(() => {
   ipcMain.handle("sync:explore-apis", async () => {
     const [lexicon, djplaylists] = await Promise.allSettled([
       LexiconClient.exploreApi(),
-      // DJPlaylists.fm Explore: typishe REST-Pfade
-      (async () => {
-        const paths = ["/api", "/api/playlists", "/api/v1/playlists", "/api/user/playlists", "/api/import/beatport"];
-        const results = {};
-        for (const p of paths) {
-          try {
-            const data = await DjplaylistsClient.getMyPlaylists().catch(() => null);
-            results[p] = { ok: data !== null };
-          } catch {
-            results[p] = { ok: false };
-          }
-        }
-        return results;
-      })(),
+      DjplaylistsClient.exploreApi(),
     ]);
     return {
       lexicon: lexicon.status === "fulfilled" ? lexicon.value : { error: String(lexicon.reason) },
@@ -569,6 +556,39 @@ app.whenReady().then(() => {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  // Lexicon-Library-Zugriff (Port 48624, bestätigte /v1/-Endpoints)
+  ipcMain.handle("sync:get-lexicon-playlists", async () => {
+    try {
+      return await LexiconClient.getPlaylists();
+    } catch (err) {
+      throw new Error(toErrorMessage(err));
+    }
+  });
+
+  ipcMain.handle("sync:get-lexicon-playlist-tracks", async (_event, playlistId) => {
+    try {
+      return await LexiconClient.getPlaylistTracks(playlistId);
+    } catch (err) {
+      throw new Error(toErrorMessage(err));
+    }
+  });
+
+  ipcMain.handle("sync:get-lexicon-tracks-sample", async (_event, limit = 20) => {
+    try {
+      return await LexiconClient.getTracksSample(limit);
+    } catch (err) {
+      throw new Error(toErrorMessage(err));
+    }
+  });
+
+  ipcMain.handle("sync:get-djplaylists-status", async () => {
+    try {
+      return await LexiconClient.getDjplaylistsIntegrationStatus();
+    } catch (err) {
+      return { available: false, error: toErrorMessage(err) };
     }
   });
 

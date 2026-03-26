@@ -979,3 +979,18 @@ summary {
   cursor: pointer;
 }
 .btn-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+/* ── Track-Vorschau in Verbindungsstatus ─────────────────────────────────────── */
+
+.track-sample-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+}
+.track-sample-list li {
+  font-size: 0.75rem;
+  padding: 0.1rem 0;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.track-sample-list li:last-child { border-bottom: none; }

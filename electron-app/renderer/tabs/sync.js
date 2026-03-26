@@ -218,23 +218,27 @@ async function refreshStatuses() {
   setPipelineBadge("lexicon", "idle", "Prüfen…");
   setPipelineBadge("djpl", "idle", "Prüfen…");
 
-  try {
-    const [lexResult, djplResult] = await Promise.allSettled([
-      window.syncApi.checkLexicon(),
-      window.syncApi.checkDjplaylists(),
-    ]);
+  const [lexResult, djplResult, sampleResult] = await Promise.allSettled([
+    window.syncApi.checkLexicon(),
+    window.syncApi.checkDjplaylists(),
+    window.syncApi.getLexiconTracksSample(5),
+  ]);
 
-    syncState.lexiconStatus = lexResult.status === "fulfilled" ? lexResult.value : { connected: false, error: String(lexResult.reason) };
-    syncState.djplStatus = djplResult.status === "fulfilled" ? djplResult.value : { reachable: false, error: String(djplResult.reason) };
-  } catch (err) {
-    addLog("error", `Status-Abruf fehlgeschlagen: ${err.message}`);
-  }
+  syncState.lexiconStatus = lexResult.status === "fulfilled"
+    ? lexResult.value
+    : { connected: false, error: String(lexResult.reason) };
+
+  syncState.djplStatus = djplResult.status === "fulfilled"
+    ? djplResult.value
+    : { reachable: false, error: String(djplResult.reason) };
+
+  syncState.lexiconSample = sampleResult.status === "fulfilled" ? sampleResult.value : null;
 
   renderConnectionDetails();
 }
 
 function renderConnectionDetails() {
-  const { lexiconStatus: lex, djplStatus: djpl } = syncState;
+  const { lexiconStatus: lex, djplStatus: djpl, lexiconSample: sample } = syncState;
   const details = document.getElementById("sync-connection-details");
   if (!details) return;
 
@@ -242,27 +246,55 @@ function renderConnectionDetails() {
   const djplOk = djpl?.reachable;
   const djplAuth = djpl?.authenticated;
 
-  // Badges
-  setPipelineBadge("lexicon", lexOk ? "ok" : "error", lexOk ? `OK${lex.version ? ` v${lex.version}` : ""}` : "Offline");
-  setPipelineBadge("djpl", djplOk ? (djplAuth ? "ok" : "warn") : "error",
-    djplOk ? (djplAuth ? "Eingeloggt" : "Nicht eingeloggt") : "Nicht erreichbar");
+  // Pipeline-Badges aktualisieren
+  if (lexOk) {
+    const plCount = lex.playlistCount != null ? ` — ${lex.playlistCount} Playlists` : "";
+    const tracks = sample?.total != null ? `, ${sample.total.toLocaleString("de-DE")} Tracks` : "";
+    setPipelineBadge("lexicon", "ok", `✓ Port 48624${plCount}${tracks}`);
+  } else {
+    setPipelineBadge("lexicon", "error", "Offline");
+  }
+
+  setPipelineBadge("djpl",
+    djplOk ? (djplAuth ? "ok" : "warn") : "error",
+    djplOk ? (djplAuth ? "Eingeloggt" : "Kein Auth") : "Offline"
+  );
+
+  // Beispiel-Tracks aus Lexicon anzeigen
+  let sampleHtml = "";
+  if (sample?.tracks?.length > 0) {
+    sampleHtml = `
+      <dt>Lexicon Library (Vorschau)</dt>
+      <dd>
+        <ul class="track-sample-list">
+          ${sample.tracks.slice(0, 5).map((t) =>
+            `<li>${esc(t.title)} — ${esc(t.artist)}${t.bpm ? ` <span class="status-info">${t.bpm} BPM</span>` : ""}${t.key ? ` <span class="status-info">${t.key}</span>` : ""}</li>`
+          ).join("")}
+        </ul>
+        ${sample.total > 5 ? `<span class="status-info">… und ${(sample.total - 5).toLocaleString("de-DE")} weitere</span>` : ""}
+      </dd>
+    `;
+  }
 
   details.innerHTML = `
     <dl class="meta-list">
-      <dt>Lexicon DJ (Port 11011)</dt>
+      <dt>Lexicon DJ (Port 48624)</dt>
       <dd class="${lexOk ? "status-ok" : "status-err"}">
-        ${lexOk ? `✓ Verbunden${lex.endpoint ? ` (${lex.endpoint})` : ""}${lex.version ? ` — v${lex.version}` : ""}` : `✗ ${lex?.error ?? "Nicht erreichbar"}`}
+        ${lexOk
+          ? `✓ Verbunden via /v1/playlists${lex.playlistCount != null ? ` — ${lex.playlistCount} Playlists` : ""}${sample?.total != null ? `, ${sample.total.toLocaleString("de-DE")} Tracks` : ""}`
+          : `✗ ${lex?.error ?? "Nicht erreichbar — Lexicon starten?"}`}
       </dd>
+      ${sampleHtml}
       <dt>DJPlaylists.fm</dt>
       <dd class="${djplOk ? "status-ok" : "status-err"}">
         ${djplOk
-          ? `✓ Erreichbar — ${djplAuth ? `Eingeloggt${djpl.username ? ` als ${djpl.username}` : ""}` : "Nicht authentifiziert (API-Key eingeben)"}`
+          ? `✓ Erreichbar — ${djplAuth ? `Eingeloggt${djpl.username ? ` als ${djpl.username}` : ""}` : "Nicht authentifiziert (API-Key unter Konfiguration eingeben)"}`
           : `✗ ${djpl?.error ?? "Nicht erreichbar"}`}
       </dd>
       <dt>Engine DJ</dt>
-      <dd class="status-info">Wird über Lexicon angesteuert (kein direkter Status-Check)</dd>
+      <dd class="status-info">Wird über Lexicon /v1/sync-Endpoints angesteuert</dd>
       <dt>USB / Denon Prime 4+</dt>
-      <dd class="status-info">Manuell: nach Engine-DJ-Export in Engine OS oder Denon-Gerät einstecken</dd>
+      <dd class="status-info">Nach Engine-DJ-Export: USB einstecken → in Engine OS synchronisieren</dd>
     </dl>
   `;
 }

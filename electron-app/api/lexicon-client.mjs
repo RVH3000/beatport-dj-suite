@@ -1,15 +1,19 @@
 /**
  * Lexicon DJ Local API Client
  *
- * Kommuniziert mit der Lexicon Desktop-App über ihre Local REST-API auf Port 11011.
- * Lexicon nutzt diese API intern — die Endpunkte sind nicht öffentlich dokumentiert,
- * werden hier über typische REST-Patterns erkundet und gecacht.
+ * Kommuniziert mit der Lexicon Desktop-App über die Local REST-API.
+ * Bestätigte Endpoints (entdeckt 2026-03-27):
+ *   GET  /v1/playlists                    — Verschachtelter Playlist-Baum (ROOT → Ordner → Playlisten)
+ *   GET  /v1/tracks?limit=N&offset=N      — Paginierte Track-Liste (45 046 Tracks, alle Metadaten)
+ *
+ * Fehlerformat: { "message": "API /pfad does not exist", "errorCode": 4 }
  *
  * Pipeline-Rolle: Beatport → DJPlaylists.fm → [Lexicon] → Engine DJ → USB
  */
 
-const LEXICON_BASE = "http://localhost:11011";
-const DEFAULT_TIMEOUT_MS = 5000;
+const LEXICON_BASE = "http://localhost:48624";
+const DEFAULT_TIMEOUT_MS = 8000;
+const TRACKS_PAGE_SIZE = 500;
 
 // ─── HTTP-Hilfsfunktion ──────────────────────────────────────────────────────
 
@@ -33,13 +37,19 @@ async function lexiconFetch(path, options = {}) {
     });
     clearTimeout(timer);
 
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => "");
-      throw new Error(`HTTP ${resp.status} ${resp.statusText}: ${text}`);
+    const ct = resp.headers.get("content-type") ?? "";
+    const data = ct.includes("application/json") ? await resp.json() : await resp.text();
+
+    // Lexicon-Fehlerformat: { errorCode: 4, message: "API /... does not exist" }
+    if (!resp.ok || (data?.errorCode != null && data.errorCode !== 0)) {
+      const msg = data?.message ?? `HTTP ${resp.status} ${resp.statusText}`;
+      const err = new Error(msg);
+      err.errorCode = data?.errorCode ?? resp.status;
+      err.status = resp.status;
+      throw err;
     }
 
-    const ct = resp.headers.get("content-type") ?? "";
-    return ct.includes("application/json") ? await resp.json() : await resp.text();
+    return data;
   } catch (err) {
     clearTimeout(timer);
     throw err;
@@ -49,100 +59,101 @@ async function lexiconFetch(path, options = {}) {
 // ─── Verbindungscheck ────────────────────────────────────────────────────────
 
 /**
- * Prüft ob Lexicon läuft und die API erreichbar ist.
- * @returns {{ connected: boolean, endpoint?: string, version?: string, error?: string }}
+ * Prüft ob Lexicon läuft und die API auf Port 48624 erreichbar ist.
+ * @returns {{ connected: boolean, version?: string, trackCount?: number, error?: string }}
  */
 export async function checkConnection() {
-  // Typische Endpunkte für Lexicon / Electron-basierte Desktop-Apps
-  const candidates = [
-    "/api/status",
-    "/api/health",
-    "/api/v1/status",
-    "/status",
-    "/health",
-    "/api",
-    "/api/library",
-    "/api/playlists",
-  ];
-
-  for (const path of candidates) {
-    try {
-      const data = await lexiconFetch(path, { timeout: 2500 });
+  try {
+    // /v1/playlists ist der zuverlässigste bekannte Endpoint
+    const playlists = await lexiconFetch("/v1/playlists", { timeout: 4000 });
+    return {
+      connected: true,
+      endpoint: "/v1/playlists",
+      playlistCount: countPlaylists(playlists),
+    };
+  } catch (err) {
+    const msg = String(err.message ?? "");
+    if (
+      msg.includes("ECONNREFUSED") ||
+      msg.includes("fetch failed") ||
+      msg.includes("Failed to fetch") ||
+      err.name === "AbortError"
+    ) {
       return {
-        connected: true,
-        endpoint: path,
-        version: data?.version ?? data?.appVersion ?? null,
-        raw: data,
+        connected: false,
+        error: "Lexicon ist nicht gestartet (Port 48624 nicht erreichbar).",
       };
-    } catch (err) {
-      const msg = String(err.message ?? "");
-      // ECONNREFUSED = Lexicon nicht gestartet
-      if (
-        msg.includes("ECONNREFUSED") ||
-        msg.includes("fetch failed") ||
-        msg.includes("Failed to fetch") ||
-        err.name === "AbortError"
-      ) {
-        return {
-          connected: false,
-          error: "Lexicon ist nicht gestartet oder API nicht erreichbar (Port 11011).",
-        };
-      }
-      // HTTP-Fehler → Port offen, aber Endpunkt falsch → nächsten probieren
     }
+    return { connected: false, error: msg };
   }
+}
 
-  return {
-    connected: false,
-    error: "Lexicon API antwortet nicht auf bekannten Endpunkten. Bitte Lexicon-Version prüfen.",
+function countPlaylists(tree) {
+  if (!tree) return 0;
+  let count = 0;
+  const visit = (node) => {
+    if (!node) return;
+    if (node.type === "playlist") count++;
+    if (Array.isArray(node.children)) node.children.forEach(visit);
+    if (Array.isArray(node.playlists)) node.playlists.forEach(visit);
   };
+  if (Array.isArray(tree)) tree.forEach(visit);
+  else visit(tree);
+  return count;
 }
 
 // ─── API-Explorer ────────────────────────────────────────────────────────────
 
 /**
- * Erkundet alle bekannten Endpunkte und gibt zurück, welche antworten.
- * Nützlich für Debugging und Ersteinrichtung.
- * @returns {Record<string, { ok: boolean, status?: number, data?: unknown, error?: string }>}
+ * Erkundet alle möglichen /v1/-Endpoints und gibt zurück, welche antworten.
+ * @returns {Record<string, { ok: boolean, errorCode?: number, data?: unknown, error?: string }>}
  */
 export async function exploreApi() {
-  const endpoints = [
-    "/api",
-    "/api/status",
-    "/api/health",
-    "/api/version",
-    "/api/library",
-    "/api/library/playlists",
-    "/api/library/tracks",
-    "/api/playlists",
-    "/api/playlists/all",
-    "/api/tracks",
-    "/api/integrations",
-    "/api/integrations/djplaylists",
-    "/api/integrations/beatport",
-    "/api/djplaylists",
-    "/api/djplaylists/import",
-    "/api/djplaylists/sync",
-    "/api/engine",
-    "/api/engine/status",
-    "/api/engine/export",
-    "/api/engine/sync",
-    "/api/sync",
-    "/api/v1/library",
-    "/api/v1/playlists",
+  const candidates = [
+    // Bestätigte Endpoints
+    "/v1/playlists",
+    "/v1/tracks",
+    // Erkundungs-Kandidaten
+    "/v1/playlist",
+    "/v1/library",
+    "/v1/library/playlists",
+    "/v1/status",
+    "/v1/health",
+    "/v1/version",
+    "/v1/sync",
+    "/v1/sync/engine",
+    "/v1/export",
+    "/v1/export/engine",
+    "/v1/integrations",
+    "/v1/integrations/djplaylists",
+    "/v1/djplaylists",
+    "/v1/beatport",
+    "/v1/crates",
+    "/v1/tags",
+    "/v1/genres",
+    "/v1/artists",
+    "/v1/labels",
+    "/v1/devices",
+    "/v1/devices/engine",
+    "/v1/prefs",
+    "/v1/settings",
   ];
 
   const results = {};
 
   await Promise.allSettled(
-    endpoints.map(async (path) => {
+    candidates.map(async (path) => {
       try {
-        const data = await lexiconFetch(path, { timeout: 2000 });
+        const data = await lexiconFetch(path, { timeout: 2500 });
         results[path] = { ok: true, data };
       } catch (err) {
-        const msg = String(err.message ?? "");
-        const status = msg.match(/HTTP (\d+)/)?.[1];
-        results[path] = { ok: false, status: status ? Number(status) : null, error: msg };
+        results[path] = {
+          ok: false,
+          errorCode: err.errorCode ?? null,
+          error: err.message,
+          // errorCode 4 = Endpoint existiert nicht in Lexicon
+          isNotFound: err.errorCode === 4 || err.message?.includes("does not exist"),
+        };
       }
     })
   );
@@ -153,104 +164,235 @@ export async function exploreApi() {
 // ─── Playlisten ──────────────────────────────────────────────────────────────
 
 /**
- * Lädt alle Playlisten aus der Lexicon-Library.
- * @returns {Array<{ id: string, name: string, trackCount?: number }>}
+ * Lädt den gesamten Playlist-Baum aus Lexicon.
+ * Struktur: ROOT → Ordner → Playlisten (verschachtelt)
+ *
+ * @returns {{ tree: unknown, flat: Array<LexiconPlaylist> }}
  */
 export async function getPlaylists() {
-  const paths = [
-    "/api/library/playlists",
-    "/api/playlists",
-    "/api/v1/playlists",
-    "/api/library",
-  ];
-
-  for (const path of paths) {
-    try {
-      const data = await lexiconFetch(path);
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.playlists)) return data.playlists;
-      if (Array.isArray(data?.data)) return data.data;
-      if (Array.isArray(data?.items)) return data.items;
-    } catch {
-      continue;
-    }
-  }
-  throw new Error(
-    "Playlisten konnten nicht geladen werden. Bitte Lexicon-API-Endpunkt prüfen."
-  );
+  const tree = await lexiconFetch("/v1/playlists");
+  return {
+    tree,
+    flat: flattenPlaylistTree(tree),
+  };
 }
 
 /**
- * Lädt Tracks einer bestimmten Playlist.
+ * Flacht den Playlist-Baum auf eine Liste von Playlists ab.
+ * @param {unknown} node
+ * @param {string} [folderPath]
+ * @returns {Array<LexiconPlaylist>}
+ */
+function flattenPlaylistTree(node, folderPath = "") {
+  const result = [];
+  if (!node) return result;
+
+  const nodes = Array.isArray(node) ? node : [node];
+
+  for (const n of nodes) {
+    if (!n) continue;
+
+    const name = n.name ?? n.title ?? n.id ?? "";
+    const type = n.type ?? (n.children ? "folder" : "playlist");
+
+    if (type === "playlist" || type === "smartPlaylist") {
+      result.push({
+        id: String(n.id ?? n.playlistId ?? ""),
+        name,
+        type,
+        trackCount: n.trackCount ?? n.track_count ?? null,
+        folderPath,
+        raw: n,
+      });
+    }
+
+    // Ordner rekursiv auffalten
+    const childPath = type === "folder" ? (folderPath ? `${folderPath}/${name}` : name) : folderPath;
+    if (Array.isArray(n.children)) result.push(...flattenPlaylistTree(n.children, childPath));
+    if (Array.isArray(n.playlists)) result.push(...flattenPlaylistTree(n.playlists, childPath));
+  }
+
+  return result;
+}
+
+// ─── Tracks einer Playlist ───────────────────────────────────────────────────
+
+/**
+ * Lädt Tracks einer bestimmten Lexicon-Playlist.
+ * Probiert /v1/playlist/:id/tracks, /v1/playlists/:id/tracks usw.
+ *
  * @param {string} playlistId
- * @returns {Array<{ id: string, title: string, artist: string, bpm?: number, key?: string }>}
+ * @returns {Array<LexiconTrack>}
  */
 export async function getPlaylistTracks(playlistId) {
   const paths = [
-    `/api/library/playlists/${playlistId}/tracks`,
-    `/api/playlists/${playlistId}/tracks`,
-    `/api/playlists/${playlistId}`,
-    `/api/v1/playlists/${playlistId}/tracks`,
+    `/v1/playlist/${playlistId}/tracks`,
+    `/v1/playlists/${playlistId}/tracks`,
+    `/v1/playlist/${playlistId}`,
+    `/v1/playlists/${playlistId}`,
   ];
 
   for (const path of paths) {
     try {
       const data = await lexiconFetch(path);
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.tracks)) return data.tracks;
-      if (Array.isArray(data?.data)) return data.data;
-    } catch {
-      continue;
+      // Normalisiere — Lexicon liefert evtl. { tracks: [...] } oder direkt [...]
+      const tracks = Array.isArray(data) ? data
+        : Array.isArray(data?.tracks) ? data.tracks
+        : Array.isArray(data?.data) ? data.data
+        : null;
+      if (tracks) return tracks.map(normalizeTrack);
+    } catch (err) {
+      // errorCode 4 = Endpoint nicht vorhanden → weiter probieren
+      if (err.errorCode === 4) continue;
+      throw err;
     }
   }
-  throw new Error(`Tracks für Playlist "${playlistId}" nicht ladbar.`);
+  throw new Error(`Kein Endpoint für Playlist-Tracks gefunden (Playlist ID: ${playlistId}).`);
+}
+
+// ─── Alle Tracks (paginiert) ─────────────────────────────────────────────────
+
+/**
+ * Lädt alle Tracks aus der Lexicon-Library (paginiert via /v1/tracks).
+ *
+ * @param {{ onProgress?: (loaded: number, total: number) => void, maxTracks?: number }} options
+ * @returns {Array<LexiconTrack>}
+ */
+export async function getAllTracks(options = {}) {
+  const { onProgress, maxTracks = Infinity } = options;
+  const all = [];
+  let offset = 0;
+
+  while (true) {
+    const limit = Math.min(TRACKS_PAGE_SIZE, maxTracks - all.length);
+    const data = await lexiconFetch(`/v1/tracks?limit=${limit}&offset=${offset}`);
+
+    const tracks = Array.isArray(data) ? data
+      : Array.isArray(data?.tracks) ? data.tracks
+      : Array.isArray(data?.data) ? data.data
+      : [];
+
+    const total = data?.total ?? data?.count ?? null;
+
+    all.push(...tracks.map(normalizeTrack));
+    onProgress?.(all.length, total ?? all.length);
+
+    if (tracks.length < limit || all.length >= maxTracks) break;
+    if (total !== null && all.length >= total) break;
+    offset += limit;
+  }
+
+  return all;
+}
+
+/**
+ * Lädt nur die erste Seite der Track-Liste (schnell, für Status-Checks).
+ * @returns {{ tracks: Array<LexiconTrack>, total: number }}
+ */
+export async function getTracksSample(limit = 20) {
+  const data = await lexiconFetch(`/v1/tracks?limit=${limit}&offset=0`);
+  const tracks = Array.isArray(data) ? data
+    : Array.isArray(data?.tracks) ? data.tracks
+    : Array.isArray(data?.data) ? data.data
+    : [];
+  return {
+    tracks: tracks.map(normalizeTrack),
+    total: data?.total ?? data?.count ?? tracks.length,
+  };
+}
+
+// ─── Track-Normalisierung ────────────────────────────────────────────────────
+
+/**
+ * @typedef {Object} LexiconTrack
+ * @property {string}   id
+ * @property {string}   title
+ * @property {string}   artist
+ * @property {number|null} bpm
+ * @property {string|null} key
+ * @property {number|null} energy
+ * @property {string|null} genre
+ * @property {string|null} label
+ * @property {string|null} streamingService
+ * @property {string|null} streamingId
+ * @property {string|null} location
+ * @property {Array}    cuepoints
+ * @property {Array}    tags
+ */
+function normalizeTrack(raw) {
+  return {
+    id: String(raw.id ?? raw.trackId ?? ""),
+    title: raw.title ?? raw.name ?? "",
+    artist: raw.artist ?? raw.artistName ?? "",
+    bpm: raw.bpm ?? raw.tempo ?? null,
+    key: raw.key ?? raw.musicalKey ?? null,
+    energy: raw.energy ?? null,
+    genre: raw.genre ?? null,
+    label: raw.label ?? null,
+    streamingService: raw.streamingService ?? null,
+    streamingId: raw.streamingId ?? null,
+    location: raw.location ?? raw.filePath ?? null,
+    cuepoints: raw.cuepoints ?? raw.cues ?? [],
+    tags: raw.tags ?? [],
+    duration: raw.duration ?? null,
+    year: raw.year ?? null,
+    raw,
+  };
 }
 
 // ─── DJPlaylists.fm Integration ──────────────────────────────────────────────
 
 /**
- * Prüft ob die DJPlaylists.fm-Integration in Lexicon verfügbar ist.
- * @returns {{ available: boolean, status?: string, raw?: unknown }}
+ * Prüft ob DJPlaylists.fm-Integration in Lexicon vorhanden ist.
+ * Erkundet dazu typische /v1/-Pfade.
+ * @returns {{ available: boolean, path?: string, raw?: unknown, note?: string }}
  */
 export async function getDjplaylistsIntegrationStatus() {
   const paths = [
-    "/api/integrations/djplaylists",
-    "/api/djplaylists",
-    "/api/integrations",
+    "/v1/integrations/djplaylists",
+    "/v1/djplaylists",
+    "/v1/integrations",
+    "/v1/sync",
   ];
 
   for (const path of paths) {
     try {
       const data = await lexiconFetch(path, { timeout: 3000 });
       return { available: true, path, raw: data };
-    } catch {
-      continue;
+    } catch (err) {
+      if (err.errorCode === 4) continue; // Endpoint nicht vorhanden
+      if (err.message?.includes("ECONNREFUSED")) break;
     }
   }
+
   return {
     available: false,
-    note: "DJPlaylists.fm-Endpunkt nicht gefunden. Integration möglicherweise über andere API-Route erreichbar.",
+    note: "DJPlaylists.fm-Integration Endpoint noch nicht gefunden. Import evtl. über /v1/sync oder manuell in Lexicon.",
   };
 }
 
 /**
- * Triggert einen Import einer DJPlaylists.fm-Playlist in Lexicon.
- * @param {{ djplaylistsId?: string, djplaylistsUrl?: string, targetFolder?: string }} options
- * @returns {{ ok: boolean, playlistId?: string, trackCount?: number }}
+ * Versucht einen DJPlaylists.fm-Import in Lexicon zu triggern.
+ * Probiert alle bekannten /v1/-Patterns für Import/Sync.
+ *
+ * @param {{ djplaylistsId?: string, djplaylistsUrl?: string, targetFolder?: string }} opts
+ * @returns {{ ok: boolean, path?: string, data?: unknown, error?: string }}
  */
-export async function importFromDjplaylists(options = {}) {
-  const paths = [
-    "/api/integrations/djplaylists/import",
-    "/api/djplaylists/import",
-    "/api/integrations/djplaylists/sync",
-    "/api/sync/djplaylists",
-  ];
-
+export async function importFromDjplaylists(opts = {}) {
   const body = JSON.stringify({
-    playlistId: options.djplaylistsId,
-    url: options.djplaylistsUrl,
-    targetFolder: options.targetFolder ?? "Beatport Sync",
+    playlistId: opts.djplaylistsId,
+    url: opts.djplaylistsUrl,
+    targetFolder: opts.targetFolder ?? "Beatport Sync",
+    source: "djplaylists",
   });
+
+  const paths = [
+    "/v1/integrations/djplaylists/import",
+    "/v1/djplaylists/import",
+    "/v1/sync/djplaylists",
+    "/v1/integrations/djplaylists/sync",
+    "/v1/import",
+  ];
 
   for (const path of paths) {
     try {
@@ -261,58 +403,62 @@ export async function importFromDjplaylists(options = {}) {
       });
       return { ok: true, path, data };
     } catch (err) {
-      const msg = String(err.message ?? "");
-      // 4xx → Endpunkt existiert, aber Parameter falsch → Fehler weitergeben
-      if (msg.includes("HTTP 4")) throw new Error(`Lexicon Import-Fehler: ${msg}`);
-      continue;
+      if (err.errorCode === 4) continue; // Endpoint nicht vorhanden
+      // Echter Fehler (4xx mit anderem Code) → zurückgeben
+      return { ok: false, path, error: err.message };
     }
   }
 
-  throw new Error(
-    "Lexicon DJPlaylists.fm-Import-Endpunkt nicht gefunden. " +
-      "Bitte in Lexicon unter Integrations → DJPlaylists.fm manuell importieren."
-  );
+  return {
+    ok: false,
+    error:
+      "Kein DJPlaylists.fm-Import-Endpoint in Lexicon gefunden. " +
+      "Bitte in Lexicon manuell unter Integrations → DJPlaylists.fm importieren.",
+  };
 }
 
 // ─── Engine DJ Export ────────────────────────────────────────────────────────
 
 /**
  * Triggert den Engine DJ Sync/Export in Lexicon.
- * @param {{ playlistIds?: string[], exportAll?: boolean, targetDevice?: string }} options
- * @returns {{ ok: boolean, exportedCount?: number }}
+ *
+ * @param {{ playlistIds?: string[], exportAll?: boolean }} opts
+ * @returns {{ ok: boolean, path?: string, data?: unknown, error?: string }}
  */
-export async function triggerEngineDjExport(options = {}) {
-  const paths = [
-    "/api/engine/export",
-    "/api/engine/sync",
-    "/api/sync/engine",
-    "/api/export/engine",
-    "/api/library/export/engine",
-  ];
-
+export async function triggerEngineDjExport(opts = {}) {
   const body = JSON.stringify({
-    playlistIds: options.playlistIds ?? [],
-    exportAll: options.exportAll ?? false,
-    targetDevice: options.targetDevice ?? null,
+    playlistIds: opts.playlistIds ?? [],
+    exportAll: opts.exportAll ?? false,
+    target: "engine",
   });
+
+  const paths = [
+    "/v1/sync/engine",
+    "/v1/export/engine",
+    "/v1/engine/export",
+    "/v1/engine/sync",
+    "/v1/sync",
+    "/v1/export",
+  ];
 
   for (const path of paths) {
     try {
       const data = await lexiconFetch(path, {
         method: "POST",
         body,
-        timeout: 60000,
+        timeout: 120000, // Engine-Export kann lange dauern
       });
       return { ok: true, path, data };
     } catch (err) {
-      const msg = String(err.message ?? "");
-      if (msg.includes("HTTP 4")) throw new Error(`Engine-DJ-Export-Fehler: ${msg}`);
-      continue;
+      if (err.errorCode === 4) continue;
+      return { ok: false, path, error: err.message };
     }
   }
 
-  throw new Error(
-    "Engine DJ Export-Endpunkt in Lexicon nicht gefunden. " +
-      "Bitte in Lexicon unter Sync → Engine DJ manuell exportieren."
-  );
+  return {
+    ok: false,
+    error:
+      "Kein Engine-DJ-Export-Endpoint gefunden. " +
+      "Bitte in Lexicon manuell Sync → Engine DJ starten.",
+  };
 }

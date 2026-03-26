@@ -285,6 +285,46 @@ export async function getPlaylistTracks(playlistId) {
   throw new Error(`DJPlaylists.fm: Tracks für Playlist ${playlistId} nicht ladbar.`);
 }
 
+// ─── API-Explorer ────────────────────────────────────────────────────────────
+
+/**
+ * Erkundet typische DJPlaylists.fm REST-Endpoints.
+ * @returns {Record<string, { ok: boolean, error?: string }>}
+ */
+export async function exploreApi() {
+  const paths = [
+    "/",
+    "/api",
+    "/api/v1",
+    "/api/status",
+    "/api/playlists",
+    "/api/v1/playlists",
+    "/api/my-playlists",
+    "/api/user/playlists",
+    "/api/import/beatport",
+    "/api/playlists/import",
+  ];
+
+  const results = {};
+  await Promise.allSettled(
+    paths.map(async (path) => {
+      try {
+        await djplFetch(path, {
+          timeout: 4000,
+          headers: { Accept: "application/json,text/html" },
+        });
+        results[path] = { ok: true };
+      } catch (err) {
+        results[path] = {
+          ok: false,
+          error: String(err.message ?? "").slice(0, 120),
+        };
+      }
+    })
+  );
+  return results;
+}
+
 // ─── Link für Lexicon ────────────────────────────────────────────────────────
 
 /**
