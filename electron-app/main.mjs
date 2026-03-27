@@ -644,6 +644,37 @@ app.whenReady().then(() => {
     }
   });
 
+  // ── Scoring-Data laden (für Search & Filter Tab) ──────────────────────────
+
+  ipcMain.handle("sync:load-scoring-data", async (_event, filePath) => {
+    try {
+      const resolvedPath = filePath || path.join(
+        app.getPath("home"),
+        "Documents/Claude/Projects/Beatport PL WIZ/scoring-data.json"
+      );
+      const raw = await fs.readFile(resolvedPath, "utf8");
+      return JSON.parse(raw);
+    } catch (err) {
+      throw new Error(`scoring-data.json nicht ladbar: ${toErrorMessage(err)}`);
+    }
+  });
+
+  ipcMain.handle("sync:choose-scoring-file", async () => {
+    const { dialog } = await import("electron");
+    const result = await dialog.showOpenDialog({
+      title: "scoring-data.json auswählen",
+      filters: [{ name: "JSON", extensions: ["json"] }],
+      properties: ["openFile"],
+      defaultPath: path.join(
+        app.getPath("home"),
+        "Documents/Claude/Projects/Beatport PL WIZ"
+      ),
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    const raw = await fs.readFile(result.filePaths[0], "utf8");
+    return JSON.parse(raw);
+  });
+
   // ── DJPlaylists.fm → Lexicon Batch-Automation ─────────────────────────────
   //
   // Entdeckte Endpoints (2026-03-27, via Browser-Interception):

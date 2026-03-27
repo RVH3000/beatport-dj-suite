@@ -20,6 +20,7 @@
 
     <nav class="tab-bar" role="tablist">
       <button class="tab active" role="tab" aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-search"     data-tab="search">Suche & Filter</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-sync"        data-tab="sync">Sync-Pipeline</button>
@@ -300,6 +301,23 @@
           </div>
           <div id="deleteResultWrap" class="table-wrap empty">Noch kein Löschlauf</div>
         </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: Suche & Filter (PL WIZ v5)                                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-search" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" style="grid-template-columns:1fr">
+        <div id="search-content">
+          <section class="panel span-full placeholder-panel">
+            <h2>Suche & Filter</h2>
+            <p class="placeholder-text">
+              Beatport Track-Datenbank durchsuchen, BPM-Lock, Dramaturgie-Score,
+              Playlist Builder mit Camelot-Kompatibilität.
+            </p>
+          </section>
+        </div>
       </div>
     </main>
 

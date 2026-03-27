@@ -688,7 +688,7 @@ async function scrapeDjplaylists() {
 async function runDjplToLexiconAll() {
   if (syncState.pipelineRunning) return;
   if (_djplPlaylists.length === 0) {
-    addLog("warn", "Zuerst Playlisten laden (Button: „Playlisten laden").");
+    addLog("warn", 'Zuerst Playlisten laden (Button: "Playlisten laden").');
     return;
   }
 

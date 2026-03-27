@@ -98,4 +98,7 @@ contextBridge.exposeInMainWorld("syncApi", {
   // Presets
   getPresets:               ()              => ipcRenderer.invoke("sync:get-presets"),
   savePresets:              (presets)       => ipcRenderer.invoke("sync:save-presets", presets),
+  // Scoring-Data (Search & Filter Tab)
+  loadScoringData:          (filePath)      => ipcRenderer.invoke("sync:load-scoring-data", filePath),
+  chooseScoringFile:        ()              => ipcRenderer.invoke("sync:choose-scoring-file"),
 });
