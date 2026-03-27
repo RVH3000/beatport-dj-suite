@@ -53,6 +53,21 @@ contextBridge.exposeInMainWorld("exportApi", {
   generate: (config, query) => ipcRenderer.invoke("export:generate", config, query),
 });
 
+contextBridge.exposeInMainWorld("unifiedApi", {
+  discoverProjects: (options) => ipcRenderer.invoke("unified:discover-projects", options),
+  engineSummary: (options) => ipcRenderer.invoke("unified:engine-summary", options),
+  enginePlaylists: (options) => ipcRenderer.invoke("unified:engine-playlists", options),
+  enginePlaylistTracks: (options) =>
+    ipcRenderer.invoke("unified:engine-playlist-tracks", options),
+  engineHistorySessions: (options) =>
+    ipcRenderer.invoke("unified:engine-history-sessions", options),
+  engineHistoryTracks: (options) =>
+    ipcRenderer.invoke("unified:engine-history-tracks", options),
+  exportM3u: (options) => ipcRenderer.invoke("unified:export-m3u", options),
+  classifyCache: (config) => ipcRenderer.invoke("unified:classify-cache", config),
+  sendOscSnapshot: (options) => ipcRenderer.invoke("unified:send-osc-snapshot", options),
+});
+
 contextBridge.exposeInMainWorld("analysisApi", {
   getTrackData: (config) => ipcRenderer.invoke("analysis:get-track-data", config),
   getOverlapMatrix: (config) => ipcRenderer.invoke("analysis:get-overlap-matrix", config),
