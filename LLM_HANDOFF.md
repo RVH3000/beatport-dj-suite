@@ -1,16 +1,16 @@
 <!-- doc-governance
-project_id: beatport-scanner
+project_id: beatport-dj-suite
 doc_role: llm_handoff
 scope: project
-owner_root: /Users/roberth./Projects/products/beatport-scanner
+owner_root: /Users/roberth./Projects/_local/beatport-dj-suite
 canonical: true
-updated_at: 2026-03-16
+updated_at: 2026-03-27
 -->
 
 # LLM Handoff
 
 ## Ziel
-Desktop-App fuer Beatport-Playlist-Discovery, Delta-Sync, Cache-basierte Analyse und Export.
+Desktop-App fuer Beatport-Playlist-Discovery, Delta-Sync, Cache-basierte Analyse, Export und Playlist-Wiz.
 
 ## Erst lesen
 1. `README.md`

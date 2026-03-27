@@ -1,15 +1,16 @@
 <!-- doc-governance
-project_id: beatport-scanner
+project_id: beatport-dj-suite
 doc_role: readme
 scope: project
-owner_root: /Users/roberth./Projects/products/beatport-scanner
+owner_root: /Users/roberth./Projects/_local/beatport-dj-suite
 canonical: true
-updated_at: 2026-03-16
+updated_at: 2026-03-27
 -->
 
-# Beatport Playlist Scanner
+# Beatport DJ Suite
 
-macOS-Desktop-App für Beatport DJ Playlists mit internem persistentem Beatport-Profil.
+macOS-Desktop-App fuer Beatport DJ Playlists mit internem persistentem Beatport-Profil.
+Die Suite fuehrt den bisherigen Beatport Playlist Scanner kompatibel weiter.
 
 Funktionen:
 - lokaler SQLite-Arbeitsbestand für sofortige Playlist-Ansicht
@@ -30,7 +31,9 @@ Funktionen:
 ## Kernpfade
 
 - App: `electron-app/`
-- Scanner-Engine: `tools/beatport_cdp_tool.mjs`
+- Scanner-Kern: `electron-app/scanner/cdp-scanner.mjs`
+- Kompatibilitaets-CLI: `tools/beatport_cdp_tool.mjs`
+- XHR-/Playlist-CLI: `tools/bpx.mjs`
 - Tests: `tests/`
 - Dokumentation: `docs/`
 
@@ -114,8 +117,8 @@ Run-Typen:
 - danach läuft Delta-Sync gegen Beatport, ohne automatisch jede Playlist tief zu analysieren
 
 Details siehe:
-- [Benutzerhandbuch](/Users/roberth./Projects/products/beatport-scanner/docs/USER_GUIDE.md)
-- [Troubleshooting](/Users/roberth./Projects/products/beatport-scanner/docs/TROUBLESHOOTING.md)
-- [Architektur](/Users/roberth./Projects/products/beatport-scanner/docs/ARCHITECTURE.md)
-- [Migration](/Users/roberth./Projects/products/beatport-scanner/docs/MIGRATION.md)
-- [Release-Checklist](/Users/roberth./Projects/products/beatport-scanner/docs/RELEASE_CHECKLIST.md)
+- [Benutzerhandbuch](docs/USER_GUIDE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Architektur](docs/ARCHITECTURE.md)
+- [Migration](docs/MIGRATION.md)
+- [Release-Checklist](docs/RELEASE_CHECKLIST.md)

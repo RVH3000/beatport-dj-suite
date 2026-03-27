@@ -1,20 +1,20 @@
-project_id: "beatport-scanner"
-project: "beatport-scanner"
-project_name: "beatport-scanner"
-project_root: "/Users/roberth./Projects/products/beatport-scanner"
+project_id: "beatport-dj-suite"
+project: "beatport-dj-suite"
+project_name: "Beatport DJ Suite"
+project_root: "/Users/roberth./Projects/_local/beatport-dj-suite"
 project_type: "product"
-domain: "desktop / beatport playlist scanner"
+domain: "desktop / beatport dj suite"
 doc_governance: strict
 primary_tool: codex
 active_branch: main
-last_session: "2026-03-16"
+last_session: "2026-03-27"
 status: active
 
 tools:
   claude: "Architektur und Review"
-  codex: "Scanner, Electron, Cache, Checks"
+  codex: "Suite, Electron, Cache, Checks"
   chatgpt: "Verdichtung und Zwischenstatus"
   perplexity: "Recherche"
   grok: "Gegencheck"
 
-next: "Listenanzeige in 1.5.1 stabilisieren"
+next: "Suite-Entrypoints, Tabs und Sync konsolidieren"

@@ -14,7 +14,7 @@ import {
   runAnalyzeSelection,
   runDelete,
   runDiscover,
-} from "../tools/beatport_cdp_tool.mjs";
+} from "../electron-app/scanner/cdp-scanner.mjs";
 
 function parseArgs(argv) {
   const options = {};

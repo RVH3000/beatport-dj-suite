@@ -16,6 +16,8 @@ const REQUIRED_DOCS = [
 ];
 const REQUIRED_FILES = [
   "tools/beatport_cdp_tool.mjs",
+  "tools/bpx.mjs",
+  "electron-app/scanner/cdp-scanner.mjs",
   "electron-app/auth/session-probe.mjs",
   "electron-app/auth/session-manager.mjs",
   "electron-app/cache/sqlite-cache.mjs",

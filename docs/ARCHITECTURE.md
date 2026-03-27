@@ -6,7 +6,7 @@
   - interner Beatport-Session-Kontext
   - persistente Electron-Partition
   - Session-Probe und Login-Öffnung ohne Passwortspeicherung
-- `tools/beatport_cdp_tool.mjs`
+- `electron-app/scanner/cdp-scanner.mjs`
   - interner Client oder externer CDP-Fallback
   - XHR-First Discovery und Analyse über Beatport-API
   - lokaler SQLite-Arbeitsbestand als Primärquelle für UI und CSV
@@ -15,11 +15,16 @@
   - RunStore
   - Legacy-Erkennung, Migration, ZIP-Export
   - bevorzugter kompatibler Run und Delta-Baseline für neue Discovery-Läufe
+- `tools/beatport_cdp_tool.mjs`
+  - kompatibler CLI-Entrypoint auf den Scanner-Kern
+- `tools/bpx.mjs`
+  - XHR-/Playlist-CLI für API-Kontext, CRUD und Cache-Export
 - `electron-app/main.mjs`
   - IPC-Grenze zwischen UI und Tool
 - `electron-app/renderer/*`
   - Archivansicht
   - Discovery-/Analyse-Workflow
+  - Analysis-, Export- und Playlist-Wiz-Tabs
   - Legacy-Migration und ZIP-Export
 
 ## Run-Schema v2

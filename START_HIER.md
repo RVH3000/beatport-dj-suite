@@ -1,15 +1,15 @@
 <!-- doc-governance
-project_id: beatport-scanner
+project_id: beatport-dj-suite
 doc_role: start_here
 scope: project
-owner_root: /Users/roberth./Projects/products/beatport-scanner
+owner_root: /Users/roberth./Projects/_local/beatport-dj-suite
 canonical: true
-updated_at: 2026-03-16
+updated_at: 2026-03-27
 -->
 
 # Start hier
 
-Das ist der saubere Quellordner fuer den Beatport Playlist Scanner.
+Das ist der saubere Quellordner fuer die Beatport DJ Suite.
 
 ## Wichtige Regel
 - hier liegt nur Quellcode, Tests, Doku und Build-Konfiguration

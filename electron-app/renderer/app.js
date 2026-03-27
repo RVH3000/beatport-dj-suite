@@ -3,6 +3,7 @@ let analysisModule = null;
 let exportModule = null;
 let playlistWizModule = null;
 let syncModule = null;
+const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
 
 // ─── Tab-Navigation ─────────────────────────────────────────────────────────
 (function initTabs() {
@@ -88,6 +89,7 @@ const state = {
   cachePlaylists: [],
   cachePlaylistsLoading: false,
   cachePlaylistsError: "",
+  cacheSyncPendingReason: "",
   cacheSelectedPlaylistIdentities: new Set(),
   pauseRequested: false,
   pollTimer: null,
@@ -648,7 +650,7 @@ function renderCacheStatus() {
   const lastDeltaSync = syncRows.find((entry) => entry.key === "last_delta_sync_at");
   const lastRebuild = syncRows.find((entry) => entry.key === "last_rebuild_at");
   els.cacheStatus.classList.remove("empty");
-  els.cacheStatus.textContent = [
+  const parts = [
     `Cache Playlists ${counts.playlists ?? 0}`,
     `Tracks ${counts.tracks ?? 0}`,
     `Dirty ${counts.dirtyPlaylists ?? 0}`,
@@ -657,8 +659,99 @@ function renderCacheStatus() {
     `Bestätigt ${counts.duplicateConfirmed ?? 0}`,
     `Delta ${formatDate(lastDeltaSync?.value || "")}`,
     `Rebuild ${formatDate(lastRebuild?.value || "")}`,
-  ].join(" | ");
+  ];
+  if (state.cacheSyncPendingReason) {
+    parts.push(`Sync ausstehend ${state.cacheSyncPendingReason}`);
+  }
+  els.cacheStatus.textContent = parts.join(" | ");
 }
+
+function getActiveTabId() {
+  return document.querySelector(".tab-panel.active")?.id || "";
+}
+
+function markCacheSyncPending(reason = "") {
+  state.cacheSyncPendingReason = normalizeText(reason);
+  renderCacheStatus();
+}
+
+function clearCacheSyncPending() {
+  if (!state.cacheSyncPendingReason) {
+    return;
+  }
+  state.cacheSyncPendingReason = "";
+  renderCacheStatus();
+}
+
+function invalidateLazyTabData(reason = "", options = {}) {
+  analysisModule?.forceReload?.(reason);
+  exportModule?.forceReload?.(reason);
+  if (options.includePlaylistWiz) {
+    playlistWizModule?.forceReload?.(reason);
+  }
+}
+
+async function reloadActiveLazyTab() {
+  const activeTabId = getActiveTabId();
+  if (activeTabId === "tab-analyse") {
+    await loadAnalysisTab();
+  } else if (activeTabId === "tab-export") {
+    await loadExportTab();
+  } else if (activeTabId === "tab-playlist") {
+    await loadPlaylistWizTab();
+  }
+}
+
+async function refreshDataViews(options = {}) {
+  invalidateLazyTabData(options.reason || "", {
+    includePlaylistWiz: options.includePlaylistWiz === true,
+  });
+  await refreshCacheStatus();
+  await refreshCachePlaylists();
+  await refreshRuns(options.preferredRunId ?? state.selectedRunId, {
+    preserveDraft: options.preserveDraft !== false,
+  });
+  if (options.reloadActiveTab !== false) {
+    await reloadActiveLazyTab();
+  }
+}
+
+async function handlePlaylistWizMutation(detail = {}) {
+  const reason =
+    normalizeText(detail.summary || detail.reason) || "Playlist-Wiz Änderung";
+  markCacheSyncPending(reason);
+  invalidateLazyTabData(reason, { includePlaylistWiz: true });
+
+  if (state.activity) {
+    await reloadActiveLazyTab();
+    setStatus(
+      `${reason}. Lokaler Cache wird nach Abschluss der aktuellen Aktion aktualisiert.`,
+      "idle"
+    );
+    return;
+  }
+
+  if (state.authStatus?.sessionState === "valid") {
+    await runDiscovery();
+    return;
+  }
+
+  await reloadActiveLazyTab();
+  setStatus(
+    `${reason}. Lokaler Cache ist veraltet; führe einen Delta-Sync aus, sobald die interne Session gültig ist.`,
+    "idle"
+  );
+}
+
+window.addEventListener(PLAYLIST_WIZ_MUTATION_EVENT, (event) => {
+  handlePlaylistWizMutation(event.detail || {}).catch((error) => {
+    console.error("[playlist-wiz] Sync-Folgefehler:", error);
+    setStatus(
+      `Playlist-Wiz Aktualisierung fehlgeschlagen: ${String(error.message || error)}`,
+      "error"
+    );
+  });
+});
 
 function renderRunSelect() {
   els.runSelect.innerHTML = "";
@@ -1719,9 +1812,12 @@ async function runDiscovery() {
     state.playlistDetailsError = "";
     state.playlistDetailsLoading = false;
     await refreshAppInfo();
-    await refreshCacheStatus();
-    await refreshCachePlaylists();
-    await refreshRuns(state.selectedRunId, { preserveDraft: false });
+    clearCacheSyncPending();
+    await refreshDataViews({
+      reason: "delta-sync",
+      preferredRunId: state.selectedRunId,
+      preserveDraft: false,
+    });
     setStatus(
       [
         "Delta-Sync abgeschlossen.",
@@ -1766,9 +1862,12 @@ async function runQuickScan() {
     state.playlistDetailsError = "";
     state.playlistDetailsLoading = false;
     await refreshAppInfo();
-    await refreshCacheStatus();
-    await refreshCachePlaylists();
-    await refreshRuns(state.selectedRunId, { preserveDraft: false });
+    clearCacheSyncPending();
+    await refreshDataViews({
+      reason: "quick-scan",
+      preferredRunId: state.selectedRunId,
+      preserveDraft: false,
+    });
 
     if (result.paused) {
       setStatus(
@@ -1799,9 +1898,11 @@ async function runQuickScan() {
       `Komplettlauf fehlgeschlagen: ${String(error.message || error)}`,
       "error"
     );
-    await refreshCacheStatus();
-    await refreshCachePlaylists();
-    await refreshRuns(state.selectedRunId, { preserveDraft: true });
+    await refreshDataViews({
+      reason: "quick-scan-error",
+      preferredRunId: state.selectedRunId,
+      preserveDraft: true,
+    });
   } finally {
     clearActivity();
   }
@@ -1857,9 +1958,12 @@ async function runAnalyzeSelection(options = {}) {
       : await window.scannerApi.analyzeSelected(config);
     state.lastScan = result;
     state.selectedRunId = result.run?.runId ?? state.selectedRunId;
-    await refreshCacheStatus();
-    await refreshCachePlaylists();
-    await refreshRuns(state.selectedRunId, { preserveDraft: false });
+    clearCacheSyncPending();
+    await refreshDataViews({
+      reason: options.resume ? "analysis-resume" : "analysis",
+      preferredRunId: state.selectedRunId,
+      preserveDraft: false,
+    });
 
     if (result.paused || result.run?.status === "paused") {
       setStatus(
@@ -1888,9 +1992,11 @@ async function runAnalyzeSelection(options = {}) {
       `Analyse fehlgeschlagen: ${String(error.message || error)}`,
       "error"
     );
-    await refreshCacheStatus();
-    await refreshCachePlaylists();
-    await refreshRuns(state.selectedRunId, { preserveDraft: true });
+    await refreshDataViews({
+      reason: "analysis-error",
+      preferredRunId: state.selectedRunId,
+      preserveDraft: true,
+    });
   } finally {
     clearActivity();
   }
@@ -1902,8 +2008,11 @@ async function runRebuildCache() {
   setStatus("Cache wird aus vorhandenen Runs neu aufgebaut ...", "running");
   try {
     const result = await window.scannerApi.rebuildCacheFromRuns(getCurrentConfig());
-    await refreshCacheStatus();
-    await refreshCachePlaylists();
+    clearCacheSyncPending();
+    await refreshDataViews({
+      reason: "cache-rebuild",
+      preserveDraft: true,
+    });
     setStatus(
       `Cache-Rebuild abgeschlossen. Quellen ${result.rebuiltFromRuns ?? 0}, bevorzugter Run ${result.preferredRunId || "–"}`,
       "success"
@@ -2002,6 +2111,8 @@ async function exportApiContext() {
     setStatus("Exportiere API-Kontext für XHR-Tool ...", "running");
     const result = await window.authApi.exportApiContext(getCurrentConfig());
     if (result?.ok) {
+      invalidateLazyTabData("api-context-export", { includePlaylistWiz: true });
+      await reloadActiveLazyTab();
       setStatus(
         `✓ API-Kontext exportiert: ${result.path}`,
         "success"
@@ -2398,7 +2509,7 @@ async function loadExportTab() {
     if (!exportModule) {
       exportModule = await import("./tabs/export.js");
     }
-    exportModule.renderExportTab();
+    await exportModule.renderExportTab();
   } catch (err) {
     console.error("[export] Laden fehlgeschlagen:", err);
   }

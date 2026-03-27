@@ -1,7 +1,7 @@
-# Beatport Playlist Scanner einfach erklaert
+# Beatport DJ Suite einfach erklaert
 
 ## Was ist das?
-Das hier ist der sichtbare Quellordner fuer die App `Beatport Playlist Scanner`.
+Das hier ist der sichtbare Quellordner fuer die App `Beatport DJ Suite`.
 
 Er ist fuer Entwicklung gedacht:
 - Quellcode
@@ -28,7 +28,7 @@ Hier startest du:
 - `electron-app/`
   - die eigentliche Desktop-App
 - `tools/`
-  - Scanner-Logik und Hilfsskripte
+  - Scanner-CLI, XHR-/Playlist-CLI und Hilfsskripte
 - `tests/`
   - Tests und Fixtures
 - `docs/`

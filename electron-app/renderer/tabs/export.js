@@ -2,7 +2,7 @@
  * export.js — Export-Tab Logik
  *
  * Unterstützte Formate: Rekordbox XML, Traktor NML, JSON, JSONL.
- * CSV-Export läuft weiterhin über den Scanner-Tab (existierende Logik).
+ * CSV-Export läuft weiterhin über den Scanner-Tab.
  */
 
 const FORMATS = [
@@ -43,59 +43,87 @@ const FORMATS = [
 let exporting = false;
 let lastResult = null;
 let lastError = "";
+let cacheSummary = null;
+let cacheStatusError = "";
+let cacheStatusLoading = false;
+let lastConfigJson = "";
 
-export function renderExportTab() {
-  const container = document.getElementById("export-content");
-  if (!container) return;
+function getCurrentConfig() {
+  return typeof window.getCurrentConfig === "function"
+    ? window.getCurrentConfig()
+    : {};
+}
 
-  container.innerHTML = `
-    <section class="panel span-full">
-      <h2>DJ-Software Export</h2>
-      <p style="color:var(--muted);margin:0 0 14px">
-        Exportiert alle analysierten Playlists und Tracks aus dem lokalen Cache
-        in das gewählte Format. Der bestehende CSV-Export ist weiterhin im Scanner-Tab verfügbar.
-      </p>
-      <div class="export-grid" id="export-format-grid">
-        ${FORMATS.map((f) => `
-          <button class="export-card" data-format="${f.id}" ${exporting ? "disabled" : ""}>
-            <span class="export-icon">${f.icon}</span>
-            <strong>${f.label}</strong>
-            <span class="export-ext">${f.ext}</span>
-            <p>${f.desc}</p>
-          </button>
-        `).join("")}
-      </div>
-    </section>
+function canExport() {
+  return (
+    !exporting &&
+    !cacheStatusLoading &&
+    !cacheStatusError &&
+    Number(cacheSummary?.trackCount || 0) > 0
+  );
+}
 
-    <section class="panel span-full" id="export-result-panel" ${lastResult || lastError ? "" : "hidden"}>
-      <h2>Letzter Export</h2>
-      <div id="export-result"></div>
-    </section>
-  `;
+async function ensureCacheSummary(config) {
+  const configJson = JSON.stringify(config || {});
+  if (cacheStatusLoading || configJson === lastConfigJson) {
+    return;
+  }
 
-  // Event-Listener
-  container.querySelector("#export-format-grid").addEventListener("click", (e) => {
-    const card = e.target.closest(".export-card");
-    if (!card || exporting) return;
-    const formatId = card.dataset.format;
-    const format = FORMATS.find((f) => f.id === formatId);
-    if (format) runExport(format);
-  });
+  cacheStatusLoading = true;
+  cacheStatusError = "";
+  renderMarkup();
 
-  if (lastResult || lastError) {
-    renderResult();
+  try {
+    const status = await window.scannerApi.getCacheStatus(config);
+    const counts = status?.counts || {};
+    cacheSummary = {
+      playlistCount: counts.playlists ?? 0,
+      trackCount: counts.tracks ?? 0,
+      analyzedPlaylistCount: counts.analyzedPlaylists ?? 0,
+      dirtyPlaylistCount: counts.dirtyPlaylists ?? 0,
+    };
+    lastConfigJson = configJson;
+  } catch (err) {
+    cacheSummary = null;
+    cacheStatusError =
+      err.message || "Cache-Status konnte nicht geladen werden.";
+  } finally {
+    cacheStatusLoading = false;
   }
 }
 
+export async function renderExportTab() {
+  const container = document.getElementById("export-content");
+  if (!container) return;
+
+  renderMarkup();
+  await ensureCacheSummary(getCurrentConfig());
+  renderMarkup();
+}
+
+export function forceReload() {
+  cacheSummary = null;
+  cacheStatusError = "";
+  cacheStatusLoading = false;
+  lastConfigJson = "";
+  lastError = "";
+}
+
 async function runExport(format) {
-  if (exporting) return;
+  if (!canExport()) {
+    lastError =
+      cacheStatusError ||
+      "Keine Cache-Trackdaten vorhanden. Führe zuerst Delta-Sync oder Analyse aus.";
+    renderMarkup();
+    return;
+  }
+
   exporting = true;
   lastResult = null;
   lastError = "";
-  renderExportTab();
+  renderMarkup();
 
   try {
-    // Speicherpfad wählen
     const saveResult = await window.exportApi.chooseSavePath({
       title: `${format.label} exportieren`,
       defaultName: format.defaultName,
@@ -103,15 +131,10 @@ async function runExport(format) {
     });
 
     if (saveResult.canceled) {
-      exporting = false;
-      renderExportTab();
       return;
     }
 
-    // Config aus Scanner-Tab lesen (getCurrentConfig wird global bereitgestellt)
-    const config = typeof window.getCurrentConfig === "function" ? window.getCurrentConfig() : {};
-
-    lastResult = await window.exportApi.generate(config, {
+    lastResult = await window.exportApi.generate(getCurrentConfig(), {
       format: format.id,
       outputPath: saveResult.filePath,
     });
@@ -121,7 +144,85 @@ async function runExport(format) {
     exporting = false;
   }
 
-  renderExportTab();
+  renderMarkup();
+}
+
+function renderCacheCallout() {
+  if (cacheStatusLoading) {
+    return '<div class="callout">Prüfe lokalen Arbeitsbestand ...</div>';
+  }
+  if (cacheStatusError) {
+    return `<div class="callout warning">${escapeHtml(cacheStatusError)}</div>`;
+  }
+  if (!cacheSummary || cacheSummary.trackCount === 0) {
+    return `
+      <div class="callout warning">
+        Keine Cache-Trackdaten vorhanden. Führe zuerst Delta-Sync oder eine Analyse aus.
+      </div>
+    `;
+  }
+  return `
+    <div class="callout success">
+      Cache bereit: ${cacheSummary.playlistCount} Playlists, ${cacheSummary.trackCount.toLocaleString(
+        "de-AT"
+      )} Tracks, ${cacheSummary.analyzedPlaylistCount} analysiert, ${cacheSummary.dirtyPlaylistCount} dirty.
+    </div>
+  `;
+}
+
+function renderMarkup() {
+  const container = document.getElementById("export-content");
+  if (!container) return;
+
+  const exportEnabled = canExport();
+  container.innerHTML = `
+    <section class="panel span-full">
+      <h2>DJ-Software Export</h2>
+      <p style="color:var(--muted);margin:0 0 14px">
+        Exportiert alle analysierten Playlists und Tracks aus dem lokalen Cache
+        in das gewählte Format. Der bestehende CSV-Export bleibt im Scanner-Tab.
+      </p>
+      ${renderCacheCallout()}
+      <div class="export-grid" id="export-format-grid">
+        ${FORMATS.map(
+          (format) => `
+            <button
+              class="export-card"
+              data-format="${format.id}"
+              ${exportEnabled ? "" : "disabled"}
+            >
+              <span class="export-icon">${format.icon}</span>
+              <strong>${format.label}</strong>
+              <span class="export-ext">${format.ext}</span>
+              <p>${format.desc}</p>
+            </button>
+          `
+        ).join("")}
+      </div>
+    </section>
+
+    <section class="panel span-full" id="export-result-panel" ${
+      lastResult || lastError ? "" : "hidden"
+    }>
+      <h2>Letzter Export</h2>
+      <div id="export-result"></div>
+    </section>
+  `;
+
+  container
+    .querySelector("#export-format-grid")
+    ?.addEventListener("click", (event) => {
+      const card = event.target.closest(".export-card");
+      if (!card || !exportEnabled) return;
+      const format = FORMATS.find((entry) => entry.id === card.dataset.format);
+      if (format) {
+        runExport(format);
+      }
+    });
+
+  if (lastResult || lastError) {
+    renderResult();
+  }
 }
 
 function renderResult() {
@@ -132,7 +233,9 @@ function renderResult() {
   panel.hidden = false;
 
   if (lastError) {
-    container.innerHTML = `<div class="callout warning">${escapeHtml(lastError)}</div>`;
+    container.innerHTML = `<div class="callout warning">${escapeHtml(
+      lastError
+    )}</div>`;
     return;
   }
 
@@ -140,9 +243,7 @@ function renderResult() {
 
   const sizeKb = (lastResult.size / 1024).toFixed(1);
   container.innerHTML = `
-    <div class="callout success">
-      Export erfolgreich gespeichert.
-    </div>
+    <div class="callout success">Export erfolgreich gespeichert.</div>
     <div class="export-result-grid">
       <div class="stat-card">
         <span class="stat-label">Format</span>
@@ -154,7 +255,9 @@ function renderResult() {
       </div>
       <div class="stat-card">
         <span class="stat-label">Tracks</span>
-        <strong class="stat-value">${lastResult.trackCount.toLocaleString("de")}</strong>
+        <strong class="stat-value">${lastResult.trackCount.toLocaleString(
+          "de-AT"
+        )}</strong>
       </div>
       <div class="stat-card">
         <span class="stat-label">Größe</span>
@@ -172,7 +275,7 @@ function renderResult() {
 }
 
 function escapeHtml(str) {
-  const d = document.createElement("div");
-  d.textContent = str || "";
-  return d.innerHTML;
+  const node = document.createElement("div");
+  node.textContent = str || "";
+  return node.innerHTML;
 }

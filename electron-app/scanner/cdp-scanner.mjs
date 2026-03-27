@@ -6605,6 +6605,7 @@ if (isDirectCliExecution()) {
 }
 
 export {
+  main,
   CONFIRM_TEXT,
   DEFAULTS,
   getCacheStatus,

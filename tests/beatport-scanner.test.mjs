@@ -24,7 +24,7 @@ import {
   resolveConfig,
   resolveRunPaths,
   sanitizeSensitiveText,
-} from "../tools/beatport_cdp_tool.mjs";
+} from "../electron-app/scanner/cdp-scanner.mjs";
 import { detectBeatportSessionState } from "../electron-app/auth/session-probe.mjs";
 
 const FIXTURE_ROOT = path.resolve("tests/fixtures/runs");

@@ -118,6 +118,7 @@ export async function loadAnalysisData(config) {
 
 export function forceReload() {
   lastConfigJson = "";
+  error = "";
 }
 
 // ─── Render-Steuerung ───────────────────────────────────────────────────────────
