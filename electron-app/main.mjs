@@ -646,55 +646,207 @@ app.whenReady().then(() => {
 
   // ── DJPlaylists.fm → Lexicon Batch-Automation ─────────────────────────────
   //
-  // Schritt 1: Scrape djplaylists.fm (HTML) → alle Playlisten des Accounts,
-  //            von oben nach unten wie sie auf der Seite erscheinen.
-  // Schritt 2: Für jede Playlist: POST an Lexicon /v1/streaming/import (o.ä.)
-  // Schritt 3: Live-Progress via IPC-Event 'sync:batch-progress' an Renderer.
+  // Entdeckte Endpoints (2026-03-27, via Browser-Interception):
+  //   GET  https://sxwtfewpsfdpqddqxyso.supabase.co/rest/v1/playlists?created_by=eq.{userId}
+  //        → alle Playlisten des Users (mit Supabase anon key aus JS-Bundle)
+  //   POST https://api.djplaylists.fm/api/playlist/save
+  //        → Body: { playlistId: N, streamingService: "beatport" }
+  //        → Response: { success: true, message: "Playlist saved successfully" }
+  //
+  // Technische Umsetzung: Hidden BrowserWindow mit DJPlaylists.fm-Session.
+  // Die Auth-Token liegen im localStorage der Seite (djplaylists-auth).
+  // executeJavaScript() führt die Automation im Seiten-Kontext aus → CORS kein Problem.
 
-  ipcMain.handle("sync:scrape-djplaylists", async (_event, opts = {}) => {
+  /** Singleton Hidden-BrowserWindow für DJPlaylists.fm */
+  let _djplWin = null;
+
+  async function getDjplBrowserWindow() {
+    if (_djplWin && !_djplWin.isDestroyed()) return _djplWin;
+
+    _djplWin = new BrowserWindow({
+      show: false,
+      width: 1200,
+      height: 800,
+      webPreferences: {
+        partition: "persist:djplaylists",
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    _djplWin.on("closed", () => { _djplWin = null; });
+
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("Timeout: DJPlaylists.fm konnte nicht geladen werden.")),
+        30_000
+      );
+      _djplWin.webContents.once("did-finish-load", () => { clearTimeout(timer); resolve(); });
+      _djplWin.webContents.once("did-fail-load", (_e, code, desc) => {
+        clearTimeout(timer);
+        reject(new Error(`Ladefehler: ${desc} (${code})`));
+      });
+      _djplWin.loadURL("https://www.djplaylists.fm/app/playlist/227");
+    });
+
+    // SPA-Initialisierung abwarten
+    await new Promise((r) => setTimeout(r, 2500));
+    return _djplWin;
+  }
+
+  /** Führt JS im DJPlaylists.fm-Fenster aus */
+  async function runInDjpl(script) {
+    const win = await getDjplBrowserWindow();
+    return win.webContents.executeJavaScript(script);
+  }
+
+  /** Prüft Login-Status im Hidden-Window */
+  async function checkDjplLogin() {
     try {
-      const playlists = await DjplaylistsClient.scrapeMyPlaylists(opts);
+      return await runInDjpl(`(async () => {
+        const raw = localStorage.getItem('djplaylists-auth');
+        if (!raw) return { loggedIn: false };
+        try {
+          const ud = localStorage.getItem('user_data');
+          const user = ud ? JSON.parse(ud) : null;
+          return { loggedIn: true, username: user?.username ?? null };
+        } catch { return { loggedIn: !!raw }; }
+      })()`);
+    } catch {
+      return { loggedIn: false };
+    }
+  }
+
+  /** Holt alle User-Playlisten via Supabase REST aus dem Hidden-Window */
+  async function fetchDjplPlaylists() {
+    return runInDjpl(`(async () => {
+      const raw = localStorage.getItem('djplaylists-auth');
+      let jwt = null;
+      try { const p = JSON.parse(raw); jwt = p.token || p.access_token || p.accessToken || p.jwt || raw; }
+      catch { jwt = raw; }
+
+      const bundleEl = Array.from(document.querySelectorAll('script[src]'))
+        .find(s => s.src.includes('/assets/index-'));
+      if (!bundleEl) throw new Error('JS-Bundle nicht gefunden — ist djplaylists.fm geladen?');
+
+      const bundleText = await fetch(bundleEl.src).then(r => r.text());
+      const jwts = bundleText.match(/eyJ[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*/g) || [];
+      const anonKey = jwts[0];
+      if (!anonKey) throw new Error('Supabase anon key nicht im Bundle gefunden');
+
+      const me = await fetch('https://api.djplaylists.fm/api/user/me', {
+        headers: { 'Authorization': 'Bearer ' + jwt, 'Content-Type': 'application/json' }
+      }).then(r => r.json());
+      const userId = me?.data?.settings?.user_id;
+      if (!userId) throw new Error('User-ID nicht ermittelbar: ' + JSON.stringify(me).slice(0, 200));
+
+      const rows = await fetch(
+        'https://sxwtfewpsfdpqddqxyso.supabase.co/rest/v1/playlists' +
+        '?select=id,title,type,created_at&created_by=eq.' + userId + '&order=id.asc',
+        { headers: { 'apikey': anonKey, 'Authorization': 'Bearer ' + (jwt || anonKey) } }
+      ).then(r => r.json());
+
+      if (!Array.isArray(rows))
+        throw new Error('Supabase-Antwort unerwartet: ' + JSON.stringify(rows).slice(0, 300));
+
+      return rows.map((pl, i) => ({
+        id: pl.id,
+        name: pl.title,
+        type: pl.type,
+        createdAt: pl.created_at,
+        url: 'https://www.djplaylists.fm/app/playlist/' + pl.id,
+        position: i + 1,
+        trackCount: null,
+      }));
+    })()`);
+  }
+
+  /** Sendet eine Playlist an Lexicon über den DJPlaylists.fm Save-Endpoint */
+  async function saveDjplPlaylistToLexicon(playlistId) {
+    return runInDjpl(`(async () => {
+      const raw = localStorage.getItem('djplaylists-auth');
+      let jwt = null;
+      try { const p = JSON.parse(raw); jwt = p.token || p.access_token || p.accessToken || p.jwt || raw; }
+      catch { jwt = raw; }
+      const resp = await fetch('https://api.djplaylists.fm/api/playlist/save', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(jwt ? { 'Authorization': 'Bearer ' + jwt } : {}),
+        },
+        body: JSON.stringify({ playlistId: ${JSON.stringify(playlistId)}, streamingService: 'beatport' }),
+      });
+      return resp.json();
+    })()`);
+  }
+
+  // ── IPC: Playlisten aus DJPlaylists.fm laden ────────────────────────────────
+
+  ipcMain.handle("sync:scrape-djplaylists", async () => {
+    try {
+      await getDjplBrowserWindow();
+      const login = await checkDjplLogin();
+      if (!login.loggedIn) {
+        // Fenster kurz einblenden damit User sich einloggen kann
+        _djplWin?.show();
+        return {
+          ok: false,
+          error: "Nicht bei DJPlaylists.fm eingeloggt. Bitte im geöffneten Fenster einloggen und erneut versuchen.",
+          playlists: [],
+          count: 0,
+        };
+      }
+      const playlists = await fetchDjplPlaylists();
       return { ok: true, playlists, count: playlists.length };
     } catch (err) {
-      return { ok: false, error: toErrorMessage(err), playlists: [] };
+      return { ok: false, error: toErrorMessage(err), playlists: [], count: 0 };
     }
   });
 
-  ipcMain.handle("sync:djplaylists-to-lexicon-all", async (_event, opts = {}) => {
-    const { targetFolder = "DJPlaylists.fm", delayMs = 1500, username } = opts;
+  // ── IPC: Alle Playlisten sequentiell in Lexicon speichern ──────────────────
+  //
+  // Kernentdeckung: POST /api/playlist/save mit {playlistId, streamingService:"beatport"}
+  // triggert in Lexicon den DJPlaylists.fm-Import für genau diese Playlist.
 
-    // Renderer-Fenster für Live-Events
-    const getWin = () => BrowserWindow.getAllWindows()[0] ?? null;
+  ipcMain.handle("sync:djplaylists-to-lexicon-all", async (event, opts = {}) => {
+    const { delayMs = 800 } = opts;
 
     const sendProgress = (payload) => {
-      getWin()?.webContents.send("sync:batch-progress", payload);
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("sync:batch-progress", payload);
+      }
     };
 
     try {
-      // ── Phase 1: DJPlaylists.fm scrapen ──
-      sendProgress({ phase: "scraping", message: "DJPlaylists.fm wird ausgelesen…" });
+      sendProgress({ phase: "scraping", message: "Verbinde mit DJPlaylists.fm…" });
 
-      const playlists = await DjplaylistsClient.scrapeMyPlaylists({ username });
+      await getDjplBrowserWindow();
+      const login = await checkDjplLogin();
 
-      if (!playlists || playlists.length === 0) {
-        sendProgress({
-          phase: "error",
-          message:
-            "Keine Playlisten auf DJPlaylists.fm gefunden. " +
-            "Bitte Session-Cookie oder API-Key prüfen.",
-        });
-        return { ok: false, error: "Keine Playlisten gefunden.", playlists: [] };
+      if (!login.loggedIn) {
+        _djplWin?.show();
+        sendProgress({ phase: "error", message: "Nicht eingeloggt — bitte im geöffneten Fenster einloggen." });
+        return { ok: false, error: "Nicht eingeloggt.", successCount: 0, failCount: 0, skipCount: 0, results: [] };
+      }
+
+      sendProgress({ phase: "scraping", message: "Lade Playlist-Liste aus DJPlaylists.fm (via Supabase)…" });
+      const playlists = await fetchDjplPlaylists();
+
+      if (!playlists.length) {
+        sendProgress({ phase: "error", message: "Keine Playlisten im Account gefunden." });
+        return { ok: false, error: "Keine Playlisten gefunden.", successCount: 0, failCount: 0, skipCount: 0, results: [] };
       }
 
       sendProgress({
         phase: "found",
-        message: `${playlists.length} Playlisten gefunden. Starte Import in Lexicon…`,
+        message: `${playlists.length} Playlisten gefunden → starte Lexicon-Speicherung…`,
         total: playlists.length,
         playlists,
       });
 
-      // ── Phase 2: Sequentieller Lexicon-Import ──
       const results = [];
+      let successCount = 0, failCount = 0;
 
       for (let i = 0; i < playlists.length; i++) {
         const pl = playlists[i];
@@ -704,16 +856,20 @@ app.whenReady().then(() => {
           current: i + 1,
           total: playlists.length,
           playlist: pl,
-          message: `[${i + 1}/${playlists.length}] Importiere: ${pl.name}`,
+          message: `[${i + 1}/${playlists.length}] ${pl.name}`,
         });
 
-        const result = await LexiconClient.importStreamingPlaylist({
-          djplUrl: pl.url,
-          name: pl.name,
-          targetFolder,
-        });
+        let saveResult;
+        try {
+          saveResult = await saveDjplPlaylistToLexicon(pl.id);
+        } catch (saveErr) {
+          saveResult = { success: false, message: toErrorMessage(saveErr) };
+        }
 
-        const item = { ...pl, ...result };
+        const ok = saveResult?.success === true;
+        if (ok) successCount++; else failCount++;
+
+        const item = { id: pl.id, name: pl.name, url: pl.url, ok, msg: saveResult?.message };
         results.push(item);
 
         sendProgress({
@@ -721,40 +877,33 @@ app.whenReady().then(() => {
           current: i + 1,
           total: playlists.length,
           playlist: pl,
-          result,
-          message: result.ok
+          result: { ok },
+          message: ok
             ? `✓ [${i + 1}/${playlists.length}] ${pl.name}`
-            : result.skipped
-            ? `⚠ [${i + 1}/${playlists.length}] ${pl.name} — kein Lexicon-Endpoint (manuell nötig)`
-            : `✗ [${i + 1}/${playlists.length}] ${pl.name} — ${result.error}`,
+            : `✗ [${i + 1}/${playlists.length}] ${pl.name} — ${saveResult?.message ?? "Unbekannt"}`,
         });
 
-        // Pause zwischen Imports
         if (i < playlists.length - 1) {
           await new Promise((r) => setTimeout(r, delayMs));
         }
       }
 
-      const successCount = results.filter((r) => r.ok).length;
-      const skipCount = results.filter((r) => r.skipped).length;
-      const failCount = results.filter((r) => !r.ok && !r.skipped).length;
-
       sendProgress({
         phase: "done",
+        current: playlists.length,
         total: playlists.length,
         successCount,
-        skipCount,
         failCount,
+        skipCount: 0,
         results,
-        message:
-          `Fertig: ${successCount} importiert, ${skipCount} übersprungen, ${failCount} Fehler.`,
+        message: `Fertig: ${successCount} gespeichert, ${failCount} Fehler.`,
       });
 
-      return { ok: true, results, successCount, skipCount, failCount };
+      return { ok: true, successCount, failCount, skipCount: 0, results };
     } catch (err) {
       const msg = toErrorMessage(err);
-      sendProgress({ phase: "error", message: `Kritischer Fehler: ${msg}` });
-      return { ok: false, error: msg, results: [] };
+      sendProgress({ phase: "error", message: `Fehler: ${msg}` });
+      return { ok: false, error: msg, successCount: 0, failCount: 0, skipCount: 0, results: [] };
     }
   });
 

@@ -12,7 +12,13 @@
  * erkundet und das Response-Format normalisiert.
  */
 
-const DJPL_BASE = "https://djplaylists.fm";
+// Korrekte API-Base (entdeckt 2026-03-27 via Network-Interception):
+//   Frontend: https://www.djplaylists.fm
+//   API:      https://api.djplaylists.fm/api/
+//   Supabase: https://sxwtfewpsfdpqddqxyso.supabase.co
+const DJPL_BASE = "https://api.djplaylists.fm";
+const DJPL_FRONTEND = "https://www.djplaylists.fm";
+const SUPABASE_URL = "https://sxwtfewpsfdpqddqxyso.supabase.co";
 const DEFAULT_TIMEOUT_MS = 15000;
 
 // ─── Session-State ───────────────────────────────────────────────────────────
@@ -85,27 +91,23 @@ async function djplFetch(path, options = {}) {
  * @returns {{ reachable: boolean, authenticated: boolean, username?: string, error?: string }}
  */
 export async function checkConnection() {
+  // Nutze die echte API (entdeckt: api.djplaylists.fm/api/user/me benötigt Auth-Header).
+  // Hier prüfen wir nur die Frontend-Erreichbarkeit (kein Auth nötig).
   try {
-    // Öffentliche Seite prüfen (kein Auth nötig)
-    const html = await djplFetch("/", {
-      headers: { Accept: "text/html,application/xhtml+xml" },
-      timeout: 8000,
+    const resp = await fetch(`${DJPL_FRONTEND}/`, {
+      method: "GET",
+      headers: { Accept: "text/html" },
+      signal: AbortSignal.timeout(8000),
     });
+    const reachable = resp.ok || resp.status < 500;
 
-    const text = String(html ?? "");
-    const reachable = text.length > 100;
-
-    // Prüfe ob User eingeloggt (suche nach "robert-amin" oder typischen Auth-Signalen)
-    const authenticated =
-      text.includes("robert-amin") ||
-      text.includes("logout") ||
-      text.includes("dashboard") ||
-      text.includes("my-playlists");
-
-    const usernameMatch = text.match(/robert-amin|data-user="([^"]+)"|username[^>]*>([^<]+)/i);
-    const username = usernameMatch?.[0] ?? null;
-
-    return { reachable, authenticated, username };
+    // Auth-Status: Wird über das Hidden-BrowserWindow in main.mjs geprüft.
+    // Hier geben wir nur die Erreichbarkeit zurück.
+    return {
+      reachable,
+      authenticated: false, // Echter Auth-Check läuft via Hidden BrowserWindow
+      note: "Auth-Status via DJPlaylists.fm Browser-Session — 'Playlisten laden' klicken",
+    };
   } catch (err) {
     return {
       reachable: false,
