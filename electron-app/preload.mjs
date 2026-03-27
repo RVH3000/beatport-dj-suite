@@ -86,6 +86,15 @@ contextBridge.exposeInMainWorld("syncApi", {
   importToDjplaylists:      (opts)          => ipcRenderer.invoke("sync:import-to-djplaylists", opts),
   importToLexicon:          (opts)          => ipcRenderer.invoke("sync:import-to-lexicon", opts),
   triggerEngineExport:      (opts)          => ipcRenderer.invoke("sync:trigger-engine-export", opts),
+  // DJPlaylists.fm → Lexicon Batch-Automation
+  scrapeDjplaylists:        (opts)          => ipcRenderer.invoke("sync:scrape-djplaylists", opts),
+  djplaylistsToLexiconAll:  (opts)          => ipcRenderer.invoke("sync:djplaylists-to-lexicon-all", opts),
+  // Live-Progress-Events (djplaylistsToLexiconAll sendet 'sync:batch-progress')
+  onBatchProgress: (cb) => {
+    const handler = (_event, payload) => cb(payload);
+    ipcRenderer.on("sync:batch-progress", handler);
+    return () => ipcRenderer.removeListener("sync:batch-progress", handler);
+  },
   // Presets
   getPresets:               ()              => ipcRenderer.invoke("sync:get-presets"),
   savePresets:              (presets)       => ipcRenderer.invoke("sync:save-presets", presets),

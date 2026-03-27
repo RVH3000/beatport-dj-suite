@@ -223,10 +223,113 @@ export async function importBeatportPlaylist(options = {}) {
   );
 }
 
-// ─── Playlisten abrufen ──────────────────────────────────────────────────────
+// ─── HTML-Scraping: Playlisten des Accounts ──────────────────────────────────
 
 /**
- * Lädt alle eigenen Playlisten aus DJPlaylists.fm.
+ * Kratzt die DJPlaylists.fm-Profilseite des eingeloggten Users und extrahiert
+ * alle Playlist-Links — von oben nach unten wie sie auf der Seite erscheinen.
+ *
+ * Typische URLs die probiert werden:
+ *   /u/robert-amin, /users/robert-amin, /profile, /dashboard, /my-playlists
+ *
+ * @param {{ username?: string }} opts
+ * @returns {Array<{ id: string, name: string, url: string, trackCount: number|null, position: number }>}
+ */
+export async function scrapeMyPlaylists(opts = {}) {
+  const username = opts.username ?? "robert-amin";
+
+  const pagesToTry = [
+    `/u/${username}`,
+    `/users/${username}`,
+    `/profile`,
+    `/dashboard`,
+    `/my-playlists`,
+    `/playlists`,
+    `/u/${username}/playlists`,
+    `/users/${username}/playlists`,
+  ];
+
+  const htmlHeaders = { Accept: "text/html,application/xhtml+xml,*/*" };
+
+  // Versuche HTML-Seiten abzurufen und Playlisten zu extrahieren
+  for (const pagePath of pagesToTry) {
+    try {
+      const html = await djplFetch(pagePath, { headers: htmlHeaders, timeout: 12000 });
+      const text = String(html ?? "");
+      if (text.length < 200) continue;
+
+      const playlists = parsePlaylistsFromHtml(text);
+      if (playlists.length > 0) {
+        return playlists;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  // Fallback: JSON-API
+  return getMyPlaylists();
+}
+
+/**
+ * Parst alle Playlist-Links aus dem HTML einer DJPlaylists.fm-Seite.
+ * Unterstützt verschiedene Markup-Patterns der Site.
+ *
+ * @param {string} html
+ * @returns {Array<{ id: string, name: string, url: string, trackCount: number|null, position: number }>}
+ */
+export function parsePlaylistsFromHtml(html) {
+  const results = [];
+
+  // ── Pattern 1: <a href="/p/SLUG" ...>NAME</a>  (häufigstes DJPlaylists.fm-Format)
+  const linkPattern1 = /<a[^>]+href="(\/p\/[a-z0-9_-]+)"[^>]*>([^<]+)<\/a>/gi;
+  // ── Pattern 2: <a href="/playlists/ID" ...>  (alternative Route)
+  const linkPattern2 = /<a[^>]+href="(\/playlists?\/[a-z0-9_-]+)"[^>]*>([^<]+)<\/a>/gi;
+  // ── Pattern 3: data-playlist-id="..." data-title="..."
+  const dataPattern = /data-playlist-id="([^"]+)"[^>]*data-title="([^"]+)"/gi;
+  // ── Pattern 4: JSON-LD oder window.__data
+  const jsonPattern = /"id"\s*:\s*"?([a-z0-9_-]+)"?\s*,\s*"(?:name|title)"\s*:\s*"([^"]+)"/gi;
+
+  const seen = new Set();
+
+  const addResult = (href, name) => {
+    const clean = name.replace(/&amp;/g, "&").replace(/&#39;/g, "'").trim();
+    if (!clean || clean.length < 2) return;
+
+    // ID aus URL extrahieren
+    const idMatch = href.match(/\/([a-z0-9_-]+)\/?$/i);
+    const id = idMatch?.[1] ?? href;
+    if (seen.has(id)) return;
+    seen.add(id);
+
+    const fullUrl = href.startsWith("http") ? href : `${DJPL_BASE}${href}`;
+
+    // Track-Anzahl aus umgebendem HTML extrahieren (optional)
+    const trackCountMatch = html
+      .slice(Math.max(0, html.indexOf(href) - 200), html.indexOf(href) + 400)
+      .match(/(\d+)\s*(?:tracks?|Tracks?|songs?)/i);
+
+    results.push({
+      id,
+      name: clean,
+      url: fullUrl,
+      trackCount: trackCountMatch ? parseInt(trackCountMatch[1], 10) : null,
+      position: results.length + 1,
+    });
+  };
+
+  let m;
+  while ((m = linkPattern1.exec(html)) !== null) addResult(m[1], m[2]);
+  while ((m = linkPattern2.exec(html)) !== null) addResult(m[1], m[2]);
+  while ((m = dataPattern.exec(html)) !== null) addResult(`/p/${m[1]}`, m[2]);
+
+  return results;
+}
+
+// ─── Playlisten abrufen (JSON-API) ───────────────────────────────────────────
+
+/**
+ * Lädt alle eigenen Playlisten aus DJPlaylists.fm via REST-API.
  * @returns {Array<{ id: string, name: string, trackCount: number, beatportUrl?: string }>}
  */
 export async function getMyPlaylists() {

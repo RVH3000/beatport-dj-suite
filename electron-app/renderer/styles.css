@@ -980,6 +980,22 @@ summary {
 }
 .btn-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
+/* ── Fortschrittsbalken (Batch-Import) ───────────────────────────────────────── */
+
+.progress-bar-wrap {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
 /* ── Track-Vorschau in Verbindungsstatus ─────────────────────────────────────── */
 
 .track-sample-list {

@@ -644,6 +644,120 @@ app.whenReady().then(() => {
     }
   });
 
+  // ── DJPlaylists.fm → Lexicon Batch-Automation ─────────────────────────────
+  //
+  // Schritt 1: Scrape djplaylists.fm (HTML) → alle Playlisten des Accounts,
+  //            von oben nach unten wie sie auf der Seite erscheinen.
+  // Schritt 2: Für jede Playlist: POST an Lexicon /v1/streaming/import (o.ä.)
+  // Schritt 3: Live-Progress via IPC-Event 'sync:batch-progress' an Renderer.
+
+  ipcMain.handle("sync:scrape-djplaylists", async (_event, opts = {}) => {
+    try {
+      const playlists = await DjplaylistsClient.scrapeMyPlaylists(opts);
+      return { ok: true, playlists, count: playlists.length };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err), playlists: [] };
+    }
+  });
+
+  ipcMain.handle("sync:djplaylists-to-lexicon-all", async (_event, opts = {}) => {
+    const { targetFolder = "DJPlaylists.fm", delayMs = 1500, username } = opts;
+
+    // Renderer-Fenster für Live-Events
+    const getWin = () => BrowserWindow.getAllWindows()[0] ?? null;
+
+    const sendProgress = (payload) => {
+      getWin()?.webContents.send("sync:batch-progress", payload);
+    };
+
+    try {
+      // ── Phase 1: DJPlaylists.fm scrapen ──
+      sendProgress({ phase: "scraping", message: "DJPlaylists.fm wird ausgelesen…" });
+
+      const playlists = await DjplaylistsClient.scrapeMyPlaylists({ username });
+
+      if (!playlists || playlists.length === 0) {
+        sendProgress({
+          phase: "error",
+          message:
+            "Keine Playlisten auf DJPlaylists.fm gefunden. " +
+            "Bitte Session-Cookie oder API-Key prüfen.",
+        });
+        return { ok: false, error: "Keine Playlisten gefunden.", playlists: [] };
+      }
+
+      sendProgress({
+        phase: "found",
+        message: `${playlists.length} Playlisten gefunden. Starte Import in Lexicon…`,
+        total: playlists.length,
+        playlists,
+      });
+
+      // ── Phase 2: Sequentieller Lexicon-Import ──
+      const results = [];
+
+      for (let i = 0; i < playlists.length; i++) {
+        const pl = playlists[i];
+
+        sendProgress({
+          phase: "importing",
+          current: i + 1,
+          total: playlists.length,
+          playlist: pl,
+          message: `[${i + 1}/${playlists.length}] Importiere: ${pl.name}`,
+        });
+
+        const result = await LexiconClient.importStreamingPlaylist({
+          djplUrl: pl.url,
+          name: pl.name,
+          targetFolder,
+        });
+
+        const item = { ...pl, ...result };
+        results.push(item);
+
+        sendProgress({
+          phase: "item-done",
+          current: i + 1,
+          total: playlists.length,
+          playlist: pl,
+          result,
+          message: result.ok
+            ? `✓ [${i + 1}/${playlists.length}] ${pl.name}`
+            : result.skipped
+            ? `⚠ [${i + 1}/${playlists.length}] ${pl.name} — kein Lexicon-Endpoint (manuell nötig)`
+            : `✗ [${i + 1}/${playlists.length}] ${pl.name} — ${result.error}`,
+        });
+
+        // Pause zwischen Imports
+        if (i < playlists.length - 1) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      }
+
+      const successCount = results.filter((r) => r.ok).length;
+      const skipCount = results.filter((r) => r.skipped).length;
+      const failCount = results.filter((r) => !r.ok && !r.skipped).length;
+
+      sendProgress({
+        phase: "done",
+        total: playlists.length,
+        successCount,
+        skipCount,
+        failCount,
+        results,
+        message:
+          `Fertig: ${successCount} importiert, ${skipCount} übersprungen, ${failCount} Fehler.`,
+      });
+
+      return { ok: true, results, successCount, skipCount, failCount };
+    } catch (err) {
+      const msg = toErrorMessage(err);
+      sendProgress({ phase: "error", message: `Kritischer Fehler: ${msg}` });
+      return { ok: false, error: msg, results: [] };
+    }
+  });
+
   createWindow();
 
   app.on("activate", () => {

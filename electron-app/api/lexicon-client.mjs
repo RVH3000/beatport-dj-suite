@@ -417,6 +417,113 @@ export async function importFromDjplaylists(opts = {}) {
   };
 }
 
+// ─── DJPlaylists.fm → Lexicon Import ─────────────────────────────────────────
+
+/**
+ * Importiert eine einzelne DJPlaylists.fm-Playlist in Lexicon.
+ *
+ * Lexicon unterstützt Streaming-Playlist-Imports über seine API.
+ * Typisches Format: POST /v1/streaming/import { url, targetFolder }
+ *
+ * @param {{ djplUrl: string, name?: string, targetFolder?: string }} opts
+ * @returns {{ ok: boolean, path?: string, data?: unknown, error?: string, skipped?: boolean }}
+ */
+export async function importStreamingPlaylist(opts = {}) {
+  const { djplUrl, name, targetFolder = "DJPlaylists.fm" } = opts;
+  if (!djplUrl) throw new Error("djplUrl ist erforderlich.");
+
+  // Alle Lexicon-Endpoints die für Streaming/URL-Import in Frage kommen
+  const candidates = [
+    { path: "/v1/streaming/import",          body: { url: djplUrl, name, targetFolder } },
+    { path: "/v1/playlist/import",           body: { url: djplUrl, name, targetFolder } },
+    { path: "/v1/playlists/import",          body: { url: djplUrl, name, targetFolder } },
+    { path: "/v1/import",                    body: { url: djplUrl, name, targetFolder } },
+    { path: "/v1/import/playlist",           body: { url: djplUrl, name, targetFolder } },
+    { path: "/v1/import/streaming",          body: { url: djplUrl, name, targetFolder } },
+    { path: "/v1/streaming/add",             body: { url: djplUrl, name, targetFolder } },
+    { path: "/v1/integrations/djplaylists/import", body: { url: djplUrl, name, targetFolder } },
+    // Mit "source" Parameter (Lexicon kennt evtl. mehrere Quellen)
+    { path: "/v1/import",                    body: { url: djplUrl, source: "djplaylists", name, targetFolder } },
+    { path: "/v1/streaming/import",          body: { url: djplUrl, source: "djplaylists", name, targetFolder } },
+    // Rekordcloud-Format (DJPlaylists.fm ↔ Lexicon sind beides Rekordcloud-Produkte)
+    { path: "/v1/rekordcloud/import",        body: { url: djplUrl, name, targetFolder } },
+  ];
+
+  for (const { path, body } of candidates) {
+    try {
+      const data = await lexiconFetch(path, {
+        method: "POST",
+        body: JSON.stringify(body),
+        timeout: 60000, // Import kann dauern
+      });
+      return { ok: true, path, data };
+    } catch (err) {
+      if (err.errorCode === 4) continue; // Endpoint existiert nicht → weiter
+      // Echter API-Fehler (nicht nur "Endpoint not found")
+      if (err.status >= 400 && err.status < 500 && err.errorCode !== 4) {
+        return { ok: false, path, error: err.message };
+      }
+      continue;
+    }
+  }
+
+  // Kein Endpoint gefunden — dokumentiere was probiert wurde
+  return {
+    ok: false,
+    skipped: true,
+    error:
+      `Kein Lexicon-Import-Endpoint gefunden für ${djplUrl}. ` +
+      "Bitte in Lexicon manuell: Streaming → URL importieren → DJPlaylists.fm-Link einfügen.",
+    triedPaths: candidates.map((c) => c.path),
+  };
+}
+
+/**
+ * Batch-Import aller übergebenen DJPlaylists.fm-Playlisten in Lexicon.
+ * Importiert sequentiell (eine nach der anderen) um Lexicon nicht zu überlasten.
+ *
+ * @param {Array<{ id: string, name: string, url: string, position: number }>} playlists
+ * @param {{
+ *   targetFolder?: string,
+ *   delayMs?: number,
+ *   onProgress?: (result: BatchProgressItem) => void
+ * }} opts
+ * @returns {{ results: BatchProgressItem[], successCount: number, failCount: number }}
+ */
+export async function batchImportFromDjplaylists(playlists, opts = {}) {
+  const { targetFolder = "DJPlaylists.fm", delayMs = 1500, onProgress } = opts;
+  const results = [];
+
+  for (const pl of playlists) {
+    const result = await importStreamingPlaylist({
+      djplUrl: pl.url,
+      name: pl.name,
+      targetFolder,
+    });
+
+    const item = {
+      position: pl.position,
+      id: pl.id,
+      name: pl.name,
+      url: pl.url,
+      ...result,
+    };
+
+    results.push(item);
+    onProgress?.(item);
+
+    // Kurze Pause zwischen Imports — Lexicon braucht Zeit zum Verarbeiten
+    if (playlists.indexOf(pl) < playlists.length - 1) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+
+  const successCount = results.filter((r) => r.ok).length;
+  const failCount = results.filter((r) => !r.ok && !r.skipped).length;
+
+  return { results, successCount, failCount };
+}
+
 // ─── Engine DJ Export ────────────────────────────────────────────────────────
 
 /**

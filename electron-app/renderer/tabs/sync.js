@@ -148,6 +148,57 @@ function buildSyncTabHtml() {
       </div>
     </section>
 
+    <!-- DJPlaylists.fm → Lexicon Batch-Automation -->
+    <section class="panel span-full">
+      <div class="section-head">
+        <h2>DJPlaylists.fm → Lexicon (Alle Playlisten)</h2>
+        <div class="actions compact">
+          <button id="syncDjplScrapeBtn" type="button">Playlisten laden</button>
+          <button id="syncDjplToLexiconBtn" class="primary" type="button" disabled>
+            Alle → Lexicon importieren
+          </button>
+        </div>
+      </div>
+      <p class="callout info" style="margin-bottom:0.75rem">
+        Liest alle Playlisten aus deinem DJPlaylists.fm-Account aus und importiert sie
+        sequentiell von oben nach unten in Lexicon DJ.
+        Lexicon muss geöffnet und mit DJPlaylists.fm verbunden sein.
+      </p>
+      <div class="field-grid" style="margin-bottom:0.75rem">
+        <label>
+          DJPlaylists.fm Benutzername
+          <input id="syncDjplUsername" type="text" value="robert-amin" />
+        </label>
+        <label>
+          Zielordner in Lexicon
+          <input id="syncDjplTargetFolder" type="text" value="DJPlaylists.fm" />
+        </label>
+        <label>
+          Pause zwischen Imports (ms)
+          <input id="syncDjplDelayMs" type="number" value="1500" min="500" max="10000" step="100" />
+        </label>
+      </div>
+
+      <!-- Playlist-Vorschau (nach Scraping) -->
+      <div id="syncDjplPlaylistPreview" class="table-wrap" style="display:none">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Name</th><th>Tracks</th><th>URL</th><th>Status</th></tr></thead>
+          <tbody id="syncDjplPlaylistTbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Fortschrittsbalken -->
+      <div id="syncDjplProgressWrap" style="display:none;margin-top:0.75rem">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="syncDjplProgressBar" style="width:0%"></div>
+        </div>
+        <p id="syncDjplProgressMsg" class="detail-summary"></p>
+      </div>
+
+      <!-- Ergebnis-Zusammenfassung -->
+      <div id="syncDjplResult" class="detail-summary empty"></div>
+    </section>
+
     <!-- Presets (gespeicherte Playlists) -->
     <section class="panel">
       <div class="section-head">
@@ -207,6 +258,9 @@ function bindEvents() {
   document.getElementById("syncEngineExportBtn")?.addEventListener("click", runEngineExport);
   document.getElementById("syncSavePresetBtn")?.addEventListener("click", saveCurrentAsPreset);
   document.getElementById("syncRunPresetBtn")?.addEventListener("click", runPreset);
+  // DJPlaylists.fm → Lexicon Batch
+  document.getElementById("syncDjplScrapeBtn")?.addEventListener("click", scrapeDjplaylists);
+  document.getElementById("syncDjplToLexiconBtn")?.addEventListener("click", runDjplToLexiconAll);
 }
 
 // ─── Status-Refresh ───────────────────────────────────────────────────────────
@@ -572,6 +626,166 @@ async function runPreset() {
   syncState.presets.playlists.forEach((p) => (p.lastSyncedAt = now));
   await window.syncApi.savePresets(syncState.presets).catch(() => {});
   renderPresets();
+}
+
+// ─── DJPlaylists.fm → Lexicon Batch-Automation ────────────────────────────────
+
+/** State für Batch-Import */
+let _djplPlaylists = [];          // Gescrapte Playlisten
+let _batchCleanup = null;         // IPC-Listener-Cleanup
+
+/** Schritt 1: DJPlaylists.fm scrapen und Playlist-Vorschau aufbauen */
+async function scrapeDjplaylists() {
+  if (syncState.pipelineRunning) return;
+
+  const username = document.getElementById("syncDjplUsername")?.value.trim() || "robert-amin";
+  const scrapeBtn = document.getElementById("syncDjplScrapeBtn");
+  const importBtn = document.getElementById("syncDjplToLexiconBtn");
+  const preview = document.getElementById("syncDjplPlaylistPreview");
+  const tbody = document.getElementById("syncDjplPlaylistTbody");
+  const resultEl = document.getElementById("syncDjplResult");
+
+  if (scrapeBtn) { scrapeBtn.disabled = true; scrapeBtn.textContent = "Lädt…"; }
+  if (resultEl) resultEl.innerHTML = "";
+  if (importBtn) importBtn.disabled = true;
+
+  addLog("step", `Scraping DJPlaylists.fm Account: ${username}…`);
+
+  try {
+    const res = await window.syncApi.scrapeDjplaylists({ username });
+
+    if (!res.ok || !res.playlists?.length) {
+      addLog("warn", `Keine Playlisten gefunden. ${res.error ?? ""}`);
+      addLog("info", "Tipp: Session-Cookie eingeben (Konfiguration) und erneut versuchen.");
+      if (resultEl) resultEl.innerHTML = '<span class="status-warn">⚠ Keine Playlisten gefunden — Session-Cookie prüfen.</span>';
+      return;
+    }
+
+    _djplPlaylists = res.playlists;
+    addLog("ok", `✓ ${res.count} Playlisten gefunden (${username})`);
+
+    // Tabelle aufbauen
+    if (tbody) {
+      tbody.innerHTML = _djplPlaylists.map((pl) => `
+        <tr id="djpl-row-${esc(pl.id)}">
+          <td>${pl.position}</td>
+          <td>${esc(pl.name)}</td>
+          <td>${pl.trackCount ?? "?"}</td>
+          <td style="font-size:0.72rem;word-break:break-all">
+            <a href="#" onclick="return false" title="${esc(pl.url)}">${esc(pl.url.replace("https://djplaylists.fm", "…"))}</a>
+          </td>
+          <td id="djpl-status-${esc(pl.id)}" class="status-info">Bereit</td>
+        </tr>
+      `).join("");
+    }
+
+    if (preview) preview.style.display = "";
+    if (importBtn) importBtn.disabled = false;
+    if (resultEl) resultEl.innerHTML = `<span class="status-ok">✓ ${res.count} Playlisten geladen — bereit für Import.</span>`;
+  } catch (err) {
+    addLog("error", `Scraping fehlgeschlagen: ${err.message}`);
+    if (resultEl) resultEl.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
+  } finally {
+    if (scrapeBtn) { scrapeBtn.disabled = false; scrapeBtn.textContent = "Playlisten laden"; }
+  }
+}
+
+/** Schritt 2: Alle gescrapten Playlisten sequentiell in Lexicon importieren */
+async function runDjplToLexiconAll() {
+  if (syncState.pipelineRunning) return;
+  if (_djplPlaylists.length === 0) {
+    addLog("warn", "Zuerst Playlisten laden (Button: „Playlisten laden").");
+    return;
+  }
+
+  const targetFolder = document.getElementById("syncDjplTargetFolder")?.value.trim() || "DJPlaylists.fm";
+  const delayMs = parseInt(document.getElementById("syncDjplDelayMs")?.value ?? "1500", 10);
+  const progressWrap = document.getElementById("syncDjplProgressWrap");
+  const progressBar = document.getElementById("syncDjplProgressBar");
+  const progressMsg = document.getElementById("syncDjplProgressMsg");
+  const resultEl = document.getElementById("syncDjplResult");
+  const importBtn = document.getElementById("syncDjplToLexiconBtn");
+  const scrapeBtn = document.getElementById("syncDjplScrapeBtn");
+
+  syncState.pipelineRunning = true;
+  if (importBtn) { importBtn.disabled = true; importBtn.textContent = "Importiert…"; }
+  if (scrapeBtn) scrapeBtn.disabled = true;
+  if (progressWrap) progressWrap.style.display = "";
+  if (progressBar) progressBar.style.width = "0%";
+  if (resultEl) resultEl.innerHTML = "";
+
+  addLog("info", `━━━ DJPlaylists.fm → Lexicon Batch-Import: ${_djplPlaylists.length} Playlisten ━━━`);
+  addLog("info", `Zielordner: „${targetFolder}" | Pause: ${delayMs}ms`);
+
+  // IPC Live-Progress registrieren
+  if (_batchCleanup) _batchCleanup();
+  _batchCleanup = window.syncApi.onBatchProgress((ev) => {
+    // Fortschrittsbalken
+    if (ev.current != null && ev.total != null) {
+      const pct = Math.round((ev.current / ev.total) * 100);
+      if (progressBar) progressBar.style.width = `${pct}%`;
+    }
+    if (progressMsg) progressMsg.textContent = ev.message ?? "";
+
+    // Zeile in Tabelle markieren
+    if (ev.playlist?.id) {
+      const statusCell = document.getElementById(`djpl-status-${ev.playlist.id}`);
+      if (statusCell) {
+        if (ev.phase === "importing") {
+          statusCell.className = "status-info";
+          statusCell.textContent = "⟳ Importiere…";
+        } else if (ev.phase === "item-done") {
+          if (ev.result?.ok) {
+            statusCell.className = "status-ok";
+            statusCell.textContent = "✓ OK";
+          } else if (ev.result?.skipped) {
+            statusCell.className = "status-warn";
+            statusCell.textContent = "⚠ Manuell";
+          } else {
+            statusCell.className = "status-err";
+            statusCell.textContent = "✗ Fehler";
+          }
+        }
+      }
+    }
+
+    // Log-Einträge
+    if (ev.phase === "scraping" || ev.phase === "found") addLog("step", ev.message);
+    if (ev.phase === "importing") addLog("step", ev.message);
+    if (ev.phase === "item-done") {
+      const t = ev.result?.ok ? "ok" : ev.result?.skipped ? "warn" : "error";
+      addLog(t, ev.message);
+    }
+    if (ev.phase === "done") addLog("ok", ev.message);
+    if (ev.phase === "error") addLog("error", ev.message);
+  });
+
+  try {
+    const res = await window.syncApi.djplaylistsToLexiconAll({ targetFolder, delayMs });
+
+    if (progressBar) progressBar.style.width = "100%";
+
+    const msg = res.ok
+      ? `✓ Fertig: ${res.successCount ?? 0} importiert, ${res.skipCount ?? 0} übersprungen, ${res.failCount ?? 0} Fehler.`
+      : `✗ Fehler: ${res.error}`;
+    const cls = res.ok ? "status-ok" : "status-err";
+
+    if (resultEl) resultEl.innerHTML = `<span class="${cls}">${esc(msg)}</span>`;
+
+    // Wenn übersprungene Playlisten: Tipp anzeigen
+    if (res.skipCount > 0) {
+      addLog("info", `${res.skipCount} Playlist(en) mussten übersprungen werden: Kein Lexicon-Import-Endpoint gefunden.`);
+      addLog("info", "Tipp: In Lexicon → Streaming → „Playlist importieren" → DJPlaylists.fm-URL einfügen.");
+    }
+  } catch (err) {
+    addLog("error", `Batch-Import fehlgeschlagen: ${err.message}`);
+    if (resultEl) resultEl.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
+  } finally {
+    syncState.pipelineRunning = false;
+    if (importBtn) { importBtn.disabled = false; importBtn.textContent = "Alle → Lexicon importieren"; }
+    if (scrapeBtn) scrapeBtn.disabled = false;
+    if (_batchCleanup) { _batchCleanup(); _batchCleanup = null; }
+  }
 }
 
 // ─── Log-Funktionen ───────────────────────────────────────────────────────────
