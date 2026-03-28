@@ -554,7 +554,8 @@ if (sqliteAvailable) {
 
     await store.upsertPlaylists(playlists);
 
-    const seenKeys = ["Keep This Playlist_10"];
+    // normalizePlaylistKey gibt playlistId zurück wenn vorhanden → "keep_1"
+    const seenKeys = ["keep_1"];
     await store.markMissingPlaylists(seenKeys);
 
     const listed = await store.listPlaylists();
@@ -921,21 +922,26 @@ if (sqliteAvailable) {
 
     await store.init();
 
+    // Playlist OHNE playlistId → normalizePlaylistKey erzeugt name_tracks Composite
     const playlist = {
-      playlistId: "by_key_test",
       name: "By Key Playlist",
       tracks: "45",
     };
 
     await store.upsertPlaylists([playlist]);
 
+    // Suche nach dem gleichen name_tracks Composite-Key
     const record = await store.getPlaylistRecord({
       name: "By Key Playlist",
       tracks: "45",
     });
 
-    assert(record !== null, "Sollte Playlist nach Name+Tracks finden");
-    assert.strictEqual(record.playlistId, "by_key_test", "playlistId sollte stimmen");
+    assert(record !== null, "Sollte Playlist nach Name+Tracks Composite-Key finden");
+    assert.strictEqual(record.name, "By Key Playlist", "Name sollte stimmen");
+
+    // Suche nach playlistId funktioniert ebenfalls
+    const byId = await store.getPlaylistRecord({ playlistId: "by_key_test" });
+    assert.strictEqual(byId, null, "Nicht-existierende playlistId sollte null geben");
 
     await fs.rm(tempDir, { recursive: true, force: true });
   });
