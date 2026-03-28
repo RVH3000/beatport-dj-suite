@@ -1,111 +1,111 @@
-# LLM Handoff
+# LLM Handoff — Beatport DJ Suite
 
-## Branch
+**Datum:** 2026-03-27
+**Branch:** `feature/unified-app-build`
+**Version:** 2.0.0
+**GitHub:** https://github.com/RVH3000/beatport-dj-suite (privat, soeben erstellt)
 
-- `feature/unified-app-build`
+---
 
-## Gefundene Projektteile und Pfade
+## Was in dieser Session passiert ist
 
-- Electron-App / Ziel-Repo:
-  - `/Users/roberth./Projects/_local/beatport-dj-suite`
-- Beatport-Scanner / Vorläufer:
-  - `/Users/roberth./Projects/_github/beatport-scanner`
-- Engine-DJ-Manager / Engine-DB-TypeScript-Logik:
-  - `/Users/roberth./Projects/_github/engine-dj-manager`
-- Engine-Analyzer / Python-Analyse:
-  - `/Users/roberth./Projects/_local/engine-analyzer`
-- Ableton / OSC / Max-relevante Projekte:
-  - `/Users/roberth./Projects/_local/ableton-sketch-tool-codex`
-  - `/Users/roberth./Projects/_local/ableton-sketch-tool-repo`
-  - `/Users/roberth./Projects/_local/ableton-sketch-bridge`
-  - `/Users/roberth./ableton-sketch-tool`
-  - `/Users/roberth./Projects/AbletonBridge`
-- Beatport Playlist Creator / heuristische Referenz:
-  - `/Users/roberth./Desktop/beatport-playlist-creator`
-- Gastro ERP / optional verlinktes Fremdprojekt:
-  - `/Users/roberth./Projects/_github/gastro-erp`
-- Reale Daten-/Medienpfade aus dem Umfeld:
-  - `/Users/roberth./Music/Engine Library`
-  - `/Users/roberth./Music/DJ/Engine Library`
-  - `/Users/roberth./Music/Beatport.m3u8`
+### Phase 1 — GitHub-Backup (erledigt)
+- Repo war bisher nur lokal (`_local/`) ohne Remote
+- `gh repo create RVH3000/beatport-dj-suite --private` ausgeführt
+- Alle Branches gepusht: `main`, `feature/unified-app-build`, drei `claude/*`-Branches
 
-## Relevante erkannte Komponenten
+### Phase 2 — Strangler Fig Extraktion (erledigt, noch nicht committed)
+Aus `cdp-scanner.mjs` wurden zwei eigenständige Module extrahiert:
 
-- `Electron App (beatport-dj-suite)` als zentrale Oberfläche
-- `M3U8 Export Script` als integriertes Modul in der Electron-App
-- `Engine DB / Denon History Tools (Python)` als integriertes Read-only-CLI-Modul
-- `Performance Classifier (BPM/Energy/Danceability)` als integriertes Heuristik-Modul
-- `OSC -> Max/MSP / VJ Integration` als integrierte UDP/OSC-Bridge
-- `Gastro ERP (FastAPI, Docker)` nur als verlinkter externer Kontext, nicht als eingebetteter Laufzeitteil
+**`electron-app/scanner/run-store.mjs`** (neu, untracked)
+- RunStore-Klasse: Runs laden, speichern, suchen, löschen
+- Schema-Validierung (schemaVersion: 2)
+- Pflichtfelder: `origin.kind`, `migration`, `counts`, `selection`, `analysisPlan`
+- Statusmodell: `running`, `ready_for_analysis`, `paused`, `completed`, `incomplete`
+- Legacy-Erkennung: schemaVersion < 2, `phase` fehlt, `app.version < 1.1.0`
+- Track-Fingerprint (`buildTrackFingerprint` via `node:crypto`)
+- CSV-Header-Definitionen (`TRACK_CSV_HEADERS`, `SUMMARY_CSV_HEADERS`)
 
-## Was gebaut wurde
+**`electron-app/scanner/legacy-migrator.mjs`** (neu, untracked)
+- `buildMigrationTargetRun` — baut migrierten Run aus Legacy-Quelle
+- `migrateLegacyRunsImpl` — kopierender Migrationsmodus (niemals in-place)
+- Setzt: `origin.kind: "legacy-migrated"`, `migration.sourceRunId/Version/migratedAt/mode`
+- Importiert Helfer aus `run-store.mjs`
 
-- Neue Integrationsmodule unter `electron-app/integrations/`:
-  - `project-discovery.mjs`
-  - `performance-classifier.mjs`
-  - `m3u-exporter.mjs`
-  - `osc-bridge.mjs`
-  - `python/engine_tools.py`
-- Neue Renderer-Tabs:
-  - `electron-app/renderer/tabs/automation.js`
-  - `electron-app/renderer/tabs/settings.js`
-  - `electron-app/renderer/tabs/unified-settings.js`
-- Neue IPC-Brücke in `electron-app/main.mjs` und `electron-app/preload.mjs` für:
-  - Projekt-Discovery
-  - Engine-Summary
-  - Engine-Playlists
-  - Engine-History
-  - M3U/M3U8-Export
-  - Cache-Klassifikation
-  - OSC-Snapshot-Versand
-- UI-Integration in `electron-app/renderer/app.js` und `electron-app/renderer/index.html`
-- Styling für den Unified-Automation-Bereich in `electron-app/renderer/styles.css`
-- Testabdeckung für die neuen Integrationen in `tests/unified-integrations.test.mjs`
-- Packaging-Anpassung in `package.json`, damit Python-Dateien per `asarUnpack` im Build verfügbar bleiben
+**`electron-app/scanner/cdp-scanner.mjs`** (modifiziert)
+- Lokale Definitionen von `buildMigrationTargetRun` und `migrateLegacyRuns` entfernt
+- Wrapper-Funktion `migrateLegacyRuns` mit Parameter-Injection ersetzt
+- Importiert jetzt aus `legacy-migrator.mjs`
+- Nicht mehr verwendete Imports entfernt (`createHash`)
+- Außenschnittstelle unverändert
 
-## Verifikation
+---
 
-- Syntaxcheck erfolgreich:
-  - `node --check electron-app/main.mjs`
-  - `node --check electron-app/preload.mjs`
-  - `node --check electron-app/renderer/app.js`
-  - `node --check electron-app/renderer/tabs/automation.js`
-  - `node --check electron-app/renderer/tabs/settings.js`
-  - `node --check tests/unified-integrations.test.mjs`
-  - `python3 -m py_compile electron-app/integrations/python/engine_tools.py`
-- Test-Suite erfolgreich:
-  - `npm test`
-- Projekt-Check erfolgreich:
-  - `npm run check`
-- Packaging erfolgreich:
-  - `npm run desktop:dir:mac`
-  - Artefakt: `/Users/roberth./Projects/_local/beatport-dj-suite/dist-electron/mac-arm64/Beatport DJ Suite.app`
+## Aktueller Git-Status
 
-## Offene TODOs / nicht auflösbare Konflikte
+```
+modified:   electron-app/scanner/cdp-scanner.mjs
+untracked:  electron-app/scanner/run-store.mjs
+untracked:  electron-app/scanner/legacy-migrator.mjs
+untracked:  tools/beatport_cdp_tool.mjs
+untracked:  assets/
+untracked:  .claude/
+```
 
-- `Gastro ERP` wurde bewusst nicht in die Electron-Laufzeit eingebettet. Es bleibt ein externer, nur entdeckter/verlinkter Dienstkontext.
-- Der Build verwendet aktuell das Default-Electron-Icon. `electron-builder` meldet explizit, dass kein eigenes App-Icon gesetzt ist.
-- Der macOS-Build ist nicht signiert, weil `CSC_IDENTITY_AUTO_DISCOVERY=false` gesetzt ist.
-- Die Python-Engine-Tools erwarten ein lokal verfügbares `python3` im PATH.
-- Engine-/Denon-Funktionen hängen von einem lesbaren lokalen Engine-Library-Ordner ab; Default-Auflösung erfolgt über typische Ordner unter `~/Music`.
-- Im Repository existieren fremde untracked Dateien außerhalb dieses Scopes, die absichtlich nicht in die Branch-Historie aufgenommen wurden:
-  - `.claude/`
-  - `assets/icon.svg`
-  - `tools/beatport_cdp_tool.mjs`
+**Die Extraktion ist noch nicht committed.** Vor dem Commit sollte ein Smoke-Test durchgeführt werden.
 
-## Startbefehl der fertigen App
+---
 
-- Dev-Start aus dem Repo:
-  - `cd /Users/roberth./Projects/_local/beatport-dj-suite && npm run desktop:dev`
-- Gebautes App-Bundle öffnen:
-  - `open "/Users/roberth./Projects/_local/beatport-dj-suite/dist-electron/mac-arm64/Beatport DJ Suite.app"`
+## Offene TODOs (Refactoring-Roadmap)
 
-## Empfohlener Einstieg in der App
+### Sofort (vor nächstem Feature)
+- [ ] Smoke-Test mit Live-Beatport-Session durchführen (laut `docs/RELEASE_CHECKLIST.md`)
+- [ ] Extraktions-Commit: `run-store.mjs` + `legacy-migrator.mjs` + geänderter `cdp-scanner.mjs`
+- [ ] `tools/beatport_cdp_tool.mjs` und `assets/` committen oder in `.gitignore` aufnehmen
 
-- Tab `Automation` öffnen
-- Projekt-Discovery starten bzw. Defaults prüfen
-- Engine Database Folder setzen, falls Auto-Resolve nicht greift
-- `Engine Status laden`
-- `Playlists laden` oder `History laden`
-- `Cache klassifizieren`
-- Optional `M3U8 exportieren` oder `Snapshot senden`
+### Phase 3 — IPC-Formalisierung
+- [ ] Alle IPC-Handler aus `main.mjs` in `electron-app/ipc-api.mjs` zentralisieren
+- [ ] Neue Tabs (`analysis.js`, `export.js`, `playlist-wiz.js`, `sync.js`, `search.js`, `automation.js`) gegen formale IPC-API bauen
+- [ ] `unified-settings.js` von direktem State-Zugriff entkoppeln
+
+### Phase 4 — SQLite als Service (nach Phase 3)
+- [ ] `sqlite-cache.mjs` zum einzigen DB-Zugriffspunkt machen
+- [ ] Alle direkten `sqlite`-Imports in anderen Modulen entfernen
+- [ ] Schema-Migration-Mechanismus in SQLite-Service integrieren
+
+### Infrastruktur
+- [ ] Test-Coverage für `run-store.mjs` und `legacy-migrator.mjs` schreiben (ohne Electron)
+- [ ] `SMOKE_TEST_REPORT.md` nach nächstem Live-Lauf aktualisieren (letzter: 2026-03-12)
+
+---
+
+## Relevante Dateipfade
+
+| Datei | Zweck |
+|-------|-------|
+| `electron-app/scanner/cdp-scanner.mjs` | Kern-Scanner (XHR/CDP, God Object — wird schrittweise verkleinert) |
+| `electron-app/scanner/run-store.mjs` | NEU: Run-Verwaltung, Schema-Validierung, Fingerprints |
+| `electron-app/scanner/legacy-migrator.mjs` | NEU: Legacy-Migration (1.0.x → schemaVersion 2) |
+| `electron-app/cache/sqlite-cache.mjs` | SQLite-Persistenz (nächster Extraktion-Kandidat) |
+| `electron-app/main.mjs` | IPC-Grenze Electron Main ↔ Renderer |
+| `electron-app/preload.mjs` | Electron-Preload-Bridge |
+| `electron-app/renderer/app.js` | Renderer-Root |
+| `electron-app/renderer/tabs/*.js` | Tab-Module (analysis, export, playlist-wiz, sync, search, automation, settings, unified-settings) |
+| `electron-app/api/djplaylists-client.mjs` | DJPlaylists-API-Client |
+| `electron-app/api/lexicon-client.mjs` | Lexicon-API-Client |
+| `electron-app/integrations/*.mjs` | OSC-Bridge, M3U-Exporter, Project-Discovery, Performance-Classifier |
+| `docs/ARCHITECTURE.md` | Architektur-Übersicht |
+| `docs/MIGRATION.md` | Migration-Spezifikation |
+| `docs/RELEASE_CHECKLIST.md` | Release-Prozess |
+| `docs/SMOKE_TEST_REPORT.md` | Letzter Smoke-Test: 2026-03-12 |
+
+---
+
+## Kontext für nächste Session
+
+- Die App ist ein Electron-Scraper für Beatport DJ-Playlists
+- CDP = Chrome DevTools Protocol (Fallback wenn XHR nicht ausreicht)
+- Beatport-Login lebt ausschließlich im persistenten Electron-Profil (keine Passwörter in Artefakten)
+- JSONL = technischer Primärbestand; SQLite = operativer Arbeitsbestand für UI
+- Delta-Sync aktualisiert Cache aus Beatport-Summaries ohne Vollanalyse
+- Duplikate: erst Kandidaten via `Name + Trackzahl`, dann serverseitige Bestätigung via Track-Fingerprint

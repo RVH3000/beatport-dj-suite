@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a"/>
+      <stop offset="100%" style="stop-color:#111111"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#01FF95"/>
+      <stop offset="100%" style="stop-color:#00cc77"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowSoft">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#bgGrad)"/>
+
+  <!-- Subtle ring decorations -->
+  <circle cx="512" cy="430" r="460" fill="none" stroke="#01FF95" stroke-width="1.5" opacity="0.06"/>
+  <circle cx="512" cy="430" r="390" fill="none" stroke="#01FF95" stroke-width="1" opacity="0.05"/>
+
+  <!-- Top accent bar -->
+  <rect x="100" y="136" width="824" height="3" rx="2" fill="#01FF95" opacity="0.3"/>
+
+  <!-- "BE" monogram — stacked, large -->
+  <!-- B -->
+  <text
+    x="300"
+    y="500"
+    font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="460"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    fill="url(#greenGrad)"
+    filter="url(#glow)"
+  >B</text>
+
+  <!-- E — offset right, slightly smaller, darker green -->
+  <text
+    x="716"
+    y="490"
+    font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="330"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    fill="#00cc77"
+    opacity="0.55"
+  >E</text>
+
+  <!-- Horizontal divider -->
+  <rect x="100" y="656" width="824" height="2.5" rx="2" fill="#01FF95" opacity="0.3"/>
+
+  <!-- BEAT ENGINE -->
+  <text
+    x="512"
+    y="738"
+    font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="96"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    fill="#01FF95"
+    letter-spacing="14"
+    filter="url(#glowSoft)"
+  >BEAT ENGINE</text>
+
+  <!-- thin separator -->
+  <rect x="340" y="796" width="344" height="1.5" rx="1" fill="#01FF95" opacity="0.2"/>
+
+  <!-- DJ · SUITE -->
+  <text
+    x="512"
+    y="876"
+    font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="72"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    fill="#01FF95"
+    letter-spacing="20"
+    opacity="0.7"
+  >DJ · SUITE</text>
+
+  <!-- Waveform dots bottom corners -->
+  <g opacity="0.12" fill="#01FF95">
+    <rect x="100" y="938" width="10" height="30" rx="3"/>
+    <rect x="118" y="928" width="10" height="40" rx="3"/>
+    <rect x="136" y="920" width="10" height="48" rx="3"/>
+    <rect x="154" y="930" width="10" height="38" rx="3"/>
+    <rect x="172" y="940" width="10" height="28" rx="3"/>
+
+    <rect x="914" y="938" width="10" height="30" rx="3"/>
+    <rect x="896" y="928" width="10" height="40" rx="3"/>
+    <rect x="878" y="920" width="10" height="48" rx="3"/>
+    <rect x="860" y="930" width="10" height="38" rx="3"/>
+    <rect x="842" y="940" width="10" height="28" rx="3"/>
+  </g>
+</svg>

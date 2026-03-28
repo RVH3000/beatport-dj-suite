@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beatport DJ Suite</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Beatport Database Specialist</p>
+        <h1>Beatport DJ Suite</h1>
+      </div>
+      <p class="subtitle">
+        Scanner, Analyse, Playlist-Management, Automation &amp; Export
+        &mdash; alles in einer App.
+      </p>
+    </header>
+
+    <nav class="tab-bar" role="tablist">
+      <button class="tab active" role="tab" aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-sync"        data-tab="sync">Sync-Pipeline</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-automation" data-tab="automation">Automation</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-export"     data-tab="export">Export</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-settings"   data-tab="settings">Einstellungen</button>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: Scanner (bestehende UI)                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-scanner" class="tab-panel active" role="tabpanel">
+      <div class="layout">
+        <section class="panel hero">
+          <div class="hero-grid">
+            <div>
+              <h2>App-Status</h2>
+              <p id="status" class="status idle">Bereit</p>
+              <div id="appWarnings" class="callouts"></div>
+            </div>
+            <div>
+              <h2>Build & Pfad</h2>
+              <dl id="appInfo" class="meta-list"></dl>
+            </div>
+            <div>
+              <h2>Installationen</h2>
+              <div id="appCopies" class="stack-list empty">Noch nicht geladen</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>Sicherheit & Session</h2>
+            <div class="actions compact">
+              <button id="openBeatportWindowBtn" type="button">Beatport-Fenster öffnen</button>
+              <button id="authTestBtn" type="button">Session testen</button>
+              <button id="authReconnectBtn" type="button">Neu verbinden</button>
+              <button id="authExportContextBtn" type="button" title="API-Token für das XHR-Tool exportieren">API-Kontext exportieren</button>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label>
+              Laufzeitmodus
+              <select id="authMode">
+                <option value="internal">Interne Beatport-Session</option>
+                <option value="external-fallback">Externer Fallback</option>
+              </select>
+            </label>
+            <label>
+              Recovery
+              <select id="recoveryPolicy">
+                <option value="aggressive">Aggressive Recovery</option>
+                <option value="manual">Nur manuell</option>
+              </select>
+            </label>
+            <label class="check">
+              <input id="fallbackEnabled" type="checkbox" />
+              Externen Fallback erlauben, wenn die interne Session nicht bereit ist
+            </label>
+          </div>
+
+          <div class="callouts compact-callouts">
+            <div class="callout info">
+              Passwort wird nicht gespeichert. Die App hält nur Cookies und Storage
+              im internen Beatport-Profil und öffnet bei Session-Verlust das interne
+              Beatport-Fenster zur erneuten Anmeldung.
+            </div>
+          </div>
+
+          <dl id="authMeta" class="meta-list"></dl>
+          <div id="authCallouts" class="callouts"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>Run-Archiv</h2>
+            <div class="actions compact">
+              <button id="refreshRunsBtn" type="button">Runs neu laden</button>
+              <button id="migrateLegacyBtn" type="button">Legacy-Runs migrieren</button>
+              <button id="exportZipBtn" type="button">ZIP exportieren</button>
+              <button id="openArchiveDirBtn" type="button">Archiv öffnen</button>
+              <button id="openExportDirBtn" type="button">Export öffnen</button>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label>
+              Run-Filter
+              <select id="runFilter">
+                <option value="all">Alle</option>
+                <option value="active">Aktive</option>
+                <option value="legacy">Nur Legacy</option>
+                <option value="migrated">Nur migrierte</option>
+                <option value="completed">Nur abgeschlossen</option>
+              </select>
+            </label>
+            <label class="wide">
+              Aktiver Run
+              <select id="runSelect"></select>
+            </label>
+          </div>
+
+          <div id="runOverview" class="run-overview"></div>
+          <div id="runMeta" class="detail-meta empty">Noch kein Run ausgewählt</div>
+          <div class="callouts compact-callouts">
+            <div class="callout info">
+              Bestehende Runs werden nicht überschrieben. Discovery erzeugt immer
+              einen neuen Run, Analyse und Resume arbeiten auf dem ausgewählten Run.
+            </div>
+          </div>
+          <div id="outputFiles" class="file-list"></div>
+          <div id="migrationResult" class="table-wrap empty">Noch keine Migration ausgeführt</div>
+        </section>
+
+        <section class="panel">
+          <h2>Scan-Konfiguration</h2>
+
+          <div class="field-grid">
+            <label>
+              Host
+              <input id="host" type="text" />
+            </label>
+            <label>
+              Port
+              <input id="port" type="number" min="1" max="65535" />
+            </label>
+            <label>
+              Target-Pattern
+              <input id="targetPattern" type="text" />
+            </label>
+            <label>
+              Timeout (ms)
+              <input id="timeoutMs" type="number" min="1000" step="500" />
+            </label>
+            <label class="wide">
+              Beatport App Pfad
+              <input id="appPath" type="text" />
+            </label>
+            <label>
+              Analyse-Methode
+              <select id="analysisMethod">
+                <option value="auto">Auto (XHR bevorzugen, Route, DOM Fallback)</option>
+                <option value="xhr">Nur XHR</option>
+                <option value="route">Route bevorzugen</option>
+                <option value="dom">Nur DOM</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="toggles">
+            <label class="check">
+              <input id="launchApp" type="checkbox" />
+              App/Host vor Zugriff starten (`open -na ... --remote-debugging-port`)
+            </label>
+            <label class="check">
+              <input id="autoRecoverCdp" type="checkbox" />
+              CDP-Autorecovery (Host-Browser neu starten bei Port-Fehler)
+            </label>
+          </div>
+
+          <details>
+            <summary>Erweiterte Einstellungen</summary>
+            <div class="field-grid advanced">
+              <label>
+                Sidebar-Step (px)
+                <input id="sidebarScrollStep" type="number" min="100" step="50" />
+              </label>
+              <label>
+                Deep-Wait (ms)
+                <input id="deepAnalysisWaitMs" type="number" min="100" step="50" />
+              </label>
+              <label class="wide">
+                Host Browser App Pfad
+                <input id="hostAppPath" type="text" />
+              </label>
+              <label class="wide">
+                State-Datei
+                <input id="stateFile" type="text" />
+              </label>
+              <label class="wide">
+                Duplikat-CSV
+                <input id="csvFile" type="text" />
+              </label>
+              <label class="wide">
+                Analyse-JSON
+                <input id="analysisJsonFile" type="text" />
+              </label>
+              <label class="wide">
+                Track-CSV
+                <input id="analysisTrackCsvFile" type="text" />
+              </label>
+              <label class="wide">
+                Dimensionen-CSV
+                <input id="analysisSummaryCsvFile" type="text" />
+              </label>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button id="discoverBtn" class="primary">Delta-Sync</button>
+            <button id="rebuildCacheBtn" type="button">Cache neu aufbauen</button>
+            <button id="exportCacheCsvBtn" type="button">CSV exportieren</button>
+            <button id="quickScanBtn" type="button">Diagnose-Komplettlauf</button>
+            <button id="analyzeBtn" type="button">Auswahl analysieren</button>
+            <button id="pauseBtn" type="button">Pause anfordern</button>
+            <button id="resumeBtn" type="button">Resume</button>
+            <button id="resetBtn" type="button">Defaults laden</button>
+          </div>
+          <div id="cacheStatus" class="detail-summary empty">
+            Lokaler Arbeitsbestand wird geladen.
+          </div>
+        </section>
+
+        <section class="panel span-full">
+          <div class="section-head">
+            <h2>Schneller Arbeitsbestand</h2>
+            <div class="actions compact">
+              <button id="selectionAllBtn" type="button">Alle</button>
+              <button id="selectionNoneBtn" type="button">Keine</button>
+              <button id="selectionDuplicatesBtn" type="button">Nur Duplikate</button>
+              <button id="selectionPendingBtn" type="button">Nur offene</button>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="wide">
+              Filter
+              <input
+                id="playlistFilter"
+                type="text"
+                placeholder="Name, ID oder Track-Anzahl filtern"
+              />
+            </label>
+          </div>
+
+          <div id="selectionSummary" class="detail-summary empty">
+            Cache wird geladen, um Playlists für die Tiefenanalyse auszuwählen.
+          </div>
+          <div id="selectionTableWrap" class="table-wrap empty">
+            Noch keine Cache-Daten geladen
+          </div>
+        </section>
+
+        <section class="panel span-full">
+          <h2>Ergebnis</h2>
+          <h3>Duplikate</h3>
+          <div id="duplicateTableWrap" class="table-wrap empty">Noch kein Run</div>
+
+          <h3>Tiefenanalyse je Playlist</h3>
+          <div id="analysisTableWrap" class="table-wrap empty">Noch keine Analyse</div>
+
+          <h3>Playlist-Inhalt</h3>
+          <div id="playlistDetailSummary" class="detail-summary empty">
+            Playlist in Discovery, Duplikaten oder Analyse anklicken, um den Inhalt
+            aus dem Cache oder dem ausgewählten Run zu sehen.
+          </div>
+          <div id="playlistDetailMeta" class="detail-meta empty"></div>
+          <div id="playlistDetailTableWrap" class="table-wrap empty">
+            Noch keine Playlist ausgewählt
+          </div>
+        </section>
+
+        <section class="panel warning span-full">
+          <h2>Batch-Löschung</h2>
+          <p>
+            Löschen arbeitet nur gegen bestätigte Duplikate des aktuell
+            ausgewählten abgeschlossenen Runs. Ohne exakten Bestätigungstext wird
+            nichts gelöscht.
+          </p>
+          <label>
+            Bestätigungstext
+            <input id="confirmText" type="text" placeholder="LÖSCHEN BESTÄTIGT" />
+          </label>
+          <div class="actions">
+            <button id="deleteBtn" class="danger" disabled>Löschen starten</button>
+          </div>
+          <div id="deleteResultWrap" class="table-wrap empty">Noch kein Löschlauf</div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: Analyse                                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-analyse" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" id="analysis-content">
+        <section class="panel span-full placeholder-panel">
+          <h2>Analyse</h2>
+          <p class="placeholder-text">
+            Wechsle zu diesem Tab, um BPM-Verteilung, Key-Kompatibilität,
+            Genre-Breakdown und Playlist-Overlap zu sehen.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: Playlist WIZ                                                -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-playlist" class="tab-panel" role="tabpanel" hidden>
+      <div class="wiz-layout" id="playlist-wiz-content">
+        <section class="panel span-full placeholder-panel">
+          <h2>Playlist WIZ</h2>
+          <p class="placeholder-text">
+            Wechsle zu diesem Tab, um Playlists live zu verwalten —
+            erstellen, umbenennen, löschen, Tracks hinzufügen &amp; entfernen.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 4: Sync-Pipeline                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-sync" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" id="sync-content">
+        <section class="panel span-full placeholder-panel">
+          <h2>Sync-Pipeline</h2>
+          <p class="placeholder-text">
+            Beatport Streaming → DJPlaylists.fm → Lexicon DJ → Engine DJ → USB / Prime 4+
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 5: Automation                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-automation" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout">
+        <section class="panel span-full placeholder-panel">
+          <h2>Automation</h2>
+          <p class="placeholder-text">
+            Geplante Scans, Auto-Sync, Regel-basierte Playlist-Updates
+            und Benachrichtigungen.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 5: Export                                                      -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-export" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" id="export-content">
+        <section class="panel span-full placeholder-panel">
+          <h2>Export</h2>
+          <p class="placeholder-text">
+            Wechsle zu diesem Tab, um deine Playlists als Rekordbox XML,
+            Traktor NML, JSON oder JSONL zu exportieren.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 6: Einstellungen                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-settings" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout">
+        <section class="panel span-full placeholder-panel">
+          <h2>Einstellungen</h2>
+          <p class="placeholder-text">
+            App-Konfiguration, Pfade, API-Tokens, Theme und
+            Tastenkürzel.
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
