@@ -57,6 +57,9 @@ import {
   appendMirroredJsonLine,
   ensureRunDirectories,
   ensureDerivedRunArtifacts,
+  extractYearValue,
+  incrementBucket,
+  sortCountList,
 } from "./run-store.mjs";
 import {
   migrateLegacyRuns as migrateLegacyRunsImpl,

@@ -1658,4 +1658,7 @@ export {
   appendMirroredJsonLine,
   ensureRunDirectories,
   ensureDerivedRunArtifacts,
+  extractYearValue,
+  incrementBucket,
+  sortCountList,
 };
