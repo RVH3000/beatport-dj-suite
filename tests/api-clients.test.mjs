@@ -210,12 +210,10 @@ describe("DJPlaylists.fm Client", () => {
       assert.equal(extractPlaylistId("https://google.com"), null);
     });
 
-    it("Gibt etwas nicht-null zurück für /p/ URLs (bekannte Einschränkung)", () => {
-      // BUG: Die Regex (?:playlists?\/)? matcht /p/ nicht —
-      // sie gibt "p" statt den Slug zurück. Für /playlists/ funktioniert es korrekt.
+    it("Extrahiert Slug korrekt aus /p/ URLs", () => {
+      // FIX: Regex erkennt jetzt /p/ neben /playlist/ und /playlists/
       const id = extractPlaylistId("https://www.djplaylists.fm/p/summer-mix");
-      assert.ok(id !== null, "Sollte nicht null sein");
-      // Aktuell: id === "p" (nicht "summer-mix") — dokumentiert als Known Issue
+      assert.equal(id, "summer-mix");
     });
 
     it("Ist case-insensitive für Domain", () => {

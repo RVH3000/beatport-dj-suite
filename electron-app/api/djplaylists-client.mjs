@@ -448,6 +448,6 @@ export function buildLexiconImportUrl(playlistId) {
  * @returns {string|null}
  */
 export function extractPlaylistId(url) {
-  const match = url.match(/djplaylists\.fm\/(?:playlists?\/)?([a-z0-9_-]+)/i);
+  const match = url.match(/djplaylists\.fm\/(?:playlists?|p)\/([a-z0-9_-]+)/i);
   return match?.[1] ?? null;
 }

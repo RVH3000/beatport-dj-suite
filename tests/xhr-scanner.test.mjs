@@ -3,7 +3,7 @@
  * Tests für das xhr-scanner Modul mit Node.js native test runner
  */
 
-import test from "node:test";
+import test, { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -15,6 +15,8 @@ import {
   normalizeTrack,
   csvEscape,
   parseArgs,
+  findContextFile,
+  loadApiContext,
   DataStore,
   BeatportXhrClient,
   API_BASE,
@@ -913,4 +915,219 @@ test("normalizeTrack: ISRC und Katalognummer", () => {
   const result = normalizeTrack("pl-1", entry);
   assert.strictEqual(result.isrc, "US1234567890");
   assert.strictEqual(result.catalogNumber, "CAT-001");
+});
+
+// ─── Phase 6: parseArgs, findContextFile, loadApiContext, Client-Methoden ──────
+
+
+
+describe("parseArgs", () => {
+  it("parst positionale Argumente (ab Index 2)", () => {
+    const result = parseArgs(["node", "script.mjs", "discover"]);
+    assert.deepStrictEqual(result._, ["discover"]);
+    assert.deepStrictEqual(result.flags, {});
+  });
+
+  it("parst --key=value Flags", () => {
+    const result = parseArgs(["node", "s.mjs", "--context=/tmp/ctx.json", "--port=9222"]);
+    assert.strictEqual(result.flags.context, "/tmp/ctx.json");
+    assert.strictEqual(result.flags.port, "9222");
+  });
+
+  it("parst --flag ohne Wert als true", () => {
+    const result = parseArgs(["node", "s.mjs", "--verbose", "--dry-run"]);
+    assert.strictEqual(result.flags.verbose, true);
+    assert.strictEqual(result.flags["dry-run"], true);
+  });
+
+  it("behandelt --key=val mit mehreren = korrekt", () => {
+    const result = parseArgs(["node", "s.mjs", "--url=https://example.com?a=1"]);
+    assert.strictEqual(result.flags.url, "https://example.com?a=1");
+  });
+
+  it("mischt positionale und Flags", () => {
+    const result = parseArgs(["node", "s.mjs", "scan", "--output=/tmp", "extra"]);
+    assert.deepStrictEqual(result._, ["scan", "extra"]);
+    assert.strictEqual(result.flags.output, "/tmp");
+  });
+
+  it("gibt leere Struktur bei nur node+script", () => {
+    const result = parseArgs(["node", "script.mjs"]);
+    assert.deepStrictEqual(result._, []);
+    assert.deepStrictEqual(result.flags, {});
+  });
+});
+
+describe("findContextFile", () => {
+  it("gibt expliziten Pfad zurück wenn Datei existiert", async () => {
+    const tmpDir = path.join(os.tmpdir(), `xhr-test-${Date.now()}`);
+    await fs.mkdir(tmpDir, { recursive: true });
+    const ctxPath = path.join(tmpDir, "api-context.json");
+    await fs.writeFile(ctxPath, '{"authorization":"Bearer test"}');
+    try {
+      const result = await findContextFile(ctxPath);
+      assert.strictEqual(result, ctxPath);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("wirft Fehler wenn expliziter Pfad nicht existiert", async () => {
+    await assert.rejects(
+      () => findContextFile("/tmp/nonexistent-ctx-file-12345.json"),
+      (err) => err.message.includes("nicht gefunden")
+    );
+  });
+
+  it("gibt Pfad oder Fehler zurück wenn kein expliziter Pfad angegeben", async () => {
+    // Ohne Argument sucht sie in USER_DATA_PATHS — je nach System
+    // wird eine api-context.json gefunden oder ein Fehler geworfen
+    try {
+      const result = await findContextFile(undefined);
+      assert.ok(result.endsWith("api-context.json"), "Sollte api-context.json-Pfad sein");
+    } catch (err) {
+      assert.ok(err.message.includes("api-context.json nicht gefunden"));
+    }
+  });
+});
+
+describe("loadApiContext", () => {
+  it("lädt gültigen Kontext mit Authorization", async () => {
+    const tmpDir = path.join(os.tmpdir(), `xhr-ctx-${Date.now()}`);
+    await fs.mkdir(tmpDir, { recursive: true });
+    const ctxPath = path.join(tmpDir, "api-context.json");
+    const ctx = {
+      authorization: "Bearer eyTest123",
+      exportedAt: new Date().toISOString(),
+    };
+    await fs.writeFile(ctxPath, JSON.stringify(ctx));
+    try {
+      const result = await loadApiContext(ctxPath);
+      assert.strictEqual(result.authorization, "Bearer eyTest123");
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("wirft Fehler wenn Authorization fehlt", async () => {
+    const tmpDir = path.join(os.tmpdir(), `xhr-noauth-${Date.now()}`);
+    await fs.mkdir(tmpDir, { recursive: true });
+    const ctxPath = path.join(tmpDir, "api-context.json");
+    await fs.writeFile(ctxPath, '{"exportedAt":"2025-01-01T00:00:00Z"}');
+    try {
+      await assert.rejects(
+        () => loadApiContext(ctxPath),
+        (err) => err.message.includes("kein Authorization-Token")
+      );
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("BeatportXhrClient: erweiterte Methoden", () => {
+  it("fetchPlaylistMeta ruft korrekte URL auf", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      let calledUrl = "";
+      globalThis.fetch = async (url) => {
+        calledUrl = url;
+        return { status: 200, ok: true, json: async () => ({ id: "pl1", name: "Test" }) };
+      };
+      const client = new BeatportXhrClient({ authorization: "Bearer token" });
+      const meta = await client.fetchPlaylistMeta("pl1");
+      assert.ok(calledUrl.includes("/my/playlists/pl1/"));
+      assert.strictEqual(meta.name, "Test");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("addTracksToPlaylist sendet POST für jeden Track", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      const calls = [];
+      globalThis.fetch = async (url, opts) => {
+        calls.push({ url, method: opts?.method, body: opts?.body });
+        return { status: 200, ok: true, json: async () => ({ ok: true }) };
+      };
+      const client = new BeatportXhrClient({ authorization: "Bearer token" });
+      const results = await client.addTracksToPlaylist("pl1", ["100", "200"]);
+      assert.strictEqual(results.length, 2);
+      assert.strictEqual(results[0].status, "added");
+      assert.strictEqual(results[1].status, "added");
+      assert.ok(calls.every((c) => c.method === "POST"));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("addTracksToPlaylist fängt Fehler pro Track ab", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      let callCount = 0;
+      globalThis.fetch = async () => {
+        callCount++;
+        if (callCount === 1) throw new Error("Netzwerkfehler");
+        return { status: 200, ok: true, json: async () => ({ ok: true }) };
+      };
+      const client = new BeatportXhrClient({ authorization: "Bearer token" });
+      const results = await client.addTracksToPlaylist("pl1", ["100", "200"]);
+      assert.strictEqual(results[0].status, "error");
+      assert.strictEqual(results[1].status, "added");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("removeTracksFromPlaylist sendet DELETE für jeden Track", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      const methods = [];
+      globalThis.fetch = async (url, opts) => {
+        methods.push(opts?.method);
+        return { status: 200, ok: true, json: async () => ({}) };
+      };
+      const client = new BeatportXhrClient({ authorization: "Bearer token" });
+      const results = await client.removeTracksFromPlaylist("pl1", ["100", "200"]);
+      assert.strictEqual(results.length, 2);
+      assert.ok(results.every((r) => r.status === "removed"));
+      assert.ok(methods.every((m) => m === "DELETE"));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("renamePlaylist sendet PATCH mit neuem Namen", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      let sentBody = null;
+      globalThis.fetch = async (url, opts) => {
+        sentBody = opts?.body;
+        return { status: 200, ok: true, json: async () => ({ name: "Neuer Name" }) };
+      };
+      const client = new BeatportXhrClient({ authorization: "Bearer token" });
+      const result = await client.renamePlaylist("pl1", "Neuer Name");
+      assert.strictEqual(result.name, "Neuer Name");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("deletePlaylist sendet DELETE und gibt {ok: true}", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      let method = "";
+      globalThis.fetch = async (url, opts) => {
+        method = opts?.method;
+        return { status: 200, ok: true, json: async () => ({}) };
+      };
+      const client = new BeatportXhrClient({ authorization: "Bearer token" });
+      const result = await client.deletePlaylist("pl1");
+      assert.strictEqual(method, "DELETE");
+      assert.strictEqual(result.ok, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
