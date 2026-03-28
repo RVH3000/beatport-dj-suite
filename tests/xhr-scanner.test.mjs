@@ -658,3 +658,259 @@ test("Konstanten: PER_PAGE ist korrekt definiert", () => {
 test("Konstanten: TRACKS_PER_PAGE ist korrekt definiert", () => {
   assert.strictEqual(TRACKS_PER_PAGE, 100);
 });
+
+// ─── BeatportXhrClient: discoverAllPlaylists Tests ─────────────────────────
+
+test("BeatportXhrClient: discoverAllPlaylists paginiert korrekt", async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    let callCount = 0;
+    globalThis.fetch = async (url) => {
+      callCount++;
+      if (callCount === 1) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({
+            count: 3,
+            results: [
+              { id: 1, name: "Playlist A", track_count: 10 },
+              { id: 2, name: "Playlist B", track_count: 20 },
+            ],
+            next: "https://api.beatport.com/v4/my/playlists/?page=2",
+          }),
+        };
+      }
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({
+          count: 3,
+          results: [{ id: 3, name: "Playlist C", track_count: 5 }],
+          next: null,
+        }),
+      };
+    };
+
+    const client = new BeatportXhrClient({ authorization: "Bearer token" });
+    const playlists = await client.discoverAllPlaylists();
+
+    assert.strictEqual(playlists.length, 3);
+    assert.strictEqual(playlists[0].name, "Playlist A");
+    assert.strictEqual(playlists[2].name, "Playlist C");
+    assert.strictEqual(callCount, 2, "Sollte 2 API-Requests machen");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("BeatportXhrClient: discoverAllPlaylists mit leerer Response", async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = async () => ({
+      status: 200,
+      ok: true,
+      json: async () => ({ count: 0, results: [], next: null }),
+    });
+
+    const client = new BeatportXhrClient({ authorization: "Bearer token" });
+    const playlists = await client.discoverAllPlaylists();
+
+    assert.strictEqual(playlists.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("BeatportXhrClient: fetchPlaylistTracks gibt normalisierte Tracks zurück", async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = async () => ({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            track: {
+              id: 100,
+              name: "Track A",
+              mix_name: "Original",
+              artists: [{ name: "DJ X" }],
+              bpm: 128,
+              key: { name: "Am" },
+            },
+          },
+          {
+            track: {
+              id: 101,
+              name: "Track B",
+              mix_name: "Remix",
+              artists: [{ name: "DJ Y" }],
+              bpm: 132,
+            },
+          },
+        ],
+        next: null,
+      }),
+    });
+
+    const client = new BeatportXhrClient({ authorization: "Bearer token" });
+    const tracks = await client.fetchPlaylistTracks("pl-99");
+
+    assert.strictEqual(tracks.length, 2);
+    assert.strictEqual(tracks[0].title, "Track A");
+    assert.strictEqual(tracks[0].artists, "DJ X");
+    assert.strictEqual(tracks[0].playlistId, "pl-99");
+    assert.strictEqual(tracks[1].bpm, 132);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("BeatportXhrClient: requestCount wird korrekt hochgezählt", async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = async () => ({
+      status: 200,
+      ok: true,
+      json: async () => ({ ok: true }),
+    });
+
+    const client = new BeatportXhrClient({ authorization: "Bearer token" });
+    assert.strictEqual(client.requestCount, 0);
+
+    await client.fetch("https://api.beatport.com/v4/test1");
+    assert.strictEqual(client.requestCount, 1);
+
+    await client.fetch("https://api.beatport.com/v4/test2");
+    assert.strictEqual(client.requestCount, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("BeatportXhrClient: POST-Request sendet Content-Type header", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedHeaders = null;
+
+  try {
+    globalThis.fetch = async (url, options) => {
+      capturedHeaders = options.headers;
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ id: "new-playlist" }),
+      };
+    };
+
+    const client = new BeatportXhrClient({ authorization: "Bearer token" });
+    await client.fetch("https://api.beatport.com/v4/my/playlists/", {
+      method: "POST",
+      body: { name: "New Playlist" },
+    });
+
+    assert.strictEqual(capturedHeaders["content-type"], "application/json");
+    assert.strictEqual(capturedHeaders.authorization, "Bearer token");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("BeatportXhrClient: createPlaylist sendet POST", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedBody = null;
+
+  try {
+    globalThis.fetch = async (url, options) => {
+      capturedBody = options.body;
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ id: "42", name: "Test Playlist" }),
+      };
+    };
+
+    const client = new BeatportXhrClient({ authorization: "Bearer token" });
+    const result = await client.createPlaylist("Test Playlist");
+
+    assert.strictEqual(result.name, "Test Playlist");
+    const parsed = JSON.parse(capturedBody);
+    assert.strictEqual(parsed.name, "Test Playlist");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// ─── normalizePlaylist Erweiterungen ────────────────────────────────────────
+
+test("normalizePlaylist: Behandelt fehlende image gracefully", () => {
+  const entry = {
+    id: 99,
+    name: "No Image",
+    track_count: 5,
+  };
+  const result = normalizePlaylist(entry);
+  assert.strictEqual(result.imageUrl, "");
+});
+
+test("normalizePlaylist: isPublic Default ist false", () => {
+  const entry = { id: 1, name: "Private" };
+  const result = normalizePlaylist(entry);
+  assert.strictEqual(result.isPublic, false);
+});
+
+// ─── normalizeTrack Erweiterungen ───────────────────────────────────────────
+
+test("normalizeTrack: Extrahiert sub_genres korrekt", () => {
+  const entry = {
+    track: {
+      id: 200,
+      name: "Subgenre Track",
+      sub_genres: [{ name: "Acid" }, { name: "Hard" }],
+    },
+  };
+  const result = normalizeTrack("pl-1", entry);
+  assert.strictEqual(result.subGenre, "Acid, Hard");
+});
+
+test("normalizeTrack: Sub-Genre als Fallback für Genre", () => {
+  const entry = {
+    track: {
+      id: 201,
+      name: "Fallback Genre",
+      sub_genres: [{ name: "Progressive" }],
+    },
+  };
+  const result = normalizeTrack("pl-1", entry);
+  assert.strictEqual(result.genre, "Progressive");
+});
+
+test("normalizeTrack: Remixers werden korrekt extrahiert", () => {
+  const entry = {
+    track: {
+      id: 202,
+      name: "Remixed",
+      remixers: [{ name: "DJ Remix" }, { name: "DJ Other" }],
+    },
+  };
+  const result = normalizeTrack("pl-1", entry);
+  assert.strictEqual(result.remixers, "DJ Remix, DJ Other");
+});
+
+test("normalizeTrack: ISRC und Katalognummer", () => {
+  const entry = {
+    track: {
+      id: 203,
+      name: "Full Metadata",
+      isrc: "US1234567890",
+      catalog_number: "CAT-001",
+    },
+  };
+  const result = normalizeTrack("pl-1", entry);
+  assert.strictEqual(result.isrc, "US1234567890");
+  assert.strictEqual(result.catalogNumber, "CAT-001");
+});

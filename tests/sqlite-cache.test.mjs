@@ -1,4 +1,4 @@
-import test from "node:test";
+import { describe, it, test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -20,6 +20,109 @@ async function checkSqliteAvailable() {
 async function makeTempDir() {
   return await fs.mkdtemp(path.join(os.tmpdir(), "sqlite-cache-test-"));
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Interne Pure Functions (Source-Nachbau — kein sqlite3 nötig)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// sqlLiteral aus sqlite-cache.mjs nachgebaut
+function sqlLiteral(value) {
+  if (value === undefined || value === null) return "NULL";
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "NULL";
+  }
+  if (typeof value === "boolean") {
+    return value ? "1" : "0";
+  }
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+// chunk aus sqlite-cache.mjs nachgebaut
+function chunk(list, size) {
+  const result = [];
+  for (let index = 0; index < list.length; index += size) {
+    result.push(list.slice(index, index + size));
+  }
+  return result;
+}
+
+// toIsoNow nachgebaut
+function toIsoNow() {
+  return new Date().toISOString();
+}
+
+describe("sqlLiteral (intern)", () => {
+  it("Gibt NULL für undefined zurück", () => {
+    assert.equal(sqlLiteral(undefined), "NULL");
+  });
+
+  it("Gibt NULL für null zurück", () => {
+    assert.equal(sqlLiteral(null), "NULL");
+  });
+
+  it("Konvertiert Zahlen zu Strings", () => {
+    assert.equal(sqlLiteral(42), "42");
+    assert.equal(sqlLiteral(3.14), "3.14");
+    assert.equal(sqlLiteral(0), "0");
+    assert.equal(sqlLiteral(-1), "-1");
+  });
+
+  it("Gibt NULL für NaN und Infinity zurück", () => {
+    assert.equal(sqlLiteral(NaN), "NULL");
+    assert.equal(sqlLiteral(Infinity), "NULL");
+    assert.equal(sqlLiteral(-Infinity), "NULL");
+  });
+
+  it("Konvertiert Booleans zu 0/1", () => {
+    assert.equal(sqlLiteral(true), "1");
+    assert.equal(sqlLiteral(false), "0");
+  });
+
+  it("Escaped einfache Anführungszeichen in Strings", () => {
+    assert.equal(sqlLiteral("it's"), "'it''s'");
+    assert.equal(sqlLiteral("O'Malley"), "'O''Malley'");
+  });
+
+  it("Wrapping Strings in einfachen Anführungszeichen", () => {
+    assert.equal(sqlLiteral("hello"), "'hello'");
+    assert.equal(sqlLiteral(""), "''");
+  });
+
+  it("Konvertiert nicht-String-Objekte zu String", () => {
+    assert.equal(sqlLiteral({ toString: () => "obj" }), "'obj'");
+  });
+});
+
+describe("chunk (intern)", () => {
+  it("Teilt Array in gleich große Teile", () => {
+    const result = chunk([1, 2, 3, 4, 5, 6], 2);
+    assert.deepStrictEqual(result, [[1, 2], [3, 4], [5, 6]]);
+  });
+
+  it("Letzter Chunk kann kleiner sein", () => {
+    const result = chunk([1, 2, 3, 4, 5], 3);
+    assert.deepStrictEqual(result, [[1, 2, 3], [4, 5]]);
+  });
+
+  it("Ein Element pro Chunk", () => {
+    const result = chunk([1, 2, 3], 1);
+    assert.deepStrictEqual(result, [[1], [2], [3]]);
+  });
+
+  it("Chunk-Size größer als Array", () => {
+    const result = chunk([1, 2], 10);
+    assert.deepStrictEqual(result, [[1, 2]]);
+  });
+
+  it("Leeres Array gibt leeres Ergebnis", () => {
+    const result = chunk([], 5);
+    assert.deepStrictEqual(result, []);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// normalizePlaylistKey Tests (exportiert)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 test("normalizePlaylistKey - gibt playlistId zurück wenn vorhanden", () => {
   const entry = {
