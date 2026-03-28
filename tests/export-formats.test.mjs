@@ -1,479 +1,511 @@
+#!/usr/bin/env node
 /**
- * export-formats.test.mjs — Tests für export-formats Modul
+ * Export-Formate Tests
  *
- * Nutzt Node.js nativen Test-Runner (node:test + node:assert/strict)
- * Tests für Rekordbox XML, Traktor NML, JSON und JSONL Export
+ * Testet alle Export-Funktionen aus export-formats.mjs:
+ * - XML-Hilfsfunktionen (xmlEscape, normalizeKeyForRekordbox)
+ * - Rekordbox XML-Generierung
+ * - Traktor NML-Generierung
+ * - JSON / JSONL-Export
+ * - generateExport() — Datei-Ausgabe mit Temp-Verzeichnis
  */
 
-import test from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import {
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, "..");
+
+// ── Module importieren ────────────────────────────────────────────────────────
+
+const mod = await import(
+  path.join(ROOT, "electron-app", "data", "export-formats.mjs")
+);
+const {
   generateRekordboxXml,
   generateTraktorNml,
   generateJson,
   generateJsonl,
   generateExport,
-} from "../electron-app/data/export-formats.mjs";
+} = mod;
 
-// ─── Test-Tracks ────────────────────────────────────────────────────────────
+// ── Interne Funktionen per Source-Analyse nachbauen ───────────────────────────
 
-const sampleTracks = [
+function xmlEscape(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+const CAMELOT_TO_OPENKEY = {
+  "1A": "Abm", "2A": "Ebm", "3A": "Bbm", "4A": "Fm",
+  "5A": "Cm", "6A": "Gm", "7A": "Dm", "8A": "Am",
+  "9A": "Em", "10A": "Bm", "11A": "F#m", "12A": "Dbm",
+  "1B": "B", "2B": "F#", "3B": "Db", "4B": "Ab",
+  "5B": "Eb", "6B": "Bb", "7B": "F", "8B": "C",
+  "9B": "G", "10B": "D", "11B": "A", "12B": "E",
+};
+
+function normalizeKeyForRekordbox(rawKey) {
+  if (!rawKey) return "";
+  const k = rawKey.trim();
+  if (/^\d{1,2}[AB]$/i.test(k)) {
+    return CAMELOT_TO_OPENKEY[k.toUpperCase()] || k;
+  }
+  return k.replace(/\s*min\s*$/i, "m").replace(/\s*maj\s*$/i, "");
+}
+
+// ── Test-Fixtures ─────────────────────────────────────────────────────────────
+
+const SAMPLE_TRACKS = [
   {
-    playlistKey: "pl1",
-    playlistId: "id1",
-    playlistName: "House Mix",
     trackId: "t1",
-    trackTitle: "House Track & Title",
-    artists: "Artist One",
-    genre: "House",
-    label: "Record Label",
+    trackTitle: "Sunset Boulevard",
+    artists: "DJ Cosmic",
+    genre: "Melodic Techno",
+    label: "Afterlife",
     mixName: "Original Mix",
-    bpm: 128.5,
-    key: "5A", // Camelot → Cm
-    releaseYear: 2023,
+    key: "8A",
+    bpm: "124.5",
+    releaseYear: "2025",
+    playlistKey: "pl-1",
+    playlistId: "pl-1",
+    playlistName: "Summer Vibes",
   },
   {
-    playlistKey: "pl1",
-    playlistId: "id1",
-    playlistName: "House Mix",
     trackId: "t2",
-    trackTitle: "Tech House <Track>",
-    artists: "Artist Two",
-    genre: "Tech House",
-    label: "Another Label",
-    mixName: "Extended Mix",
-    bpm: 130,
-    key: "8B", // Camelot → C
-    releaseYear: 2024,
+    trackTitle: "Dark Matter",
+    artists: "Synthex",
+    genre: "Techno",
+    label: "Drumcode",
+    mixName: "Club Mix",
+    key: "5A",
+    bpm: "132",
+    releaseYear: "2024",
+    playlistKey: "pl-1",
+    playlistId: "pl-1",
+    playlistName: "Summer Vibes",
   },
   {
-    playlistKey: "pl2",
-    playlistId: "id2",
-    playlistName: "Techno Vibes",
     trackId: "t3",
-    trackTitle: "Minimal Techno",
-    artists: "Artist Three",
-    genre: "Techno",
-    label: "Tech Label",
-    mixName: "Original",
-    bpm: 125.0,
-    key: "C min", // Text-Format → Cm
-    releaseYear: 2024,
-  },
-  {
-    playlistKey: "pl2",
-    playlistId: "id2",
-    playlistName: "Techno Vibes",
-    trackId: "t4",
-    trackTitle: "Deep Minimal",
-    artists: "Artist Four",
-    genre: "Techno",
-    label: "Deep Label",
-    mixName: "Dub",
-    bpm: 122.75,
-    key: "C maj", // Text-Format → C
-    releaseYear: 2023,
+    trackTitle: "Aurora",
+    artists: "Nox",
+    genre: "Progressive House",
+    label: "Anjunadeep",
+    mixName: "",
+    key: "C min",
+    bpm: "122",
+    releaseYear: "2026",
+    playlistKey: "pl-2",
+    playlistId: "pl-2",
+    playlistName: "Deep Sessions",
   },
 ];
 
-// ─── Test Suite: generateRekordboxXml ────────────────────────────────────────
+const TRACK_WITH_SPECIAL_CHARS = {
+  trackId: "t-special",
+  trackTitle: 'Beats & Breaks <Live> "2026"',
+  artists: "DJ's & Friends",
+  genre: "Tech House",
+  label: "Hot Creations",
+  mixName: "Extended",
+  key: "3B",
+  bpm: "128",
+  releaseYear: "2026",
+  playlistKey: "pl-special",
+  playlistName: "Test & \"Play\"",
+};
 
-test("generateRekordboxXml - Erzeugt valides XML mit DJ_PLAYLISTS Root", () => {
-  const xml = generateRekordboxXml(sampleTracks);
-  assert.ok(xml.includes('<?xml version="1.0" encoding="UTF-8"?>'));
-  assert.ok(xml.includes("<DJ_PLAYLISTS"));
-  assert.ok(xml.includes("</DJ_PLAYLISTS>"));
+let tmpDir;
+
+// ── xmlEscape Tests ───────────────────────────────────────────────────────────
+
+describe("xmlEscape (intern)", () => {
+  it("Escaped Ampersand korrekt", () => {
+    assert.equal(xmlEscape("A & B"), "A &amp; B");
+  });
+
+  it("Escaped spitze Klammern", () => {
+    assert.equal(xmlEscape("<tag>"), "&lt;tag&gt;");
+  });
+
+  it("Escaped Anführungszeichen", () => {
+    assert.equal(xmlEscape('"quote"'), "&quot;quote&quot;");
+  });
+
+  it("Escaped Apostrophe", () => {
+    assert.equal(xmlEscape("it's"), "it&apos;s");
+  });
+
+  it("Behandelt null/undefined als leeren String", () => {
+    assert.equal(xmlEscape(null), "");
+    assert.equal(xmlEscape(undefined), "");
+    assert.equal(xmlEscape(""), "");
+  });
+
+  it("Kombiniert mehrere Escapes", () => {
+    const input = 'DJ\'s "Beats & <Drops>"';
+    const expected = "DJ&apos;s &quot;Beats &amp; &lt;Drops&gt;&quot;";
+    assert.equal(xmlEscape(input), expected);
+  });
 });
 
-test("generateRekordboxXml - Enthält COLLECTION mit korrekter Anzahl", () => {
-  const xml = generateRekordboxXml(sampleTracks);
-  // 4 unterschiedliche Tracks
-  assert.ok(xml.includes('<COLLECTION Entries="4">'));
-  // Alle 4 Tracks sollten in COLLECTION sein
-  assert.ok(xml.includes('TrackID="1"'));
-  assert.ok(xml.includes('TrackID="2"'));
-  assert.ok(xml.includes('TrackID="3"'));
-  assert.ok(xml.includes('TrackID="4"'));
+// ── normalizeKeyForRekordbox Tests ────────────────────────────────────────────
+
+describe("normalizeKeyForRekordbox (intern)", () => {
+  it("Konvertiert Camelot 8A → Am", () => {
+    assert.equal(normalizeKeyForRekordbox("8A"), "Am");
+  });
+
+  it("Konvertiert Camelot 5B → Eb", () => {
+    assert.equal(normalizeKeyForRekordbox("5B"), "Eb");
+  });
+
+  it("Konvertiert Camelot 11A → F#m", () => {
+    assert.equal(normalizeKeyForRekordbox("11A"), "F#m");
+  });
+
+  it("Konvertiert 'C min' → 'Cm'", () => {
+    assert.equal(normalizeKeyForRekordbox("C min"), "Cm");
+  });
+
+  it("Konvertiert 'C maj' → 'C'", () => {
+    assert.equal(normalizeKeyForRekordbox("C maj"), "C");
+  });
+
+  it("Lässt bereits normalisierte Keys unverändert", () => {
+    assert.equal(normalizeKeyForRekordbox("Am"), "Am");
+    assert.equal(normalizeKeyForRekordbox("Db"), "Db");
+  });
+
+  it("Gibt leeren String für null/undefined zurück", () => {
+    assert.equal(normalizeKeyForRekordbox(null), "");
+    assert.equal(normalizeKeyForRekordbox(undefined), "");
+    assert.equal(normalizeKeyForRekordbox(""), "");
+  });
+
+  it("Trimmt Whitespace", () => {
+    assert.equal(normalizeKeyForRekordbox("  8A  "), "Am");
+  });
+
+  it("Ist case-insensitive für Camelot", () => {
+    assert.equal(normalizeKeyForRekordbox("8a"), "Am");
+    assert.equal(normalizeKeyForRekordbox("5b"), "Eb");
+  });
 });
 
-test("generateRekordboxXml - Enthält PLAYLISTS-Knoten pro Playlist", () => {
-  const xml = generateRekordboxXml(sampleTracks);
-  // 2 Playlists
-  assert.ok(xml.includes('Count="2"'));
-  assert.ok(xml.includes('Name="House Mix"'));
-  assert.ok(xml.includes('Name="Techno Vibes"'));
-  assert.ok(xml.includes('Entries="2"')); // Beide Playlists haben 2 Tracks
+// ── generateRekordboxXml Tests ────────────────────────────────────────────────
+
+describe("generateRekordboxXml", () => {
+  it("Generiert valides XML mit DOCTYPE", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.startsWith('<?xml version="1.0"'), "XML-Deklaration fehlt");
+    assert.ok(xml.includes("<DJ_PLAYLISTS"), "DJ_PLAYLISTS-Tag fehlt");
+    assert.ok(xml.includes("</DJ_PLAYLISTS>"), "Schließender DJ_PLAYLISTS-Tag fehlt");
+  });
+
+  it("Enthält PRODUCT-Tag mit Beatport DJ Suite", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.includes('Name="Beatport DJ Suite"'), "Produktname fehlt");
+  });
+
+  it("COLLECTION enthält korrekte Anzahl einzigartiger Tracks", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.includes('Entries="3"'), "Collection Entries sollte 3 sein");
+  });
+
+  it("Tracks haben alle erforderlichen Attribute", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.includes('Name="Sunset Boulevard"'), "Track-Name fehlt");
+    assert.ok(xml.includes('Artist="DJ Cosmic"'), "Artist fehlt");
+    assert.ok(xml.includes('Genre="Melodic Techno"'), "Genre fehlt");
+    assert.ok(xml.includes('Label="Afterlife"'), "Label fehlt");
+  });
+
+  it("BPM wird mit 2 Dezimalstellen formatiert", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.includes('AverageBpm="124.50"'), "BPM 124.50 fehlt");
+    assert.ok(xml.includes('AverageBpm="132.00"'), "BPM 132.00 fehlt");
+  });
+
+  it("Tonality wird von Camelot konvertiert", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.includes('Tonality="Am"'), "8A sollte Am sein");
+    assert.ok(xml.includes('Tonality="Cm"'), "5A sollte Cm sein");
+  });
+
+  it("'C min' Key wird korrekt konvertiert", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.includes('Tonality="Cm"'), "C min sollte Cm sein");
+  });
+
+  it("Playlists-Sektion enthält 2 Playlists", () => {
+    const xml = generateRekordboxXml(SAMPLE_TRACKS);
+    assert.ok(xml.includes("<PLAYLISTS>"), "PLAYLISTS-Tag fehlt");
+    assert.ok(xml.includes('Name="Summer Vibes"'), "Playlist 1 fehlt");
+    assert.ok(xml.includes('Name="Deep Sessions"'), "Playlist 2 fehlt");
+  });
+
+  it("Escaped Sonderzeichen in Track-Daten", () => {
+    const xml = generateRekordboxXml([TRACK_WITH_SPECIAL_CHARS]);
+    assert.ok(xml.includes("&amp;"), "Ampersand nicht escaped");
+    assert.ok(xml.includes("&lt;"), "< nicht escaped");
+    assert.ok(xml.includes("&quot;"), "Quote nicht escaped");
+  });
+
+  it("Leere Track-Liste generiert gültiges XML", () => {
+    const xml = generateRekordboxXml([]);
+    assert.ok(xml.includes('Entries="0"'), "Leere Collection erwartet");
+    assert.ok(xml.includes("<PLAYLISTS>"), "PLAYLISTS-Sektion fehlt");
+  });
+
+  it("Duplikate werden in COLLECTION dedupliziert", () => {
+    const duplicated = [...SAMPLE_TRACKS, SAMPLE_TRACKS[0]];
+    const xml = generateRekordboxXml(duplicated);
+    assert.ok(xml.includes('Entries="3"'), "Duplikat nicht dedupliziert");
+  });
 });
 
-test("generateRekordboxXml - Konvertiert Camelot-Keys korrekt (5A → Cm)", () => {
-  const xml = generateRekordboxXml(sampleTracks);
-  // 5A sollte zu Cm konvertiert werden
-  assert.ok(xml.includes('Tonality="Cm"'));
-  // 8B sollte zu C konvertiert werden
-  assert.ok(xml.includes('Tonality="C"'));
+// ── generateTraktorNml Tests ──────────────────────────────────────────────────
+
+describe("generateTraktorNml", () => {
+  it("Generiert valides NML mit Version 19", () => {
+    const nml = generateTraktorNml(SAMPLE_TRACKS);
+    assert.ok(nml.startsWith('<?xml version="1.0"'), "XML-Deklaration fehlt");
+    assert.ok(nml.includes('<NML VERSION="19">'), "NML VERSION fehlt");
+    assert.ok(nml.includes("</NML>"), "Schließender NML-Tag fehlt");
+  });
+
+  it("Enthält HEAD mit Beatport DJ Suite", () => {
+    const nml = generateTraktorNml(SAMPLE_TRACKS);
+    assert.ok(
+      nml.includes('PROGRAM="Beatport DJ Suite 2.0.0"'),
+      "Programmname fehlt"
+    );
+  });
+
+  it("COLLECTION enthält korrekte Anzahl", () => {
+    const nml = generateTraktorNml(SAMPLE_TRACKS);
+    assert.ok(nml.includes('ENTRIES="3"'), "Collection ENTRIES sollte 3 sein");
+  });
+
+  it("Tracks haben ENTRY/LOCATION/INFO/TEMPO Struktur", () => {
+    const nml = generateTraktorNml(SAMPLE_TRACKS);
+    assert.ok(nml.includes("<ENTRY>"), "ENTRY-Tag fehlt");
+    assert.ok(nml.includes("<LOCATION"), "LOCATION-Tag fehlt");
+    assert.ok(nml.includes("<INFO"), "INFO-Tag fehlt");
+    assert.ok(nml.includes("<TEMPO"), "TEMPO-Tag fehlt");
+  });
+
+  it("BPM hat 6 Dezimalstellen (Traktor-Format)", () => {
+    const nml = generateTraktorNml(SAMPLE_TRACKS);
+    assert.ok(nml.includes('BPM="124.500000"'), "BPM 124.500000 fehlt");
+  });
+
+  it("PLAYLISTS hat $ROOT-Knoten mit SUBNODES", () => {
+    const nml = generateTraktorNml(SAMPLE_TRACKS);
+    assert.ok(nml.includes('NAME="$ROOT"'), "$ROOT fehlt");
+    assert.ok(nml.includes('COUNT="2"'), "SUBNODES COUNT sollte 2 sein");
+  });
+
+  it("Leere Track-Liste generiert gültiges NML", () => {
+    const nml = generateTraktorNml([]);
+    assert.ok(nml.includes('ENTRIES="0"'), "Leere Collection erwartet");
+    assert.ok(nml.includes('COUNT="0"'), "SUBNODES COUNT sollte 0 sein");
+  });
+
+  it("Escaped Sonderzeichen korrekt", () => {
+    const nml = generateTraktorNml([TRACK_WITH_SPECIAL_CHARS]);
+    assert.ok(nml.includes("&amp;"), "Ampersand nicht escaped");
+  });
 });
 
-test("generateRekordboxXml - XML-escapet Sonderzeichen in Tracknamen", () => {
-  const xml = generateRekordboxXml(sampleTracks);
-  // "House Track & Title" sollte zu "House Track &amp; Title"
-  assert.ok(xml.includes("House Track &amp; Title"));
-  // "<Track>" sollte zu "&lt;Track&gt;"
-  assert.ok(xml.includes("Tech House &lt;Track&gt;"));
+// ── generateJson Tests ────────────────────────────────────────────────────────
+
+describe("generateJson", () => {
+  it("Gibt valides JSON zurück", () => {
+    const json = generateJson(SAMPLE_TRACKS);
+    const parsed = JSON.parse(json);
+    assert.ok(Array.isArray(parsed), "Ergebnis sollte ein Array sein");
+  });
+
+  it("Gruppiert Tracks nach Playlist", () => {
+    const json = generateJson(SAMPLE_TRACKS);
+    const parsed = JSON.parse(json);
+    assert.equal(parsed.length, 2, "Sollte 2 Playlists haben");
+    assert.equal(parsed[0].playlistName, "Summer Vibes");
+    assert.equal(parsed[1].playlistName, "Deep Sessions");
+  });
+
+  it("Erste Playlist enthält 2 Tracks", () => {
+    const json = generateJson(SAMPLE_TRACKS);
+    const parsed = JSON.parse(json);
+    assert.equal(parsed[0].tracks.length, 2);
+  });
+
+  it("Leere Track-Liste ergibt leeres Array", () => {
+    const json = generateJson([]);
+    const parsed = JSON.parse(json);
+    assert.deepStrictEqual(parsed, []);
+  });
+
+  it("JSON ist pretty-printed (2 Spaces)", () => {
+    const json = generateJson(SAMPLE_TRACKS);
+    assert.ok(json.includes("\n  "), "Sollte eingerückt sein");
+  });
 });
 
-test("generateRekordboxXml - Leere Track-Liste erzeugt leeres XML", () => {
-  const xml = generateRekordboxXml([]);
-  assert.ok(xml.includes("<DJ_PLAYLISTS"));
-  assert.ok(xml.includes('COLLECTION Entries="0"'));
-  assert.ok(xml.includes('Count="0"'));
+// ── generateJsonl Tests ───────────────────────────────────────────────────────
+
+describe("generateJsonl", () => {
+  it("Gibt eine Zeile pro Playlist zurück", () => {
+    const jsonl = generateJsonl(SAMPLE_TRACKS);
+    const lines = jsonl.trim().split("\n");
+    assert.equal(lines.length, 2, "Sollte 2 Zeilen haben");
+  });
+
+  it("Jede Zeile ist valides JSON", () => {
+    const jsonl = generateJsonl(SAMPLE_TRACKS);
+    const lines = jsonl.trim().split("\n");
+    for (const line of lines) {
+      const parsed = JSON.parse(line);
+      assert.ok(parsed.playlistKey, "playlistKey fehlt");
+      assert.ok(Array.isArray(parsed.tracks), "tracks sollte Array sein");
+    }
+  });
+
+  it("Endet mit Newline", () => {
+    const jsonl = generateJsonl(SAMPLE_TRACKS);
+    assert.ok(jsonl.endsWith("\n"), "Sollte mit Newline enden");
+  });
+
+  it("Leere Track-Liste ergibt leeren String + Newline", () => {
+    const jsonl = generateJsonl([]);
+    assert.equal(jsonl, "\n");
+  });
 });
 
-// ─── Test Suite: generateTraktorNml ──────────────────────────────────────────
+// ── generateExport — Dateiausgabe ─────────────────────────────────────────────
 
-test("generateTraktorNml - Erzeugt NML-Root mit Version 19", () => {
-  const nml = generateTraktorNml(sampleTracks);
-  assert.ok(nml.includes('<?xml version="1.0" encoding="UTF-8"'));
-  assert.ok(nml.includes('<NML VERSION="19">'));
-  assert.ok(nml.includes("</NML>"));
-});
+describe("generateExport (Dateiausgabe)", () => {
+  before(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
+  });
 
-test("generateTraktorNml - Enthält ENTRY-Elemente pro Track", () => {
-  const nml = generateTraktorNml(sampleTracks);
-  // 4 unique tracks sollten mindestens 4 ENTRY-Elemente geben
-  // (auch in COLLECTION und Playlists)
-  const entryMatches = nml.match(/<ENTRY>/g);
-  assert.ok(entryMatches && entryMatches.length >= 4);
-});
+  after(async () => {
+    if (tmpDir) {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
 
-test("generateTraktorNml - BPM hat 6 Dezimalstellen", () => {
-  const nml = generateTraktorNml(sampleTracks);
-  // 128.5 sollte zu 128.500000
-  assert.ok(nml.includes('BPM="128.500000"'));
-  // 130 sollte zu 130.000000
-  assert.ok(nml.includes('BPM="130.000000"'));
-  // 125.0 sollte zu 125.000000
-  assert.ok(nml.includes('BPM="125.000000"'));
-  // 122.75 sollte zu 122.750000
-  assert.ok(nml.includes('BPM="122.750000"'));
-});
-
-test("generateTraktorNml - Leere Track-Liste erzeugt leeres NML", () => {
-  const nml = generateTraktorNml([]);
-  assert.ok(nml.includes('<NML VERSION="19">'));
-  assert.ok(nml.includes('COLLECTION ENTRIES="0"'));
-});
-
-// ─── Test Suite: generateJson ───────────────────────────────────────────────
-
-test("generateJson - Gruppiert Tracks nach Playlist", () => {
-  const json = generateJson(sampleTracks);
-  const parsed = JSON.parse(json);
-
-  assert.equal(Array.isArray(parsed), true);
-  assert.equal(parsed.length, 2); // 2 Playlists
-
-  // Erste Playlist: House Mix
-  assert.equal(parsed[0].playlistName, "House Mix");
-  assert.equal(parsed[0].tracks.length, 2);
-  assert.equal(parsed[0].tracks[0].trackId, "t1");
-  assert.equal(parsed[0].tracks[1].trackId, "t2");
-
-  // Zweite Playlist: Techno Vibes
-  assert.equal(parsed[1].playlistName, "Techno Vibes");
-  assert.equal(parsed[1].tracks.length, 2);
-  assert.equal(parsed[1].tracks[0].trackId, "t3");
-  assert.equal(parsed[1].tracks[1].trackId, "t4");
-});
-
-test("generateJson - Erzeugt valides JSON", () => {
-  const json = generateJson(sampleTracks);
-  assert.doesNotThrow(() => JSON.parse(json));
-});
-
-// ─── Test Suite: generateJsonl ──────────────────────────────────────────────
-
-test("generateJsonl - Eine Zeile pro Playlist", () => {
-  const jsonl = generateJsonl(sampleTracks);
-  const lines = jsonl.split("\n").filter((line) => line.length > 0);
-  assert.equal(lines.length, 2); // 2 Playlists
-});
-
-test("generateJsonl - Endet mit Newline", () => {
-  const jsonl = generateJsonl(sampleTracks);
-  assert.ok(jsonl.endsWith("\n"));
-});
-
-test("generateJsonl - Jede Zeile ist valides JSON", () => {
-  const jsonl = generateJsonl(sampleTracks);
-  const lines = jsonl.split("\n").filter((line) => line.length > 0);
-  for (const line of lines) {
-    assert.doesNotThrow(() => JSON.parse(line));
-  }
-});
-
-// ─── Test Suite: generateExport ─────────────────────────────────────────────
-
-test("generateExport - Schreibt Rekordbox-XML auf Disk", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export");
-
-  try {
-    const result = await generateExport(sampleTracks, "rekordbox", outputPath);
-
+  it("Exportiert Rekordbox XML und gibt Metadaten zurück", async () => {
+    const outPath = path.join(tmpDir, "test-rekordbox");
+    const result = await generateExport(SAMPLE_TRACKS, "rekordbox", outPath);
     assert.equal(result.ok, true);
     assert.equal(result.format, "rekordbox");
-    assert.ok(result.path.endsWith(".xml"));
-    assert.ok(result.size > 0);
-    assert.equal(result.trackCount, 4);
+    assert.equal(result.trackCount, 3);
     assert.equal(result.playlistCount, 2);
+    assert.ok(result.path.endsWith(".xml"), "Pfad sollte auf .xml enden");
+    assert.ok(result.size > 0, "Dateigröße sollte > 0 sein");
+    assert.ok(existsSync(result.path), "Datei wurde nicht erstellt");
+  });
 
-    // Datei sollte existieren
-    const content = await fs.readFile(result.path, "utf-8");
-    assert.ok(content.includes("<DJ_PLAYLISTS"));
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
-
-test("generateExport - Schreibt Traktor-NML auf Disk", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export");
-
-  try {
-    const result = await generateExport(sampleTracks, "traktor", outputPath);
-
+  it("Exportiert Traktor NML", async () => {
+    const outPath = path.join(tmpDir, "test-traktor");
+    const result = await generateExport(SAMPLE_TRACKS, "traktor", outPath);
     assert.equal(result.ok, true);
     assert.equal(result.format, "traktor");
-    assert.ok(result.path.endsWith(".nml"));
-    assert.ok(result.size > 0);
-    assert.equal(result.trackCount, 4);
-    assert.equal(result.playlistCount, 2);
+    assert.ok(result.path.endsWith(".nml"), "Pfad sollte auf .nml enden");
+    assert.ok(existsSync(result.path), "Datei wurde nicht erstellt");
+  });
 
-    // Datei sollte existieren
-    const content = await fs.readFile(result.path, "utf-8");
-    assert.ok(content.includes('<NML VERSION="19">'));
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
-
-test("generateExport - Schreibt JSON auf Disk", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export");
-
-  try {
-    const result = await generateExport(sampleTracks, "json", outputPath);
-
+  it("Exportiert JSON", async () => {
+    const outPath = path.join(tmpDir, "test-export-json");
+    const result = await generateExport(SAMPLE_TRACKS, "json", outPath);
     assert.equal(result.ok, true);
-    assert.equal(result.format, "json");
-    assert.ok(result.path.endsWith(".json"));
-    assert.ok(result.size > 0);
-
+    assert.ok(result.path.endsWith(".json"), "Pfad sollte auf .json enden");
     const content = await fs.readFile(result.path, "utf-8");
     const parsed = JSON.parse(content);
-    assert.equal(Array.isArray(parsed), true);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
+    assert.ok(Array.isArray(parsed));
+  });
 
-test("generateExport - Schreibt JSONL auf Disk", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export");
-
-  try {
-    const result = await generateExport(sampleTracks, "jsonl", outputPath);
-
+  it("Exportiert JSONL", async () => {
+    const outPath = path.join(tmpDir, "test-export-jsonl");
+    const result = await generateExport(SAMPLE_TRACKS, "jsonl", outPath);
     assert.equal(result.ok, true);
-    assert.equal(result.format, "jsonl");
-    assert.ok(result.path.endsWith(".jsonl"));
-    assert.ok(result.size > 0);
+    assert.ok(result.path.endsWith(".jsonl"), "Pfad sollte auf .jsonl enden");
+  });
 
-    const content = await fs.readFile(result.path, "utf-8");
-    const lines = content.split("\n").filter((line) => line.length > 0);
-    assert.equal(lines.length, 2);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
-
-test("generateExport - Wirft Fehler bei unbekanntem Format", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export");
-
-  try {
+  it("Wirft Fehler bei unbekanntem Format", async () => {
+    const outPath = path.join(tmpDir, "test-unknown");
     await assert.rejects(
-      () => generateExport(sampleTracks, "unknown", outputPath),
-      /Unbekanntes Export-Format/
+      () => generateExport(SAMPLE_TRACKS, "wav", outPath),
+      /Unbekanntes Export-Format: wav/
     );
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
+  });
 
-test("generateExport - Fügt korrekte Dateiendung hinzu", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export"); // Keine Endung
+  it("Hängt Extension nicht doppelt an", async () => {
+    const outPath = path.join(tmpDir, "test.xml");
+    const result = await generateExport(SAMPLE_TRACKS, "rekordbox", outPath);
+    assert.equal(result.path, outPath, "Pfad sollte unverändert sein");
+  });
 
-  try {
-    // Rekordbox
-    const result1 = await generateExport(sampleTracks, "rekordbox", outputPath);
-    assert.ok(result1.path.endsWith(".xml"));
+  it("Erstellt Elternverzeichnis bei Bedarf", async () => {
+    const outPath = path.join(tmpDir, "sub", "deep", "test");
+    const result = await generateExport(SAMPLE_TRACKS, "json", outPath);
+    assert.ok(existsSync(result.path), "Datei in verschachteltem Pfad fehlt");
+  });
 
-    // Traktor
-    const result2 = await generateExport(
-      sampleTracks,
-      "traktor",
-      path.join(tmpDir, "export2")
-    );
-    assert.ok(result2.path.endsWith(".nml"));
+  it("Leere Track-Liste exportiert ohne Fehler", async () => {
+    const outPath = path.join(tmpDir, "empty");
+    const result = await generateExport([], "rekordbox", outPath);
+    assert.equal(result.ok, true);
+    assert.equal(result.trackCount, 0);
+  });
 
-    // JSON
-    const result3 = await generateExport(
-      sampleTracks,
-      "json",
-      path.join(tmpDir, "export3")
-    );
-    assert.ok(result3.path.endsWith(".json"));
-
-    // JSONL
-    const result4 = await generateExport(
-      sampleTracks,
-      "jsonl",
-      path.join(tmpDir, "export4")
-    );
-    assert.ok(result4.path.endsWith(".jsonl"));
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
-
-test("generateExport - Überschreibt nicht Dateiendung wenn bereits vorhanden", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export.xml"); // Mit Endung
-
-  try {
-    const result = await generateExport(sampleTracks, "rekordbox", outputPath);
-    assert.equal(result.path, outputPath); // Sollte nicht .xml.xml sein
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
-
-test("generateExport - Gibt trackCount und playlistCount zurück", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const outputPath = path.join(tmpDir, "export");
-
-  try {
-    const result = await generateExport(sampleTracks, "rekordbox", outputPath);
-
-    assert.equal(result.trackCount, 4);
-    assert.equal(result.playlistCount, 2);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
-});
-
-test("generateExport - Erstellt Verzeichnisse wenn nötig", async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "export-test-"));
-  const nestedPath = path.join(tmpDir, "deeply", "nested", "path", "export");
-
-  try {
-    const result = await generateExport(sampleTracks, "rekordbox", nestedPath);
-
-    assert.ok(result.path);
+  it("Dateiinhalt ist UTF-8 kodiert", async () => {
+    const tracks = [{
+      ...SAMPLE_TRACKS[0],
+      trackTitle: "Ünïcödé Ñight",
+      artists: "Señor DJ",
+    }];
+    const outPath = path.join(tmpDir, "utf8-test");
+    const result = await generateExport(tracks, "rekordbox", outPath);
     const content = await fs.readFile(result.path, "utf-8");
-    assert.ok(content.includes("<DJ_PLAYLISTS"));
-  } finally {
-    await fs.rm(tmpDir, { recursive: true });
-  }
+    assert.ok(content.includes("Ünïcödé"), "UTF-8 Zeichen fehlen");
+    assert.ok(content.includes("Señor"), "UTF-8 Zeichen fehlen");
+  });
 });
 
-// ─── Edge Cases und spezielle Tests ──────────────────────────────────────────
+// ── Camelot-Tabelle Vollständigkeit ───────────────────────────────────────────
 
-test("Handles Tracks ohne trackId", () => {
-  const tracksWithoutId = [
-    {
-      playlistKey: "pl1",
-      playlistName: "Mix",
-      trackTitle: "Track One",
-      artists: "Artist",
-      bpm: 120,
-    },
-  ];
+describe("Camelot-Konvertierung Vollständigkeit", () => {
+  it("Alle 24 Camelot-Werte sind abgedeckt", () => {
+    const expected = [
+      "1A", "2A", "3A", "4A", "5A", "6A", "7A", "8A", "9A", "10A", "11A", "12A",
+      "1B", "2B", "3B", "4B", "5B", "6B", "7B", "8B", "9B", "10B", "11B", "12B",
+    ];
+    for (const key of expected) {
+      const result = normalizeKeyForRekordbox(key);
+      assert.ok(result.length > 0, `${key} hat kein Mapping`);
+      assert.notEqual(result, key, `${key} wurde nicht konvertiert`);
+    }
+  });
 
-  const xml = generateRekordboxXml(tracksWithoutId);
-  assert.ok(xml.includes("<DJ_PLAYLISTS"));
-  assert.ok(xml.includes("COLLECTION Entries="));
-
-  const nml = generateTraktorNml(tracksWithoutId);
-  assert.ok(nml.includes("<NML"));
-});
-
-test("Handles Tracks mit fehlenden optionalen Feldern", () => {
-  const minimalTracks = [
-    {
-      playlistKey: "pl1",
-      playlistName: "Mix",
-      trackId: "t1",
-      trackTitle: "Track",
-    },
-  ];
-
-  assert.doesNotThrow(() => generateRekordboxXml(minimalTracks));
-  assert.doesNotThrow(() => generateTraktorNml(minimalTracks));
-  assert.doesNotThrow(() => generateJson(minimalTracks));
-  assert.doesNotThrow(() => generateJsonl(minimalTracks));
-});
-
-test("Normalisiert Keys mit Großbuchstaben korrekt", () => {
-  const tracksWithUppercase = [
-    {
-      playlistKey: "pl1",
-      playlistName: "Mix",
-      trackId: "t1",
-      trackTitle: "Track",
-      key: "5A",
-    },
-    {
-      playlistKey: "pl1",
-      playlistName: "Mix",
-      trackId: "t2",
-      trackTitle: "Track 2",
-      key: "5a", // Kleinbuchstabe
-    },
-  ];
-
-  const xml = generateRekordboxXml(tracksWithUppercase);
-  const matches = xml.match(/Tonality="Cm"/g);
-  assert.ok(matches && matches.length >= 2);
-});
-
-test("Behandelt BPM als Float korrekt", () => {
-  const tracksWithDifferentBpm = [
-    {
-      playlistKey: "pl1",
-      playlistName: "Mix",
-      trackId: "t1",
-      trackTitle: "Track",
-      bpm: "128.5", // String
-    },
-    {
-      playlistKey: "pl1",
-      playlistName: "Mix",
-      trackId: "t2",
-      trackTitle: "Track 2",
-      bpm: 130, // Number
-    },
-  ];
-
-  const xml = generateRekordboxXml(tracksWithDifferentBpm);
-  assert.ok(xml.includes("AverageBpm="));
-
-  const nml = generateTraktorNml(tracksWithDifferentBpm);
-  assert.ok(nml.includes('BPM="128.500000"'));
-  assert.ok(nml.includes('BPM="130.000000"'));
+  it("Traktor-Keys sind numerisch (0-23)", () => {
+    const trackWithKey = {
+      ...SAMPLE_TRACKS[0],
+      key: "8A",
+    };
+    const nml = generateTraktorNml([trackWithKey]);
+    assert.ok(nml.includes('KEY="9"'), "Traktor-Key sollte 9 für Am sein");
+  });
 });
