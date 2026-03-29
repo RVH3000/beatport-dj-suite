@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { csvEscape } from "../utils/common.mjs";
 
 const RUN_SCHEMA_VERSION = 2;
 const LEGACY_VERSION_CUTOFF = "1.1.0";
@@ -744,13 +745,7 @@ function clearRunControl(runId) {
   }
 }
 
-function csvEscape(value) {
-  const text = String(value ?? "");
-  if (/[",\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
+// csvEscape importiert aus utils/common.mjs
 
 function rowsToCsv(headers, rows) {
   const lines = [headers.join(",")];

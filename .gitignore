@@ -9,3 +9,7 @@ dist-electron/
 
 # Claude Code Worktrees (Session-Kopien, nicht Teil des Projekts)
 .claude/worktrees/
+
+# Lose Skill-Dateien (gehören in ~/.claude/skills, nicht ins Repo)
+*.skill
+terminal-reader-skill/

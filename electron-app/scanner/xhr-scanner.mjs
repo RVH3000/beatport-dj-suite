@@ -394,10 +394,5 @@ export class DataStore {
 
 // ─── CSV-Helper ─────────────────────────────────────────────────────────────────
 
-export function csvEscape(value) {
-  const str = String(value || "");
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
+// csvEscape ist jetzt in utils/common.mjs zentralisiert
+export { csvEscape } from "../utils/common.mjs";

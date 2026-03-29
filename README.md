@@ -4,7 +4,7 @@ doc_role: readme
 scope: project
 owner_root: /Users/roberth./Projects/_local/beatport-dj-suite
 canonical: true
-updated_at: 2026-03-27
+updated_at: 2026-03-29
 -->
 
 # Beatport DJ Suite
@@ -70,8 +70,8 @@ Artefakte:
 ## Qualitäts-Skripte
 
 ```bash
-npm test
-npm run check
+npm test          # 557 Tests (Node.js native test runner)
+npm run check     # Schnell-Check: Syntax, Fixtures, Doku, Build-Config
 ```
 
 `npm run check` prüft:
@@ -122,3 +122,4 @@ Details siehe:
 - [Architektur](docs/ARCHITECTURE.md)
 - [Migration](docs/MIGRATION.md)
 - [Release-Checklist](docs/RELEASE_CHECKLIST.md)
+- [Changelog](CHANGELOG.md)
