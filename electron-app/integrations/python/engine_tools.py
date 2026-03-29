@@ -281,7 +281,17 @@ def _build_streaming_uri(beatport_track_id: str | int) -> str:
 
 
 def _next_id(conn: sqlite3.Connection, table: str) -> int:
-    """Naechste freie ID fuer eine Tabelle (Engine nutzt kein AUTOINCREMENT)."""
+    """Naechste freie ID fuer eine Tabelle.
+
+    Engine DJ nutzt sqlite_sequence (AUTOINCREMENT) und prueft per Trigger,
+    dass neue IDs strikt groesser als der bisherige Hoechststand sind.
+    Daher sqlite_sequence lesen falls vorhanden, sonst MAX(id).
+    """
+    seq_row = conn.execute(
+        "SELECT seq FROM sqlite_sequence WHERE name = ?", (table,)
+    ).fetchone()
+    if seq_row and seq_row[0] is not None:
+        return seq_row[0] + 1
     row = conn.execute(f"SELECT MAX(id) FROM [{table}]").fetchone()
     return (row[0] or 0) + 1
 
@@ -339,10 +349,25 @@ def import_streaming_tracks(
 
     with connect_readwrite(db_path) as conn:
         db_uuid = _get_db_uuid(conn)
-        next_track_id = _next_id(conn, "Track")
         track_ids_for_playlist = []
 
+        # Verwaiste PerformanceData-Eintraege bereinigen (koennen durch
+        # Engine-DJ-Sync entstehen: Track geloescht, PerformanceData bleibt).
+        # Der DB-Trigger "trigger_after_insert_Track_insert_performance_data"
+        # macht bei jedem Track-INSERT automatisch ein INSERT in PerformanceData.
+        # Das kracht wenn dort schon ein Eintrag mit der gleichen trackId existiert.
+        conn.execute(
+            """DELETE FROM PerformanceData
+               WHERE trackId NOT IN (SELECT id FROM Track)"""
+        )
+
         # --- Phase 1: Tracks anlegen oder existierende finden ---
+        # Engine DJ nutzt AUTOINCREMENT mit Triggern, die verhindern, dass
+        # geloeschte IDs wiederverwendet werden (sqlite_sequence).
+        # Daher: kein explizites 'id' setzen, sondern NULL/weglassen,
+        # damit SQLite die naechste AUTOINCREMENT-ID vergibt.
+        # Die Trigger "trigger_after_insert_Track_fix_origin" setzen
+        # originTrackId + originDatabaseUuid automatisch.
         for t in tracks_json:
             bp_id = str(t.get("track_id") or t.get("i") or "").strip()
             if not bp_id:
@@ -375,9 +400,9 @@ def import_streaming_tracks(
             length_ms = t.get("length_ms") or t.get("ms") or 0
             length_sec = int(float(length_ms) / 1000) if length_ms else 0
 
-            conn.execute(
+            cursor = conn.execute(
                 """INSERT INTO Track (
-                    id, playOrder, length, bpm, year, path, filename, bitrate,
+                    playOrder, length, bpm, year, path, filename, bitrate,
                     bpmAnalyzed, albumArtId, fileBytes, title, artist, album,
                     genre, comment, label, composer, remixer, key, rating,
                     albumArt, timeLastPlayed, isPlayed, fileType, isAnalyzed,
@@ -386,21 +411,18 @@ def import_streaming_tracks(
                     isPerfomanceDataOfPackedTrackChanged,
                     playedIndicator, isMetadataImported, pdbImportKey,
                     streamingSource, uri, isBeatGridLocked,
-                    originDatabaseUuid, originTrackId, streamingFlags,
-                    explicitLyrics, lastEditTime
+                    streamingFlags, lastEditTime
                 ) VALUES (
-                    ?, 0, ?, ?, ?, NULL, NULL, NULL,
+                    0, ?, ?, ?, NULL, NULL, NULL,
                     ?, 0, 0, ?, ?, ?,
                     ?, NULL, ?, NULL, NULL, 0, 0,
                     'image://planck/0', NULL, NULL, NULL, 0,
                     ?, ?, 1,
                     0, 0, 0, 0, 0,
                     'Beatport LINK', ?, 0,
-                    ?, ?, 1,
-                    NULL, ?
+                    1, ?
                 )""",
                 (
-                    next_track_id,       # id
                     length_sec,          # length
                     bpm,                 # bpm
                     year,                # year
@@ -413,14 +435,12 @@ def import_streaming_tracks(
                     now_ts,              # dateCreated
                     now_ts,              # dateAdded
                     _build_streaming_uri(bp_id),  # uri
-                    db_uuid,             # originDatabaseUuid
-                    next_track_id,       # originTrackId
                     now_dt,              # lastEditTime
                 ),
             )
+            new_track_id = cursor.lastrowid
 
-            track_ids_for_playlist.append(next_track_id)
-            next_track_id += 1
+            track_ids_for_playlist.append(new_track_id)
             stats["tracksCreated"] += 1
 
         # --- Phase 2: Playlist anlegen (optional) ---
