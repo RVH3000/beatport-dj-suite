@@ -120,13 +120,15 @@ export class BeatportXhrClient {
       this.lastRequestAt = Date.now();
       this.requestCount++;
 
-      const response = await globalThis.fetch(url, {
+      const fetchFn = this.context.fetchFn || globalThis.fetch;
+      const response = await fetchFn(url, {
         method: options.method || "GET",
         headers: {
           accept: this.context.accept || "application/json, text/plain, */*",
           authorization: this.context.authorization,
           referer: this.context.referer || "https://dj.beatport.com/",
-          "user-agent": this.context.userAgent || "",
+          ...(this.context.origin ? { origin: this.context.origin } : {}),
+          ...(this.context.userAgent ? { "user-agent": this.context.userAgent } : {}),
           ...(options.headers || {}),
           ...(options.body ? { "content-type": "application/json" } : {}),
         },

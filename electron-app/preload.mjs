@@ -74,6 +74,12 @@ contextBridge.exposeInMainWorld("analysisApi", {
   getOverlapMatrix: (config) => ipcRenderer.invoke("analysis:get-overlap-matrix", config),
 });
 
+contextBridge.exposeInMainWorld("engineApi", {
+  discoverDatabases: () => ipcRenderer.invoke("engine:discover-databases"),
+  importStreaming: (options) => ipcRenderer.invoke("engine:import-streaming", options),
+  inspectSchema: (dbFolder) => ipcRenderer.invoke("engine:inspect-schema", dbFolder),
+});
+
 contextBridge.exposeInMainWorld("authApi", {
   getStatus: (config) => ipcRenderer.invoke("auth:get-status", config),
   openLoginWindow: (config) => ipcRenderer.invoke("auth:open-login-window", config),

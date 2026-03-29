@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -434,65 +434,96 @@ app.whenReady().then(() => {
     throw new Error(`Unbekanntes Export-Format: ${format}`);
   });
 
-  // ── Playlist WIZ — XHR-basierte CRUD-Operationen ─────────────────────────
-  // Strategie: Bearer-Token live aus dem Beatport-BrowserWindow extrahieren,
-  // dann mit dem BeatportXhrClient (globalThis.fetch) im Main-Prozess nutzen.
-  // So wird kein neuer Seitenaufruf ausgeloest und die Session bleibt intakt.
+  // ── Engine DJ Collection — Streaming-Tracks importieren ─────────────────
 
-  // Token aus der bereits geladenen Beatport-Seite extrahieren (ohne Navigation)
-  async function extractLiveBearerToken() {
-    // Script das im Kontext von dj.beatport.com laeuft und den Token findet
-    const extractScript = `
-      (async () => {
-        // 1. Versuch: Token aus localStorage / sessionStorage
-        for (const store of [localStorage, sessionStorage]) {
-          for (let i = 0; i < store.length; i++) {
-            const key = store.key(i);
-            const val = store.getItem(key);
-            if (val && (val.startsWith("Bearer ") || val.startsWith("eyJ"))) {
-              return val.startsWith("Bearer ") ? val : "Bearer " + val;
-            }
-            // OAuth-Tokens sind oft als JSON gespeichert
-            try {
-              const parsed = JSON.parse(val);
-              if (parsed?.access_token) {
-                return "Bearer " + parsed.access_token;
-              }
-              if (parsed?.token) {
-                return "Bearer " + parsed.token;
-              }
-            } catch {}
+  /** Findet alle verfuegbaren Engine DJ Datenbanken (lokal + USB-Sticks) */
+  ipcMain.handle("engine:discover-databases", async () => {
+    const home = app.getPath("home");
+    const candidates = [
+      { label: "Lokal", path: path.join(home, "Music", "Engine Library", "Database2") },
+    ];
+
+    // USB-Volumes scannen (macOS: /Volumes/*)
+    try {
+      const { readdirSync, statSync } = await import("node:fs");
+      const volumes = readdirSync("/Volumes").filter((v) => v !== "Macintosh HD");
+      for (const vol of volumes) {
+        const enginePath = path.join("/Volumes", vol, "Engine Library", "Database2");
+        try {
+          if (statSync(path.join(enginePath, "m.db")).isFile()) {
+            candidates.push({ label: `USB: ${vol}`, path: enginePath });
           }
+        } catch { /* m.db nicht vorhanden */ }
+      }
+    } catch { /* /Volumes nicht lesbar */ }
+
+    // Nur existierende zurueckgeben
+    const results = [];
+    for (const c of candidates) {
+      try {
+        const { statSync } = await import("node:fs");
+        if (statSync(path.join(c.path, "m.db")).isFile()) {
+          results.push(c);
         }
-        // 2. Versuch: Monkey-patch fetch, einen echten API-Call abfangen
-        return await new Promise((resolve, reject) => {
-          const origFetch = window.fetch;
-          const timeout = setTimeout(() => {
-            window.fetch = origFetch;
-            reject(new Error("Kein Bearer-Token in 8s gefunden"));
-          }, 8000);
-          window.fetch = function(url, opts) {
-            const auth = opts?.headers?.authorization
-              || opts?.headers?.Authorization
-              || (opts?.headers instanceof Headers ? opts.headers.get("authorization") : null);
-            if (auth && String(url).includes("api.beatport.com")) {
-              window.fetch = origFetch;
-              clearTimeout(timeout);
-              resolve(auth);
-            }
-            return origFetch.apply(this, arguments);
-          };
-          // Navigation/Reload triggern damit die Seite API-Calls macht
-          if (window.location.href.includes("beatport.com")) {
-            // Seite hat wahrscheinlich schon einen Zustand — erzwinge einen API-Call
-            origFetch("https://api.beatport.com/v4/my/playlists/?per_page=1&page=1", {
-              credentials: "include",
-            }).catch(() => {});
-          }
-        });
-      })()
-    `;
-    return await sessionManager.executeJavaScript(extractScript, {});
+      } catch { /* nicht vorhanden */ }
+    }
+    return { ok: true, databases: results };
+  });
+
+  ipcMain.handle("engine:import-streaming", async (_event, options = {}) => {
+    const { tracks, playlistTitle, parentListId = 0, databaseFolder } = options;
+    if (!Array.isArray(tracks) || tracks.length === 0) {
+      throw new Error("Mindestens ein Track erforderlich.");
+    }
+
+    // Tracks als temporaere JSON-Datei speichern (Python liest sie)
+    const tmpDir = app.getPath("temp");
+    const tmpFile = path.join(tmpDir, `bpdj-engine-import-${Date.now()}.json`);
+    await fs.writeFile(tmpFile, JSON.stringify(tracks), "utf8");
+
+    try {
+      const args = [
+        "import-streaming",
+        "--tracks-json-file", tmpFile,
+      ];
+      if (databaseFolder) {
+        args.unshift("--database-folder", databaseFolder);
+      }
+      if (playlistTitle) {
+        args.push("--playlist-title", playlistTitle);
+      }
+      if (parentListId) {
+        args.push("--parent-list-id", String(parentListId));
+      }
+
+      const result = runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        args,
+      );
+      return result;
+    } finally {
+      // Temp-Datei aufraeumen
+      await fs.unlink(tmpFile).catch(() => {});
+    }
+  });
+
+  ipcMain.handle("engine:inspect-schema", async (_event, databaseFolder) => {
+    const args = ["inspect-schema"];
+    if (databaseFolder) args.unshift("--database-folder", databaseFolder);
+    return runPythonJson(
+      "electron-app/integrations/python/engine_tools.py",
+      args,
+    );
+  });
+
+  // ── Playlist WIZ — XHR-basierte CRUD-Operationen ─────────────────────────
+  // Strategie: Bearer-Token passiv via webRequest.onBeforeSendHeaders abfangen.
+  // Der Listener läuft auf der Beatport-Session-Partition und liest den
+  // Authorization-Header aus regulären API-Calls der SPA — ohne Navigation.
+
+  // Hilfsfunktion: Kurz warten
+  function waitMs(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async function createXhrClient() {
@@ -507,32 +538,40 @@ app.whenReady().then(() => {
       }
     }
 
-    // 2. Bearer-Token live aus der Seite extrahieren
-    let token;
-    try {
-      token = await extractLiveBearerToken();
-    } catch (extractErr) {
-      // Fallback: Kontext per Network-Capture holen (kann Session stoeren)
-      try {
-        const context = await sessionManager.resolveBeatportApiContext({}, {
-          forceRefresh: true,
-        });
-        if (context?.authorization) {
-          return new BeatportXhrClient(context);
-        }
-      } catch {}
+    // 2. Passiv gecaptureten Token prüfen (webRequest-Listener)
+    let token = sessionManager.getCapturedToken();
+
+    // 3. Kein Token? Soft-Reload der aktuellen Seite, damit die SPA API-Calls macht
+    if (!token) {
+      const win = await sessionManager.ensureWindow({ show: false });
+      win.webContents.reload();
+      // Warten bis die SPA API-Calls abfeuert (Token wird passiv gecaptured)
+      for (let i = 0; i < 10; i++) {
+        await waitMs(500);
+        token = sessionManager.getCapturedToken();
+        if (token) break;
+      }
+    }
+
+    if (!token) {
       throw new Error(
-        "Bearer-Token konnte nicht extrahiert werden. Bitte im Scanner-Tab " +
-        "Beatport-Fenster oeffnen, einloggen, und nochmal versuchen. (" + extractErr.message + ")"
+        "Bearer-Token konnte nicht abgefangen werden. Bitte im Scanner-Tab " +
+        "das Beatport-Fenster oeffnen, einloggen, und nochmal versuchen."
       );
     }
 
-    // 3. BeatportXhrClient mit dem frischen Token erstellen
+    // 4. BeatportXhrClient mit dem frischen Token erstellen
+    //    session.fetch() sendet automatisch Cookies + User-Agent der Partition.
+    //    Gecapturete Headers der SPA als Basis nutzen (Origin, User-Agent, etc.)
+    const ses = session.fromPartition(DEFAULTS.beatportSessionPartition);
+    const captured = sessionManager.getCapturedHeaders() || {};
     const context = {
       authorization: token,
-      accept: "application/json, text/plain, */*",
-      referer: "https://dj.beatport.com/",
-      userAgent: "",
+      accept: captured["Accept"] || captured["accept"] || "application/json, text/plain, */*",
+      referer: captured["Referer"] || captured["referer"] || "https://dj.beatport.com/",
+      origin: captured["Origin"] || captured["origin"] || "https://dj.beatport.com",
+      userAgent: captured["User-Agent"] || captured["user-agent"] || "",
+      fetchFn: ses.fetch.bind(ses),
       playlistTemplate: "https://api.beatport.com/v4/my/playlists/{playlistId}/",
       tracksTemplate: "https://api.beatport.com/v4/my/playlists/{playlistId}/tracks/?per_page={perPage}&page={page}",
       discoveryTemplate: "https://api.beatport.com/v4/my/playlists/?per_page={perPage}&page={page}",

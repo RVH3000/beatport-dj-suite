@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron";
+import { BrowserWindow, session } from "electron";
 import {
   DJ_HOME_URL,
   SESSION_PARTITION,
@@ -113,6 +113,56 @@ class SessionManager {
       lastError: "",
     };
     this.apiContext = null;
+    this._capturedToken = null;
+    this._capturedTokenAt = 0;
+    this._tokenCaptureActive = false;
+  }
+
+  /**
+   * Passiver Token-Capture: Registriert einen webRequest-Listener auf der
+   * Beatport-Session-Partition, der Authorization-Header aus regulären
+   * API-Calls der SPA abfängt — ohne Navigation oder Seiteneingriff.
+   */
+  startTokenCapture() {
+    if (this._tokenCaptureActive) return;
+    const ses = session.fromPartition(this.partition);
+    ses.webRequest.onBeforeSendHeaders(
+      { urls: ["https://api.beatport.com/*"] },
+      (details, callback) => {
+        const auth =
+          details.requestHeaders["Authorization"] ||
+          details.requestHeaders["authorization"];
+        if (auth && auth.startsWith("Bearer ")) {
+          this._capturedToken = auth;
+          this._capturedTokenAt = Date.now();
+          // Alle Header des echten SPA-Requests speichern
+          this._capturedHeaders = { ...details.requestHeaders };
+        }
+        callback({ requestHeaders: details.requestHeaders });
+      }
+    );
+    this._tokenCaptureActive = true;
+  }
+
+  /**
+   * Gibt den passiv gecaptureten Bearer-Token zurück, wenn er frisch genug ist.
+   * @param {number} [maxAgeMs=10*60*1000] Maximales Alter in ms (Standard: 10 Min)
+   */
+  getCapturedToken(maxAgeMs = 10 * 60 * 1000) {
+    if (
+      this._capturedToken &&
+      Date.now() - this._capturedTokenAt < maxAgeMs
+    ) {
+      return this._capturedToken;
+    }
+    return null;
+  }
+
+  /**
+   * Gibt die komplett gecaptureten Headers eines echten Beatport-API-Calls zurück.
+   */
+  getCapturedHeaders() {
+    return this._capturedHeaders || null;
   }
 
   applyRuntimeConfig(rawConfig = {}) {
@@ -164,6 +214,8 @@ class SessionManager {
       this.authWindow.destroy();
       this.authWindow = null;
     }
+
+    this.startTokenCapture();
 
     if (!this.authWindow || this.authWindow.isDestroyed()) {
       this.authWindow = new BrowserWindow({

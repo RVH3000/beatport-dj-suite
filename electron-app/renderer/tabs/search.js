@@ -315,10 +315,17 @@ function buildSearchTabHtml() {
           <label style="font-size:12px;color:var(--muted)">Ziel</label>
           <select id="srchPlModalTarget" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:13px;margin:4px 0 12px 0">
             <option value="beatport">Beatport (online erstellen)</option>
+            <option value="engine">Engine DJ Collection</option>
             <option value="m3u">Lokal — M3U Playlist</option>
             <option value="json">Lokal — JSON</option>
             <option value="csv">Lokal — CSV</option>
           </select>
+          <div id="srchPlModalEngineDbWrap" style="display:none">
+            <label style="font-size:12px;color:var(--muted)">Engine DJ Datenbank</label>
+            <select id="srchPlModalEngineDb" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:13px;margin:4px 0 12px 0">
+              <option value="">Wird geladen...</option>
+            </select>
+          </div>
           <label style="font-size:12px;color:var(--muted)">Playlist-Name</label>
           <input type="text" id="srchPlModalName" placeholder="z.B. Deep House Selection" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:14px;margin:4px 0 12px 0">
           <label style="font-size:12px;color:var(--muted)">Quelle</label>
@@ -514,17 +521,45 @@ function updatePlModalTarget() {
   const limitWrap = $("srchPlModalLimitWrap");
   const limitHint = $("srchPlModalLimitHint");
   const limitInput = $("srchPlModalLimit");
+  const engineDbWrap = $("srchPlModalEngineDbWrap");
+
+  // Engine-DB-Dropdown nur bei Engine-Ziel zeigen
+  if (engineDbWrap) engineDbWrap.style.display = target === "engine" ? "" : "none";
+
   if (target === "beatport") {
     limitWrap.style.display = "";
     limitHint.textContent = "(Beatport-Limit: 500)";
     limitInput.max = 500;
-  } else {
-    // Lokale Formate: kein hartes Limit, aber sinnvoller Default
+  } else if (target === "engine") {
     limitWrap.style.display = "";
-    limitHint.textContent = "(kein Limit für lokale Dateien)";
+    limitHint.textContent = "(Engine DJ — kein hartes Limit)";
+    limitInput.max = 99999;
+    // Datenbanken laden
+    loadEngineDatabases();
+  } else {
+    limitWrap.style.display = "";
+    limitHint.textContent = "(kein Limit fuer lokale Dateien)";
     limitInput.max = 99999;
   }
   updatePlModalInfo();
+}
+
+async function loadEngineDatabases() {
+  const sel = $("srchPlModalEngineDb");
+  if (!sel || !window.engineApi?.discoverDatabases) return;
+  sel.innerHTML = '<option value="">Suche Datenbanken...</option>';
+  try {
+    const res = await window.engineApi.discoverDatabases();
+    if (!res?.ok || !res.databases?.length) {
+      sel.innerHTML = '<option value="">Keine Engine DJ Datenbank gefunden</option>';
+      return;
+    }
+    sel.innerHTML = res.databases.map((db) =>
+      `<option value="${esc(db.path)}">${esc(db.label)} (${esc(db.path)})</option>`
+    ).join("");
+  } catch (err) {
+    sel.innerHTML = `<option value="">Fehler: ${esc(err.message)}</option>`;
+  }
 }
 
 function updatePlModalInfo() {
@@ -537,7 +572,7 @@ function updatePlModalInfo() {
   else if (source === "page") count = getPageTracks(currentPage).length;
   else if (source === "selected") count = selectedIds.size;
   const actual = Math.min(count, limit);
-  const formatLabel = { beatport: "Beatport", m3u: "M3U", json: "JSON", csv: "CSV" }[target] || target;
+  const formatLabel = { beatport: "Beatport", engine: "Engine DJ", m3u: "M3U", json: "JSON", csv: "CSV" }[target] || target;
   $("srchPlModalInfo").innerHTML = `<strong>${fmt(count)}</strong> Tracks verfügbar → <strong>${fmt(actual)}</strong> werden als <strong>${formatLabel}</strong> gespeichert`;
 }
 
@@ -545,6 +580,7 @@ function updatePlModalInfo() {
 async function savePlaylist() {
   const target = $("srchPlModalTarget")?.value || "beatport";
   if (target === "beatport") return saveToBeatport();
+  if (target === "engine") return saveToEngineDJ();
   return saveToLocalFile(target);
 }
 
@@ -602,6 +638,80 @@ async function saveToBeatport() {
     }
 
     status.innerHTML = `<span style="color:var(--success)">&#10003; Playlist "${esc(name)}" mit ${fmt(trackIds.length)} Tracks auf Beatport erstellt!</span>`;
+    createBtn.disabled = false;
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--danger)">Fehler: ${esc(err.message)}</span>`;
+    createBtn.disabled = false;
+  }
+}
+
+async function saveToEngineDJ() {
+  const name = ($("srchPlModalName")?.value || "").trim();
+  if (!name) { $("srchPlModalName").focus(); return; }
+
+  const databaseFolder = $("srchPlModalEngineDb")?.value || "";
+  if (!databaseFolder) {
+    const status = $("srchPlModalStatus");
+    status.style.display = "block";
+    status.innerHTML = '<span style="color:var(--danger)">Bitte Engine DJ Datenbank auswaehlen.</span>';
+    return;
+  }
+
+  const status = $("srchPlModalStatus");
+  const createBtn = $("srchPlModalCreate");
+  const tracks = collectExportTracks();
+
+  if (!tracks.length) {
+    status.style.display = "block";
+    status.innerHTML = '<span style="color:var(--danger)">Keine Tracks zum Exportieren gefunden.</span>';
+    return;
+  }
+
+  if (!window.engineApi?.importStreaming) {
+    status.style.display = "block";
+    status.innerHTML = '<span style="color:var(--danger)">Engine DJ API nicht verfuegbar.</span>';
+    return;
+  }
+
+  createBtn.disabled = true;
+  status.style.display = "block";
+  const dbLabel = $("srchPlModalEngineDb")?.selectedOptions?.[0]?.textContent || databaseFolder;
+  status.innerHTML = `<span style="color:var(--primary)">Importiere ${fmt(tracks.length)} Tracks in ${esc(dbLabel)}...</span>`;
+
+  try {
+    // Tracks in das Format bringen, das engine_tools.py erwartet
+    const engineTracks = tracks.map((t) => ({
+      track_id: String(t.track_id || ""),
+      title: t.title || "",
+      mix_name: t.mix_name || "",
+      artists: t.artists || "",
+      genre: t.genre || "",
+      sub_genre: t.sub_genre || "",
+      bpm: t.bpm || 0,
+      key: t.key || "",
+      camelot: t.camelot || "",
+      year: t.year || 0,
+      label: t.label || "",
+      release: t.release || "",
+      length_ms: t.length_ms || 0,
+    }));
+
+    const result = await window.engineApi.importStreaming({
+      tracks: engineTracks,
+      playlistTitle: name,
+      databaseFolder,
+    });
+
+    if (!result.ok) throw new Error(result.error || "Import fehlgeschlagen");
+
+    const parts = [];
+    if (result.tracksCreated > 0) parts.push(`${fmt(result.tracksCreated)} neu angelegt`);
+    if (result.tracksExisted > 0) parts.push(`${fmt(result.tracksExisted)} existierten bereits`);
+    if (result.tracksSkipped > 0) parts.push(`${fmt(result.tracksSkipped)} uebersprungen`);
+    if (result.playlistCreated) parts.push("Playlist neu erstellt");
+    if (result.entityCount > 0) parts.push(`${fmt(result.entityCount)} zur Playlist hinzugefuegt`);
+
+    status.innerHTML = `<span style="color:var(--success)">&#10003; Engine DJ Import: ${parts.join(", ")}. Backup: ${esc(result.backupPath || "")}</span>`;
     createBtn.disabled = false;
   } catch (err) {
     status.innerHTML = `<span style="color:var(--danger)">Fehler: ${esc(err.message)}</span>`;
