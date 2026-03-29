@@ -5,6 +5,18 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+// ─── Hot-Reload im Dev-Modus ─────────────────────────────────────────────────
+if (!app.isPackaged) {
+  try {
+    const __dirname_main = path.dirname(fileURLToPath(import.meta.url));
+    const reload = await import("electron-reload");
+    reload.default(path.join(__dirname_main, "renderer"), {
+      electron: path.join(__dirname_main, "..", "node_modules", ".bin", "electron"),
+      forceHardReset: false,
+    });
+  } catch { /* electron-reload nicht installiert — kein Problem im Prod-Build */ }
+}
 import {
   CONFIRM_TEXT,
   DEFAULTS,
@@ -63,8 +75,9 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1320,
     height: 920,
-    minWidth: 1080,
-    minHeight: 760,
+    minWidth: 768,
+    minHeight: 600,
+    icon: path.join(__dirname, "..", "assets", "icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
@@ -275,6 +288,14 @@ async function buildRuntimeConfig(rawConfig = {}) {
 }
 
 app.whenReady().then(() => {
+  // Dock-Icon im Dev-Modus setzen (macOS ignoriert BrowserWindow.icon)
+  if (!app.isPackaged && process.platform === "darwin") {
+    const iconPath = path.join(__dirname, "..", "assets", "icon.png");
+    if (existsSync(iconPath)) {
+      try { app.dock.setIcon(iconPath); } catch { /* optional */ }
+    }
+  }
+
   // IPC-Helper: rawConfig → config → fn(config, ...args) mit einheitlichem Fehler-Handling
   function ipcHandle(channel, fn) {
     ipcMain.handle(channel, async (_event, rawConfig, ...args) => {
@@ -331,18 +352,20 @@ app.whenReady().then(() => {
   // ── Export-Endpunkte ────────────────────────────────────────────────────
   ipcMain.handle("export:choose-save-path", async (_event, options = {}) => {
     const win = BrowserWindow.getFocusedWindow();
-    const filters = {
+    const defaultFilters = {
       rekordbox: [{ name: "Rekordbox XML", extensions: ["xml"] }],
       traktor: [{ name: "Traktor NML", extensions: ["nml"] }],
       json: [{ name: "JSON", extensions: ["json"] }],
       jsonl: [{ name: "JSON Lines", extensions: ["jsonl"] }],
       m3u: [{ name: "M3U Playlist", extensions: ["m3u"] }],
       m3u8: [{ name: "M3U8 Playlist", extensions: ["m3u8"] }],
+      csv: [{ name: "CSV", extensions: ["csv"] }],
     };
+    const chosenFilters = options.filters || defaultFilters[options.format] || [{ name: "Alle", extensions: ["*"] }];
     const result = await dialog.showSaveDialog(win, {
       title: options.title || "Export speichern",
-      defaultPath: options.defaultName || "beatport-export",
-      filters: filters[options.format] || [{ name: "Alle", extensions: ["*"] }],
+      defaultPath: options.defaultPath || options.defaultName || "beatport-export",
+      filters: chosenFilters,
     });
     if (result.canceled || !result.filePath) return { canceled: true };
     return { canceled: false, filePath: result.filePath };
@@ -362,17 +385,160 @@ app.whenReady().then(() => {
     return await generateExport(tracks, format, outputPath);
   });
 
+  // ── Lokaler Playlist-Export (aus Search & Filter Tab) ────────────────────
+  ipcMain.handle("export:save-playlist-local", async (_event, options = {}) => {
+    const { format, name, tracks, outputPath } = options;
+    if (!format || !outputPath || !Array.isArray(tracks)) {
+      throw new Error("Format, Ausgabepfad und Tracks erforderlich.");
+    }
+
+    const filename = path.basename(outputPath);
+
+    if (format === "m3u") {
+      const { buildM3uContent } = await import("./integrations/m3u-exporter.mjs");
+      const content = buildM3uContent(name || "Playlist", tracks);
+      await fs.writeFile(outputPath, content, "utf8");
+      return { ok: true, trackCount: tracks.length, filename, path: outputPath };
+    }
+
+    if (format === "json") {
+      const payload = {
+        name: name || "Playlist",
+        exportedAt: new Date().toISOString(),
+        trackCount: tracks.length,
+        tracks,
+      };
+      await fs.writeFile(outputPath, JSON.stringify(payload, null, 2), "utf8");
+      return { ok: true, trackCount: tracks.length, filename, path: outputPath };
+    }
+
+    if (format === "csv") {
+      // CSV-Header aus den Track-Keys ableiten
+      const headers = tracks.length > 0
+        ? Object.keys(tracks[0])
+        : ["track_id", "title", "artists", "genre", "bpm", "key", "camelot", "year", "label"];
+      const csvEsc = (v) => {
+        const s = String(v ?? "");
+        return s.includes(",") || s.includes('"') || s.includes("\n")
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      };
+      const lines = [headers.join(",")];
+      for (const t of tracks) {
+        lines.push(headers.map((h) => csvEsc(t[h])).join(","));
+      }
+      await fs.writeFile(outputPath, lines.join("\n") + "\n", "utf8");
+      return { ok: true, trackCount: tracks.length, filename, path: outputPath };
+    }
+
+    throw new Error(`Unbekanntes Export-Format: ${format}`);
+  });
+
   // ── Playlist WIZ — XHR-basierte CRUD-Operationen ─────────────────────────
-  // Hilfsfunktion: XHR-Client aus exportiertem API-Kontext erstellen
+  // Strategie: Bearer-Token live aus dem Beatport-BrowserWindow extrahieren,
+  // dann mit dem BeatportXhrClient (globalThis.fetch) im Main-Prozess nutzen.
+  // So wird kein neuer Seitenaufruf ausgeloest und die Session bleibt intakt.
+
+  // Token aus der bereits geladenen Beatport-Seite extrahieren (ohne Navigation)
+  async function extractLiveBearerToken() {
+    // Script das im Kontext von dj.beatport.com laeuft und den Token findet
+    const extractScript = `
+      (async () => {
+        // 1. Versuch: Token aus localStorage / sessionStorage
+        for (const store of [localStorage, sessionStorage]) {
+          for (let i = 0; i < store.length; i++) {
+            const key = store.key(i);
+            const val = store.getItem(key);
+            if (val && (val.startsWith("Bearer ") || val.startsWith("eyJ"))) {
+              return val.startsWith("Bearer ") ? val : "Bearer " + val;
+            }
+            // OAuth-Tokens sind oft als JSON gespeichert
+            try {
+              const parsed = JSON.parse(val);
+              if (parsed?.access_token) {
+                return "Bearer " + parsed.access_token;
+              }
+              if (parsed?.token) {
+                return "Bearer " + parsed.token;
+              }
+            } catch {}
+          }
+        }
+        // 2. Versuch: Monkey-patch fetch, einen echten API-Call abfangen
+        return await new Promise((resolve, reject) => {
+          const origFetch = window.fetch;
+          const timeout = setTimeout(() => {
+            window.fetch = origFetch;
+            reject(new Error("Kein Bearer-Token in 8s gefunden"));
+          }, 8000);
+          window.fetch = function(url, opts) {
+            const auth = opts?.headers?.authorization
+              || opts?.headers?.Authorization
+              || (opts?.headers instanceof Headers ? opts.headers.get("authorization") : null);
+            if (auth && String(url).includes("api.beatport.com")) {
+              window.fetch = origFetch;
+              clearTimeout(timeout);
+              resolve(auth);
+            }
+            return origFetch.apply(this, arguments);
+          };
+          // Navigation/Reload triggern damit die Seite API-Calls macht
+          if (window.location.href.includes("beatport.com")) {
+            // Seite hat wahrscheinlich schon einen Zustand — erzwinge einen API-Call
+            origFetch("https://api.beatport.com/v4/my/playlists/?per_page=1&page=1", {
+              credentials: "include",
+            }).catch(() => {});
+          }
+        });
+      })()
+    `;
+    return await sessionManager.executeJavaScript(extractScript, {});
+  }
+
   async function createXhrClient() {
+    // 1. Sicherstellen, dass das Beatport-Fenster existiert und eingeloggt ist
+    let status = await sessionManager.probe({}, { ensureHome: false, show: false });
+    if (status.sessionState !== "valid") {
+      status = await sessionManager.probe({}, { ensureHome: true, show: false });
+      if (status.sessionState !== "valid") {
+        throw new Error(
+          "Beatport-Session nicht aktiv. Bitte im Scanner-Tab einloggen."
+        );
+      }
+    }
+
+    // 2. Bearer-Token live aus der Seite extrahieren
+    let token;
     try {
-      const context = await loadApiContext();
-      return new BeatportXhrClient(context);
-    } catch {
+      token = await extractLiveBearerToken();
+    } catch (extractErr) {
+      // Fallback: Kontext per Network-Capture holen (kann Session stoeren)
+      try {
+        const context = await sessionManager.resolveBeatportApiContext({}, {
+          forceRefresh: true,
+        });
+        if (context?.authorization) {
+          return new BeatportXhrClient(context);
+        }
+      } catch {}
       throw new Error(
-        "API-Kontext nicht verfügbar. Bitte im Scanner-Tab: Auth → API-Kontext exportieren."
+        "Bearer-Token konnte nicht extrahiert werden. Bitte im Scanner-Tab " +
+        "Beatport-Fenster oeffnen, einloggen, und nochmal versuchen. (" + extractErr.message + ")"
       );
     }
+
+    // 3. BeatportXhrClient mit dem frischen Token erstellen
+    const context = {
+      authorization: token,
+      accept: "application/json, text/plain, */*",
+      referer: "https://dj.beatport.com/",
+      userAgent: "",
+      playlistTemplate: "https://api.beatport.com/v4/my/playlists/{playlistId}/",
+      tracksTemplate: "https://api.beatport.com/v4/my/playlists/{playlistId}/tracks/?per_page={perPage}&page={page}",
+      discoveryTemplate: "https://api.beatport.com/v4/my/playlists/?per_page={perPage}&page={page}",
+      observedAt: new Date().toISOString(),
+    };
+    return new BeatportXhrClient(context);
   }
 
   ipcMain.handle("playlist:list", async () => {

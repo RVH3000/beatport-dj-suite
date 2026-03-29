@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld("playlistApi", {
 contextBridge.exposeInMainWorld("exportApi", {
   chooseSavePath: (options) => ipcRenderer.invoke("export:choose-save-path", options),
   generate: (config, query) => ipcRenderer.invoke("export:generate", config, query),
+  savePlaylistLocal: (options) => ipcRenderer.invoke("export:save-playlist-local", options),
 });
 
 contextBridge.exposeInMainWorld("unifiedApi", {

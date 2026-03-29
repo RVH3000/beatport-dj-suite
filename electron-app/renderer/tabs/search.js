@@ -306,6 +306,38 @@ function buildSearchTabHtml() {
         <span id="srchResultCount">0 Treffer</span>
         <span id="srchSelectedCount">0 ausgewählt</span>
         <span id="srchPageInfo"></span>
+        <button type="button" id="srchSavePlaylist" class="srch-save-pl-btn" style="margin-left:auto;padding:5px 14px;font-size:12px;font-weight:600;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;display:none" title="Aktuelle Filteransicht als Beatport-Playlist speichern">&#9654; Als Playlist speichern</button>
+      </div>
+      <!-- Modal: Playlist speichern -->
+      <div id="srchPlModal" class="srch-pl-modal" style="display:none">
+        <div class="srch-pl-modal-content">
+          <h3 style="margin:0 0 12px 0;color:var(--text)">Playlist speichern</h3>
+          <label style="font-size:12px;color:var(--muted)">Ziel</label>
+          <select id="srchPlModalTarget" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:13px;margin:4px 0 12px 0">
+            <option value="beatport">Beatport (online erstellen)</option>
+            <option value="m3u">Lokal — M3U Playlist</option>
+            <option value="json">Lokal — JSON</option>
+            <option value="csv">Lokal — CSV</option>
+          </select>
+          <label style="font-size:12px;color:var(--muted)">Playlist-Name</label>
+          <input type="text" id="srchPlModalName" placeholder="z.B. Deep House Selection" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:14px;margin:4px 0 12px 0">
+          <label style="font-size:12px;color:var(--muted)">Quelle</label>
+          <select id="srchPlModalSource" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:13px;margin:4px 0 12px 0">
+            <option value="filtered">Alle gefilterten Tracks</option>
+            <option value="page">Nur aktuelle Seite</option>
+            <option value="selected">Nur ausgewählte Tracks</option>
+          </select>
+          <div id="srchPlModalLimitWrap">
+            <label style="font-size:12px;color:var(--muted)">Max. Tracks <span id="srchPlModalLimitHint">(Beatport-Limit: 500)</span></label>
+            <input type="number" id="srchPlModalLimit" value="100" min="1" max="500" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:14px;margin:4px 0 12px 0">
+          </div>
+          <div id="srchPlModalInfo" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+          <div id="srchPlModalStatus" style="font-size:12px;margin-bottom:12px;display:none"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button type="button" id="srchPlModalCancel" style="padding:8px 16px;font-size:13px;background:var(--bg-card);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);cursor:pointer">Abbrechen</button>
+            <button type="button" id="srchPlModalCreate" style="padding:8px 16px;font-size:13px;font-weight:600;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer">Speichern</button>
+          </div>
+        </div>
       </div>
       <div class="srch-timeline-viz" id="srchTimelineViz" style="display:none">
         <h4>Track-Timeline (aktuelle Seite)</h4>
@@ -445,6 +477,214 @@ function bindSearchEvents() {
   $("srchSortCamelot")?.addEventListener("click", () => { playlist.sort((a, b) => camelotSortVal(a.c) - camelotSortVal(b.c)); renderPlaylist(); });
   $("srchSortBpm")?.addEventListener("click", () => { playlist.sort((a, b) => (a.b || 0) - (b.b || 0)); renderPlaylist(); });
   $("srchClearPl")?.addEventListener("click", () => { playlist = []; renderPlaylist(); });
+
+  // ─── Playlist speichern: Modal-Events ───────────────────────────────────────
+  $("srchSavePlaylist")?.addEventListener("click", () => {
+    const modal = $("srchPlModal");
+    const info = $("srchPlModalInfo");
+    const status = $("srchPlModalStatus");
+    status.style.display = "none";
+    // Quelle vorbelegen je nach Kontext
+    const sourceEl = $("srchPlModalSource");
+    const selCount = selectedIds.size;
+    if (selCount > 0) sourceEl.value = "selected";
+    else sourceEl.value = "filtered";
+    updatePlModalInfo();
+    modal.style.display = "flex";
+    $("srchPlModalName").focus();
+  });
+
+  $("srchPlModalTarget")?.addEventListener("change", updatePlModalTarget);
+  $("srchPlModalSource")?.addEventListener("change", updatePlModalInfo);
+  $("srchPlModalLimit")?.addEventListener("input", updatePlModalInfo);
+
+  $("srchPlModalCancel")?.addEventListener("click", () => {
+    $("srchPlModal").style.display = "none";
+  });
+
+  $("srchPlModal")?.addEventListener("click", (e) => {
+    if (e.target === $("srchPlModal")) $("srchPlModal").style.display = "none";
+  });
+
+  $("srchPlModalCreate")?.addEventListener("click", savePlaylist);
+}
+
+function updatePlModalTarget() {
+  const target = $("srchPlModalTarget")?.value || "beatport";
+  const limitWrap = $("srchPlModalLimitWrap");
+  const limitHint = $("srchPlModalLimitHint");
+  const limitInput = $("srchPlModalLimit");
+  if (target === "beatport") {
+    limitWrap.style.display = "";
+    limitHint.textContent = "(Beatport-Limit: 500)";
+    limitInput.max = 500;
+  } else {
+    // Lokale Formate: kein hartes Limit, aber sinnvoller Default
+    limitWrap.style.display = "";
+    limitHint.textContent = "(kein Limit für lokale Dateien)";
+    limitInput.max = 99999;
+  }
+  updatePlModalInfo();
+}
+
+function updatePlModalInfo() {
+  const source = $("srchPlModalSource")?.value || "filtered";
+  const target = $("srchPlModalTarget")?.value || "beatport";
+  const maxLimit = target === "beatport" ? 500 : 99999;
+  const limit = Math.min(maxLimit, Math.max(1, parseInt($("srchPlModalLimit")?.value) || 100));
+  let count = 0;
+  if (source === "filtered") count = searchResults.length;
+  else if (source === "page") count = getPageTracks(currentPage).length;
+  else if (source === "selected") count = selectedIds.size;
+  const actual = Math.min(count, limit);
+  const formatLabel = { beatport: "Beatport", m3u: "M3U", json: "JSON", csv: "CSV" }[target] || target;
+  $("srchPlModalInfo").innerHTML = `<strong>${fmt(count)}</strong> Tracks verfügbar → <strong>${fmt(actual)}</strong> werden als <strong>${formatLabel}</strong> gespeichert`;
+}
+
+/** Haupt-Speicherfunktion: Dispatcht je nach Ziel-Format */
+async function savePlaylist() {
+  const target = $("srchPlModalTarget")?.value || "beatport";
+  if (target === "beatport") return saveToBeatport();
+  return saveToLocalFile(target);
+}
+
+/** Tracks aus gewählter Quelle sammeln und auf Limit kürzen */
+function collectExportTracks() {
+  const source = $("srchPlModalSource")?.value || "filtered";
+  const target = $("srchPlModalTarget")?.value || "beatport";
+  const maxLimit = target === "beatport" ? 500 : 99999;
+  const limit = Math.min(maxLimit, Math.max(1, parseInt($("srchPlModalLimit")?.value) || 100));
+  let tracks = [];
+  if (source === "filtered") tracks = searchResults;
+  else if (source === "page") tracks = getPageTracks(currentPage);
+  else if (source === "selected") tracks = searchResults.filter((t) => selectedIds.has(t.track_id));
+  return tracks.slice(0, limit);
+}
+
+async function saveToBeatport() {
+  const name = ($("srchPlModalName")?.value || "").trim();
+  if (!name) { $("srchPlModalName").focus(); return; }
+
+  const status = $("srchPlModalStatus");
+  const createBtn = $("srchPlModalCreate");
+  const tracks = collectExportTracks();
+  const trackIds = tracks.map((t) => t.track_id).filter(Boolean);
+
+  if (!trackIds.length) {
+    status.style.display = "block";
+    status.innerHTML = '<span style="color:var(--danger)">Keine Tracks mit gültiger ID gefunden.</span>';
+    return;
+  }
+
+  if (!window.playlistApi?.create) {
+    status.style.display = "block";
+    status.innerHTML = '<span style="color:var(--danger)">Beatport API nicht verbunden. Bitte zuerst im Scanner-Tab einloggen.</span>';
+    return;
+  }
+
+  createBtn.disabled = true;
+  status.style.display = "block";
+  status.innerHTML = '<span style="color:var(--primary)">Erstelle Playlist auf Beatport...</span>';
+
+  try {
+    const pl = await window.playlistApi.create(name);
+    if (!pl?.id) throw new Error("Playlist-Erstellung fehlgeschlagen — keine ID zurückbekommen");
+
+    status.innerHTML = `<span style="color:var(--primary)">Playlist "${esc(name)}" erstellt (ID: ${pl.id}). Füge ${fmt(trackIds.length)} Tracks hinzu...</span>`;
+
+    const BATCH_SIZE = 50;
+    let added = 0;
+    for (let i = 0; i < trackIds.length; i += BATCH_SIZE) {
+      const batch = trackIds.slice(i, i + BATCH_SIZE);
+      await window.playlistApi.addTracks(pl.id, batch);
+      added += batch.length;
+      status.innerHTML = `<span style="color:var(--primary)">${fmt(added)} / ${fmt(trackIds.length)} Tracks hinzugefügt...</span>`;
+    }
+
+    status.innerHTML = `<span style="color:var(--success)">&#10003; Playlist "${esc(name)}" mit ${fmt(trackIds.length)} Tracks auf Beatport erstellt!</span>`;
+    createBtn.disabled = false;
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--danger)">Fehler: ${esc(err.message)}</span>`;
+    createBtn.disabled = false;
+  }
+}
+
+async function saveToLocalFile(format) {
+  const name = ($("srchPlModalName")?.value || "").trim() || "Playlist";
+  const status = $("srchPlModalStatus");
+  const createBtn = $("srchPlModalCreate");
+  const tracks = collectExportTracks();
+
+  if (!tracks.length) {
+    status.style.display = "block";
+    status.innerHTML = '<span style="color:var(--danger)">Keine Tracks zum Exportieren gefunden.</span>';
+    return;
+  }
+
+  // Dateiendung und Filter für Dialog
+  const extMap = { m3u: ".m3u", json: ".json", csv: ".csv" };
+  const filterMap = {
+    m3u:  [{ name: "M3U Playlist", extensions: ["m3u", "m3u8"] }],
+    json: [{ name: "JSON", extensions: ["json"] }],
+    csv:  [{ name: "CSV (Comma-separated)", extensions: ["csv"] }],
+  };
+
+  createBtn.disabled = true;
+  status.style.display = "block";
+  status.innerHTML = '<span style="color:var(--primary)">Speicherort wählen...</span>';
+
+  try {
+    // Speicherdialog über IPC (Main-Prozess zeigt nativen Dialog)
+    const defaultName = name.replace(/[/\\:*?"<>|]/g, "_") + (extMap[format] || ".txt");
+    const saveResult = await window.exportApi.chooseSavePath({
+      title: `Playlist als ${format.toUpperCase()} speichern`,
+      defaultPath: defaultName,
+      format,
+      filters: filterMap[format] || [],
+    });
+
+    if (!saveResult || saveResult.canceled) {
+      // User hat Abbrechen geklickt
+      status.style.display = "none";
+      createBtn.disabled = false;
+      return;
+    }
+    const savePath = saveResult.filePath;
+
+    status.innerHTML = `<span style="color:var(--primary)">Exportiere ${fmt(tracks.length)} Tracks als ${format.toUpperCase()}...</span>`;
+
+    // Track-Daten für Export vorbereiten (komprimierte Keys → lesbares Format)
+    const exportTracks = tracks.map((t) => ({
+      track_id: t.track_id || t.i || "",
+      title: t.title || t.t || "",
+      artists: t.artists || t.a || "",
+      mix: t.mix || t.m || "",
+      genre: t.genre || t.g || "",
+      subgenre: t.subgenre || t.sg || "",
+      bpm: t.bpm || t.b || "",
+      key: t.key || t.k || "",
+      camelot: t.camelot || t.c || "",
+      year: t.year || t.y || "",
+      label: t.label || t.l || "",
+      rating: t.rating || t.r || "",
+      drama_score: t.drama_score || t.ds || "",
+      playlist_count: t.playlist_count || t.p || "",
+    }));
+
+    // Export per IPC an Main-Prozess senden
+    const result = await window.exportApi.savePlaylistLocal({
+      format,
+      name,
+      tracks: exportTracks,
+      outputPath: savePath,
+    });
+
+    status.innerHTML = `<span style="color:var(--success)">&#10003; ${fmt(result.trackCount || tracks.length)} Tracks als ${format.toUpperCase()} gespeichert: ${esc(result.filename || savePath.split("/").pop())}</span>`;
+    createBtn.disabled = false;
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--danger)">Fehler: ${esc(err.message)}</span>`;
+    createBtn.disabled = false;
+  }
 }
 
 // ─── Data Loading ────────────────────────────────────────────────────────────
@@ -802,6 +1042,9 @@ function renderSearchPage() {
   $("srchResultCount").innerHTML = `<strong>${fmt(total)}</strong> Treffer von ${fmt(allTracks?.length ?? 0)}`;
   $("srchSelectedCount").textContent = selectedIds.size + " ausgewählt";
   $("srchPageInfo").textContent = total > 0 ? `Seite ${currentPage + 1} von ${totalPages} (${rows.length} Tracks)` : "";
+  // Playlist-speichern-Button nur zeigen wenn Ergebnisse vorhanden
+  const saveBtn = $("srchSavePlaylist");
+  if (saveBtn) saveBtn.style.display = total > 0 ? "inline-block" : "none";
 
   $("srchBody").innerHTML = rows.map((t) => {
     const chk = selectedIds.has(t.track_id) ? "checked" : "";

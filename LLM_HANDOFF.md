@@ -1,111 +1,84 @@
-# LLM Handoff — Beatport DJ Suite
+# LLM Handoff — beatport-dj-suite
+Erstellt: 2026-03-29
+Von: Claude Desktop (Cowork)
+Nach: Claude Code CLI
 
-**Datum:** 2026-03-27
-**Branch:** `feature/unified-app-build`
-**Version:** 2.0.0
-**GitHub:** https://github.com/RVH3000/beatport-dj-suite (privat, soeben erstellt)
+## Aktueller Stand
+- Branch: main
+- Letzter Commit: e4512aa (Phase 7a + Phase 9 Repo-Hygiene)
+- 7 Dateien mit insgesamt 685+ Zeilen uncommitted changes
 
----
+## Kernproblem: Beatport Playlist-Erstellung scheitert (Auth 401)
 
-## Was in dieser Session passiert ist
-
-### Phase 1 — GitHub-Backup (erledigt)
-- Repo war bisher nur lokal (`_local/`) ohne Remote
-- `gh repo create RVH3000/beatport-dj-suite --private` ausgeführt
-- Alle Branches gepusht: `main`, `feature/unified-app-build`, drei `claude/*`-Branches
-
-### Phase 2 — Strangler Fig Extraktion (erledigt, noch nicht committed)
-Aus `cdp-scanner.mjs` wurden zwei eigenständige Module extrahiert:
-
-**`electron-app/scanner/run-store.mjs`** (neu, untracked)
-- RunStore-Klasse: Runs laden, speichern, suchen, löschen
-- Schema-Validierung (schemaVersion: 2)
-- Pflichtfelder: `origin.kind`, `migration`, `counts`, `selection`, `analysisPlan`
-- Statusmodell: `running`, `ready_for_analysis`, `paused`, `completed`, `incomplete`
-- Legacy-Erkennung: schemaVersion < 2, `phase` fehlt, `app.version < 1.1.0`
-- Track-Fingerprint (`buildTrackFingerprint` via `node:crypto`)
-- CSV-Header-Definitionen (`TRACK_CSV_HEADERS`, `SUMMARY_CSV_HEADERS`)
-
-**`electron-app/scanner/legacy-migrator.mjs`** (neu, untracked)
-- `buildMigrationTargetRun` — baut migrierten Run aus Legacy-Quelle
-- `migrateLegacyRunsImpl` — kopierender Migrationsmodus (niemals in-place)
-- Setzt: `origin.kind: "legacy-migrated"`, `migration.sourceRunId/Version/migratedAt/mode`
-- Importiert Helfer aus `run-store.mjs`
-
-**`electron-app/scanner/cdp-scanner.mjs`** (modifiziert)
-- Lokale Definitionen von `buildMigrationTargetRun` und `migrateLegacyRuns` entfernt
-- Wrapper-Funktion `migrateLegacyRuns` mit Parameter-Injection ersetzt
-- Importiert jetzt aus `legacy-migrator.mjs`
-- Nicht mehr verwendete Imports entfernt (`createHash`)
-- Außenschnittstelle unverändert
-
----
-
-## Aktueller Git-Status
-
+### Was passiert
+Im "Suche & Filter"-Tab gibt es einen neuen Button "Als Playlist speichern".
+Wenn der User eine Playlist auf Beatport erstellen will, kommt immer:
 ```
-modified:   electron-app/scanner/cdp-scanner.mjs
-untracked:  electron-app/scanner/run-store.mjs
-untracked:  electron-app/scanner/legacy-migrator.mjs
-untracked:  tools/beatport_cdp_tool.mjs
-untracked:  assets/
-untracked:  .claude/
+Auth-Fehler 401 fuer https://api.beatport.com/v4/my/playlists/
+Token vermutlich abgelaufen
 ```
 
-**Die Extraktion ist noch nicht committed.** Vor dem Commit sollte ein Smoke-Test durchgeführt werden.
+### Was bereits versucht wurde (alles gescheitert)
+1. **api-context.json aus Datei lesen** — Token war beim Lesen schon abgelaufen
+2. **Token-Export-Button** — Pfad-Mismatch: app.getPath("userData") schreibt nach "Beatport DJ Suite" (Leerzeichen), USER_DATA_PATHS sucht in "beatport-dj-suite" (Bindestrich). Gefixt, half aber nicht.
+3. **sessionManager.resolveBeatportApiContext(forceRefresh:true)** — Navigiert zu dj.beatport.com und faengt Token per Network-Capture ab, aber das loest offenbar ein Logout bei Beatport aus (Sicherheitsmechanismus)
+4. **InPageBeatportClient (executeJavaScript + fetch mit credentials:include)** — "Failed to fetch" weil Beatport-API nicht ueber Cookies authentifiziert sondern ueber Bearer-Token im Authorization-Header
+5. **extractLiveBearerToken (localStorage/sessionStorage durchsuchen + fetch monkey-patch)** — Aktueller Stand im Code, User meldet weiterhin Fehler
 
----
+### Wie die funktionierende Auth im Scanner funktioniert
+- SessionManager in electron-app/auth/session-manager.mjs
+- Nutzt withNetworkCapture() -> extractApiContextFromRequests(): Navigiert zu dj.beatport.com, attached Chrome Debugger Protocol, faengt Requests zu api.beatport.com/v4/my/playlists ab, extrahiert den Authorization-Header
+- Das funktioniert fuer den Scanner, weil dort ein voller Scan laeuft
+- Problem: Bei Playlist-Erstellung scheint die erneute Navigation den Token zu invalidieren
 
-## Offene TODOs (Refactoring-Roadmap)
+### Loesungsansaetze die noch NICHT versucht wurden
+- **Electron net.fetch mit Session-Partition**: Electron 32.3.3 hat net.fetch() das mit der gleichen Session-Partition arbeiten kann. Sendet automatisch richtige Cookies/Auth ohne Token-Extraktion.
+- **session.fetch()**: Alternative zu net.fetch, direkt ueber die Session des BrowserWindow
+- **webRequest.onBeforeSendHeaders**: Listener auf der Beatport-Partition, der den Authorization-Header aus dem naechsten regulaeren API-Call abfaengt OHNE neue Navigation
+- **React-State/NEXT_DATA**: Die Beatport SPA speichert den OAuth-Token irgendwo im JS-Heap
 
-### Sofort (vor nächstem Feature)
-- [ ] Smoke-Test mit Live-Beatport-Session durchführen (laut `docs/RELEASE_CHECKLIST.md`)
-- [ ] Extraktions-Commit: `run-store.mjs` + `legacy-migrator.mjs` + geänderter `cdp-scanner.mjs`
-- [ ] `tools/beatport_cdp_tool.mjs` und `assets/` committen oder in `.gitignore` aufnehmen
+## Was funktioniert (neue Features, nur nicht committiert)
 
-### Phase 3 — IPC-Formalisierung
-- [ ] Alle IPC-Handler aus `main.mjs` in `electron-app/ipc-api.mjs` zentralisieren
-- [ ] Neue Tabs (`analysis.js`, `export.js`, `playlist-wiz.js`, `sync.js`, `search.js`, `automation.js`) gegen formale IPC-API bauen
-- [ ] `unified-settings.js` von direktem State-Zugriff entkoppeln
+### 1. Playlist-Modal erweitert (search.js)
+- Neues Ziel-Dropdown: Beatport / M3U / JSON / CSV
+- Lokale Formate funktionieren ueber export:save-playlist-local IPC-Handler
+- Nativer Speicherdialog via export:choose-save-path
 
-### Phase 4 — SQLite als Service (nach Phase 3)
-- [ ] `sqlite-cache.mjs` zum einzigen DB-Zugriffspunkt machen
-- [ ] Alle direkten `sqlite`-Imports in anderen Modulen entfernen
-- [ ] Schema-Migration-Mechanismus in SQLite-Service integrieren
+### 2. Responsive Verbesserungen (styles.css)
+- minWidth 768px, minHeight 600px
+- Neuer Breakpoint @media (max-width:1080px)
 
-### Infrastruktur
-- [ ] Test-Coverage für `run-store.mjs` und `legacy-migrator.mjs` schreiben (ohne Electron)
-- [ ] `SMOKE_TEST_REPORT.md` nach nächstem Live-Lauf aktualisieren (letzter: 2026-03-12)
+### 3. Hot-Reload (main.mjs)
+- electron-reload fuer automatischen Renderer-Refresh
 
----
+### 4. App-Icon
+- icon.png/icns/svg in assets/
+- BrowserWindow icon + dock.setIcon() + favicon konfiguriert
+- Icon funktioniert im Dev-Modus immer noch nicht
 
-## Relevante Dateipfade
+## Wichtige Dateipfade
+- electron-app/main.mjs — Hauptprozess, createXhrClient() ist das Auth-Problem (ab Zeile ~437)
+- electron-app/auth/session-manager.mjs — SessionManager mit withNetworkCapture, probe, executeJavaScript
+- electron-app/scanner/xhr-scanner.mjs — BeatportXhrClient (funktioniert mit gueltigem Token), USER_DATA_PATHS
+- electron-app/renderer/tabs/search.js — Playlist-Modal, savePlaylist(), saveToBeatport(), saveToLocalFile()
+- electron-app/preload.mjs — window.playlistApi + window.exportApi (inkl. savePlaylistLocal)
 
-| Datei | Zweck |
-|-------|-------|
-| `electron-app/scanner/cdp-scanner.mjs` | Kern-Scanner (XHR/CDP, God Object — wird schrittweise verkleinert) |
-| `electron-app/scanner/run-store.mjs` | NEU: Run-Verwaltung, Schema-Validierung, Fingerprints |
-| `electron-app/scanner/legacy-migrator.mjs` | NEU: Legacy-Migration (1.0.x → schemaVersion 2) |
-| `electron-app/cache/sqlite-cache.mjs` | SQLite-Persistenz (nächster Extraktion-Kandidat) |
-| `electron-app/main.mjs` | IPC-Grenze Electron Main ↔ Renderer |
-| `electron-app/preload.mjs` | Electron-Preload-Bridge |
-| `electron-app/renderer/app.js` | Renderer-Root |
-| `electron-app/renderer/tabs/*.js` | Tab-Module (analysis, export, playlist-wiz, sync, search, automation, settings, unified-settings) |
-| `electron-app/api/djplaylists-client.mjs` | DJPlaylists-API-Client |
-| `electron-app/api/lexicon-client.mjs` | Lexicon-API-Client |
-| `electron-app/integrations/*.mjs` | OSC-Bridge, M3U-Exporter, Project-Discovery, Performance-Classifier |
-| `docs/ARCHITECTURE.md` | Architektur-Übersicht |
-| `docs/MIGRATION.md` | Migration-Spezifikation |
-| `docs/RELEASE_CHECKLIST.md` | Release-Prozess |
-| `docs/SMOKE_TEST_REPORT.md` | Letzter Smoke-Test: 2026-03-12 |
+## Geschuetzte Dateien (NIEMALS umbenennen/loeschen)
+- assets/icon.png, assets/icon.icns, assets/icon.svg
+- electron-app/auth/session-manager.mjs
+- electron-app/scanner/xhr-scanner.mjs
 
----
+## Startbefehl
+```bash
+cd ~/Projects/_local/beatport-dj-suite
+npm run desktop:dev
+```
 
-## Kontext für nächste Session
+## Kontext fuer den naechsten Agent
+PRIORITAET 1: Beatport-Auth fuer Playlist-Erstellung fixen. Der Schluessel ist, den Bearer-Token zu nutzen OHNE eine neue Navigation auszuloesen die Beatports Sicherheitsmechanismus triggert. Electron 32.3.3 bietet net.fetch() und session.fetch() als moegliche Loesung.
 
-- Die App ist ein Electron-Scraper für Beatport DJ-Playlists
-- CDP = Chrome DevTools Protocol (Fallback wenn XHR nicht ausreicht)
-- Beatport-Login lebt ausschließlich im persistenten Electron-Profil (keine Passwörter in Artefakten)
-- JSONL = technischer Primärbestand; SQLite = operativer Arbeitsbestand für UI
-- Delta-Sync aktualisiert Cache aus Beatport-Summaries ohne Vollanalyse
-- Duplikate: erst Kandidaten via `Name + Trackzahl`, dann serverseitige Bestätigung via Track-Fingerprint
+PRIORITAET 2: Lokale Export-Formate (M3U/JSON/CSV) testen — sollten funktionieren.
+
+PRIORITAET 3: Icon im Dev-Modus fixen.
+
+Tests: npm run test:unit — 123/125 bestanden (2 vorbekannte SQLite-Cache-Fehler).
