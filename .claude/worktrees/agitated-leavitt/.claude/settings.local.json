@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 10 electron . --no-sandbox)",
+      "Bash(node -e \":*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(find /Users/roberth./Projects/_local/beatport-dj-suite/electron-app -type f -name \"*.{png,jpg,svg}\")",
+      "Bash(python3 -c \"import cairosvg\")",
+      "Bash(node -e \"require\\(''sharp''\\)\")",
+      "Bash(mv icon.svg.png icon.png)",
+      "Bash(sips -z 1024 1024 icon.png)",
+      "Bash(qlmanage -t -s 1024 -o . icon.svg)"
+    ]
+  }
+}

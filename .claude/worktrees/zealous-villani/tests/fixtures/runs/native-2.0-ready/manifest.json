@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 2,
+  "runId": "native-2.0-ready",
+  "status": "ready_for_analysis",
+  "phase": "ready_for_analysis",
+  "startedAt": "2026-03-03T09:00:00.000Z",
+  "finishedAt": "",
+  "app": {
+    "version": "1.2.0"
+  },
+  "counts": {
+    "playlistsDiscovered": 1,
+    "selectedPlaylists": 1,
+    "duplicates": 0,
+    "analyzedPlaylists": 0,
+    "analyzedTrackRows": 0
+  },
+  "selection": {
+    "selectedPlaylists": [
+      {
+        "id": "native-1",
+        "name": "Native Ready Playlist",
+        "tracks": "1",
+        "key": "Native Ready Playlist_1"
+      }
+    ],
+    "updatedAt": "2026-03-03T09:00:00.000Z",
+    "source": "default_all"
+  },
+  "analysisPlan": {
+    "method": "auto",
+    "selectedPlaylists": [
+      {
+        "id": "native-1",
+        "name": "Native Ready Playlist",
+        "tracks": "1",
+        "key": "Native Ready Playlist_1"
+      }
+    ],
+    "completedPlaylistRefs": [],
+    "currentPlaylistRef": null,
+    "totalSelected": 1,
+    "updatedAt": "2026-03-03T09:00:00.000Z"
+  },
+  "origin": {
+    "kind": "native",
+    "label": "Native"
+  },
+  "duplicates": [],
+  "playlistSummaries": []
+}

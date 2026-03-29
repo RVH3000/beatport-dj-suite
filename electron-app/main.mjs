@@ -39,9 +39,17 @@ import {
 import { SessionManager } from "./auth/session-manager.mjs";
 import * as LexiconClient from "./api/lexicon-client.mjs";
 import * as DjplaylistsClient from "./api/djplaylists-client.mjs";
+import {
+  buildUnifiedComponentMap,
+  discoverProjectParts,
+} from "./integrations/project-discovery.mjs";
+import { classifyTrackBatch } from "./integrations/performance-classifier.mjs";
+import { exportM3uPlaylist } from "./integrations/m3u-exporter.mjs";
+import { sendOscSnapshot } from "./integrations/osc-bridge.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const REPO_ROOT = path.resolve(__dirname, "..");
 const CANONICAL_APP_PATH = DEFAULTS.canonicalAppPath;
 const sessionManager = new SessionManager({
   partition: DEFAULTS.beatportSessionPartition,
@@ -81,6 +89,43 @@ function deriveAppBundlePath(execPath) {
     return path.dirname(execPath);
   }
   return execPath.slice(0, index + 4);
+}
+
+function resolveBundledPath(relativePath) {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "app.asar.unpacked", relativePath);
+  }
+  return path.join(REPO_ROOT, relativePath);
+}
+
+function runPythonJson(relativeScriptPath, args = [], options = {}) {
+  const pythonCommand = String(options.pythonCommand || "python3");
+  const scriptPath = resolveBundledPath(relativeScriptPath);
+  const result = spawnSync(pythonCommand, [scriptPath, ...args], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+
+  const stdout = String(result.stdout || "").trim();
+  const stderr = String(result.stderr || "").trim();
+
+  if (result.status !== 0) {
+    if (stdout) {
+      try {
+        const parsed = JSON.parse(stdout);
+        throw new Error(parsed.error || stderr || "Python-Kommando fehlgeschlagen.");
+      } catch {
+        throw new Error(stderr || stdout || "Python-Kommando fehlgeschlagen.");
+      }
+    }
+    throw new Error(stderr || "Python-Kommando fehlgeschlagen.");
+  }
+
+  if (!stdout) {
+    return { ok: true };
+  }
+
+  return JSON.parse(stdout);
 }
 
 async function computeBuildId() {
@@ -291,6 +336,8 @@ app.whenReady().then(() => {
       traktor: [{ name: "Traktor NML", extensions: ["nml"] }],
       json: [{ name: "JSON", extensions: ["json"] }],
       jsonl: [{ name: "JSON Lines", extensions: ["jsonl"] }],
+      m3u: [{ name: "M3U Playlist", extensions: ["m3u"] }],
+      m3u8: [{ name: "M3U8 Playlist", extensions: ["m3u8"] }],
     };
     const result = await dialog.showSaveDialog(win, {
       title: options.title || "Export speichern",
@@ -673,6 +720,134 @@ app.whenReady().then(() => {
     if (result.canceled || !result.filePaths.length) return null;
     const raw = await fs.readFile(result.filePaths[0], "utf8");
     return JSON.parse(raw);
+  });
+
+  // ── Unified Integration Hub ───────────────────────────────────────────────
+
+  ipcMain.handle("unified:discover-projects", async (_event, options = {}) => {
+    try {
+      const discovery = await discoverProjectParts(options || {});
+      return {
+        ...discovery,
+        components: buildUnifiedComponentMap(discovery, REPO_ROOT),
+      };
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("unified:engine-summary", async (_event, options = {}) => {
+    try {
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.engineDatabaseFolder || ""),
+          "summary",
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("unified:engine-playlists", async (_event, options = {}) => {
+    try {
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.engineDatabaseFolder || ""),
+          "playlists",
+          "--limit",
+          String(options.limit || 200),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("unified:engine-playlist-tracks", async (_event, options = {}) => {
+    try {
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.engineDatabaseFolder || ""),
+          "playlist-tracks",
+          "--playlist-id",
+          String(options.playlistId || ""),
+          "--limit",
+          String(options.limit || 500),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("unified:engine-history-sessions", async (_event, options = {}) => {
+    try {
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.engineDatabaseFolder || ""),
+          "history-sessions",
+          "--limit",
+          String(options.limit || 50),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("unified:engine-history-tracks", async (_event, options = {}) => {
+    try {
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.engineDatabaseFolder || ""),
+          "history-tracks",
+          "--session-id",
+          String(options.sessionId || ""),
+          "--limit",
+          String(options.limit || 500),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("unified:export-m3u", async (_event, options = {}) => {
+    try {
+      return await exportM3uPlaylist(options);
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcHandle("unified:classify-cache", async (config) => {
+    const cache = new SQLiteCacheStore(config);
+    const tracks = await cache.getAllTrackRows();
+    return classifyTrackBatch(tracks);
+  });
+
+  ipcMain.handle("unified:send-osc-snapshot", async (_event, options = {}) => {
+    try {
+      return await sendOscSnapshot(options);
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
   });
 
   // ── DJPlaylists.fm → Lexicon Batch-Automation ─────────────────────────────

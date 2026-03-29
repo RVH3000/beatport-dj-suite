@@ -1,0 +1,111 @@
+name: CI — Tests & Build
+
+on:
+  push:
+    branches: [main, feature/*]
+  pull_request:
+    branches: [main]
+
+# Nur ein Workflow pro Branch/PR gleichzeitig
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit- & Integration-Tests
+    runs-on: macos-latest
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        node-version: [20, 22]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js ${{ matrix.node-version }} einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Tests ausführen
+        run: npm test
+
+      - name: Test-Zusammenfassung
+        if: always()
+        run: |
+          echo "## Test-Ergebnisse (Node ${{ matrix.node-version }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          npm test 2>&1 | grep -E "^ℹ " >> $GITHUB_STEP_SUMMARY || true
+
+  build:
+    name: macOS App-Bundle bauen
+    runs-on: macos-latest
+    needs: test
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Electron-Builder (dir, ohne Signatur)
+        run: npm run desktop:dir:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: App-Bundle Struktur prüfen
+        run: |
+          APP_DIR="dist-electron/mac-arm64"
+          if [ ! -d "$APP_DIR" ]; then
+            APP_DIR="dist-electron/mac"
+          fi
+
+          echo "## Build-Output" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "$APP_DIR" ]; then
+            APP_BUNDLE=$(ls -d "$APP_DIR"/*.app 2>/dev/null | head -1)
+            if [ -n "$APP_BUNDLE" ]; then
+              echo "App-Bundle: $APP_BUNDLE" >> $GITHUB_STEP_SUMMARY
+              echo "Contents:" >> $GITHUB_STEP_SUMMARY
+              ls -la "$APP_BUNDLE/Contents/" >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+
+              # Info.plist prüfen
+              if [ -f "$APP_BUNDLE/Contents/Info.plist" ]; then
+                echo "Info.plist vorhanden" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "FEHLER: Info.plist fehlt!" >> $GITHUB_STEP_SUMMARY
+                exit 1
+              fi
+            else
+              echo "FEHLER: Kein .app Bundle in $APP_DIR" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+          else
+            echo "FEHLER: Build-Output $APP_DIR nicht gefunden" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Build-Artefakt hochladen
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beatport-dj-suite-mac
+          path: dist-electron/mac*/*.app
+          retention-days: 7
+          if-no-files-found: warn
