@@ -9,34 +9,38 @@ const FORMATS = [
   {
     id: "rekordbox",
     label: "Rekordbox XML",
-    desc: "Pioneer Rekordbox — Playlists + Tracks mit BPM, Key, Genre, Label.",
+    desc: "Pioneer Rekordbox — Playlists + Tracks mit BPM, Key, Genre, Label. Lexicon-kompatibel.",
     ext: ".xml",
     icon: "🎛",
     defaultName: "beatport-rekordbox",
+    lexicon: true,
   },
   {
     id: "traktor",
     label: "Traktor NML",
-    desc: "Native Instruments Traktor — Collection + Playlists mit BPM, Key, Genre.",
+    desc: "Native Instruments Traktor — Collection + Playlists mit BPM, Key, Genre. Lexicon-kompatibel.",
     ext: ".nml",
     icon: "🎚",
     defaultName: "beatport-traktor",
+    lexicon: true,
+  },
+  {
+    id: "csv",
+    label: "CSV",
+    desc: "Tabelle mit allen Tracks — Title, Artist, BPM, Key, Genre, Label. Lexicon-kompatibel.",
+    ext: ".csv",
+    icon: "📊",
+    defaultName: "beatport-tracks",
+    lexicon: true,
   },
   {
     id: "json",
     label: "JSON",
-    desc: "Strukturiertes JSON — alle Playlists mit verschachtelten Tracks.",
+    desc: "Strukturiertes JSON — alle Playlists mit verschachtelten Tracks. Fuer CLI/Entwicklung.",
     ext: ".json",
     icon: "{ }",
     defaultName: "beatport-export",
-  },
-  {
-    id: "jsonl",
-    label: "JSON Lines",
-    desc: "Eine Playlist pro Zeile — ideal für Streaming-Verarbeitung und CLI-Tools.",
-    ext: ".jsonl",
-    icon: "⤓",
-    defaultName: "beatport-export",
+    lexicon: false,
   },
 ];
 
@@ -191,7 +195,10 @@ function renderMarkup() {
               data-format="${format.id}"
               ${exportEnabled ? "" : "disabled"}
             >
-              <span class="export-icon">${format.icon}</span>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="export-icon">${format.icon}</span>
+                ${format.lexicon ? '<span class="pill success" style="font-size:0.55rem">Lexicon</span>' : ""}
+              </div>
               <strong>${format.label}</strong>
               <span class="export-ext">${format.ext}</span>
               <p>${format.desc}</p>

@@ -201,16 +201,42 @@ export function generateTraktorNml(tracks) {
   return lines.join("\n");
 }
 
-// ─── JSON / JSONL ───────────────────────────────────────────────────────────────
+// ─── CSV (Lexicon-kompatibel) ────────────────────────────────────────────────
+
+function csvEscape(val) {
+  if (val == null) return "";
+  const s = String(val);
+  return s.includes(",") || s.includes('"') || s.includes("\n")
+    ? `"${s.replace(/"/g, '""')}"`
+    : s;
+}
+
+export function generateCsv(tracks) {
+  const header = "Playlist,Title,Artist,Mix,Genre,BPM,Key,Label,Year,TrackID";
+  const rows = tracks.map((t) =>
+    [
+      t.playlistName || t.playlist || "",
+      t.title || "",
+      t.artists || t.artist || "",
+      t.mixName || t.mix || "",
+      t.genre || "",
+      t.bpm || "",
+      t.key || "",
+      t.label || "",
+      t.year || "",
+      t.trackId || t.track_id || "",
+    ]
+      .map(csvEscape)
+      .join(",")
+  );
+  return [header, ...rows].join("\n");
+}
+
+// ─── JSON ────────────────────────────────────────────────────────────────────────
 
 export function generateJson(tracks) {
   const playlists = groupByPlaylist(tracks);
   return JSON.stringify(playlists, null, 2);
-}
-
-export function generateJsonl(tracks) {
-  const playlists = groupByPlaylist(tracks);
-  return playlists.map((pl) => JSON.stringify(pl)).join("\n") + "\n";
 }
 
 // ─── Haupt-Export-Funktion ──────────────────────────────────────────────────────
@@ -228,13 +254,13 @@ export async function generateExport(tracks, format, outputPath) {
       content = generateTraktorNml(tracks);
       ext = ".nml";
       break;
+    case "csv":
+      content = generateCsv(tracks);
+      ext = ".csv";
+      break;
     case "json":
       content = generateJson(tracks);
       ext = ".json";
-      break;
-    case "jsonl":
-      content = generateJsonl(tracks);
-      ext = ".jsonl";
       break;
     default:
       throw new Error(`Unbekanntes Export-Format: ${format}`);
