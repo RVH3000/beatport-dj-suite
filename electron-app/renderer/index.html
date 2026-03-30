@@ -34,274 +34,198 @@
     <!-- TAB 1: Scanner (bestehende UI)                                     -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <main id="tab-scanner" class="tab-panel active" role="tabpanel">
-      <div class="layout">
-        <section class="panel hero">
-          <div class="hero-grid">
-            <div>
-              <h2>App-Status</h2>
+      <div class="scanner-layout">
+        <!-- Hero: immer sichtbar, kompakt -->
+        <section class="panel hero-compact">
+          <div class="hero-row">
+            <div class="hero-cell">
+              <span class="hero-label">Status</span>
               <p id="status" class="status idle">Bereit</p>
-              <div id="appWarnings" class="callouts"></div>
             </div>
-            <div>
-              <h2>Build & Pfad</h2>
-              <dl id="appInfo" class="meta-list"></dl>
+            <div class="hero-cell" id="appInfo"></div>
+            <div class="hero-cell" id="appCopies">
+              <span class="hero-label">Installationen</span>
+              <span class="hero-val muted">Laden...</span>
             </div>
-            <div>
-              <h2>Installationen</h2>
-              <div id="appCopies" class="stack-list empty">Noch nicht geladen</div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <h2>Sicherheit & Session</h2>
-            <div class="actions compact">
-              <button id="openBeatportWindowBtn" type="button">Beatport-Fenster öffnen</button>
-              <button id="authTestBtn" type="button">Session testen</button>
-              <button id="authReconnectBtn" type="button">Neu verbinden</button>
-              <button id="authExportContextBtn" type="button" title="API-Token für das XHR-Tool exportieren">API-Kontext exportieren</button>
+            <div class="hero-cell">
+              <div class="actions compact">
+                <button id="discoverBtn" class="primary">Delta-Sync</button>
+                <button id="pauseBtn" type="button">Pause</button>
+                <button id="resumeBtn" type="button">Resume</button>
+              </div>
             </div>
           </div>
-
-          <div class="field-grid">
-            <label>
-              Laufzeitmodus
-              <select id="authMode">
-                <option value="internal">Interne Beatport-Session</option>
-                <option value="external-fallback">Externer Fallback</option>
-              </select>
-            </label>
-            <label>
-              Recovery
-              <select id="recoveryPolicy">
-                <option value="aggressive">Aggressive Recovery</option>
-                <option value="manual">Nur manuell</option>
-              </select>
-            </label>
-            <label class="check">
-              <input id="fallbackEnabled" type="checkbox" />
-              Externen Fallback erlauben, wenn die interne Session nicht bereit ist
-            </label>
-          </div>
-
-          <div class="callouts compact-callouts">
-            <div class="callout info">
-              Passwort wird nicht gespeichert. Die App hält nur Cookies und Storage
-              im internen Beatport-Profil und öffnet bei Session-Verlust das interne
-              Beatport-Fenster zur erneuten Anmeldung.
-            </div>
-          </div>
-
-          <dl id="authMeta" class="meta-list"></dl>
-          <div id="authCallouts" class="callouts"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <h2>Run-Archiv</h2>
-            <div class="actions compact">
-              <button id="refreshRunsBtn" type="button">Runs neu laden</button>
-              <button id="migrateLegacyBtn" type="button">Legacy-Runs migrieren</button>
-              <button id="exportZipBtn" type="button">ZIP exportieren</button>
-              <button id="openArchiveDirBtn" type="button">Archiv öffnen</button>
-              <button id="openExportDirBtn" type="button">Export öffnen</button>
-            </div>
-          </div>
-
-          <div class="field-grid">
-            <label>
-              Run-Filter
-              <select id="runFilter">
-                <option value="all">Alle</option>
-                <option value="active">Aktive</option>
-                <option value="legacy">Nur Legacy</option>
-                <option value="migrated">Nur migrierte</option>
-                <option value="completed">Nur abgeschlossen</option>
-              </select>
-            </label>
-            <label class="wide">
-              Aktiver Run
-              <select id="runSelect"></select>
-            </label>
-          </div>
-
-          <div id="runOverview" class="run-overview"></div>
-          <div id="runMeta" class="detail-meta empty">Noch kein Run ausgewählt</div>
-          <div class="callouts compact-callouts">
-            <div class="callout info">
-              Bestehende Runs werden nicht überschrieben. Discovery erzeugt immer
-              einen neuen Run, Analyse und Resume arbeiten auf dem ausgewählten Run.
-            </div>
-          </div>
-          <div id="outputFiles" class="file-list"></div>
-          <div id="migrationResult" class="table-wrap empty">Noch keine Migration ausgeführt</div>
-        </section>
-
-        <section class="panel">
-          <h2>Scan-Konfiguration</h2>
-
-          <div class="field-grid">
-            <label>
-              Host
-              <input id="host" type="text" />
-            </label>
-            <label>
-              Port
-              <input id="port" type="number" min="1" max="65535" />
-            </label>
-            <label>
-              Target-Pattern
-              <input id="targetPattern" type="text" />
-            </label>
-            <label>
-              Timeout (ms)
-              <input id="timeoutMs" type="number" min="1000" step="500" />
-            </label>
-            <label class="wide">
-              Beatport App Pfad
-              <input id="appPath" type="text" />
-            </label>
-            <label>
-              Analyse-Methode
-              <select id="analysisMethod">
-                <option value="auto">Auto (XHR bevorzugen, Route, DOM Fallback)</option>
-                <option value="xhr">Nur XHR</option>
-                <option value="route">Route bevorzugen</option>
-                <option value="dom">Nur DOM</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="toggles">
-            <label class="check">
-              <input id="launchApp" type="checkbox" />
-              App/Host vor Zugriff starten (`open -na ... --remote-debugging-port`)
-            </label>
-            <label class="check">
-              <input id="autoRecoverCdp" type="checkbox" />
-              CDP-Autorecovery (Host-Browser neu starten bei Port-Fehler)
-            </label>
-          </div>
-
-          <details>
-            <summary>Erweiterte Einstellungen</summary>
-            <div class="field-grid advanced">
-              <label>
-                Sidebar-Step (px)
-                <input id="sidebarScrollStep" type="number" min="100" step="50" />
-              </label>
-              <label>
-                Deep-Wait (ms)
-                <input id="deepAnalysisWaitMs" type="number" min="100" step="50" />
-              </label>
-              <label class="wide">
-                Host Browser App Pfad
-                <input id="hostAppPath" type="text" />
-              </label>
-              <label class="wide">
-                State-Datei
-                <input id="stateFile" type="text" />
-              </label>
-              <label class="wide">
-                Duplikat-CSV
-                <input id="csvFile" type="text" />
-              </label>
-              <label class="wide">
-                Analyse-JSON
-                <input id="analysisJsonFile" type="text" />
-              </label>
-              <label class="wide">
-                Track-CSV
-                <input id="analysisTrackCsvFile" type="text" />
-              </label>
-              <label class="wide">
-                Dimensionen-CSV
-                <input id="analysisSummaryCsvFile" type="text" />
-              </label>
-            </div>
-          </details>
-
-          <div class="actions">
-            <button id="discoverBtn" class="primary">Delta-Sync</button>
-            <button id="rebuildCacheBtn" type="button">Cache neu aufbauen</button>
-            <button id="exportCacheCsvBtn" type="button">CSV exportieren</button>
-            <button id="quickScanBtn" type="button">Diagnose-Komplettlauf</button>
-            <button id="analyzeBtn" type="button">Auswahl analysieren</button>
-            <button id="pauseBtn" type="button">Pause anfordern</button>
-            <button id="resumeBtn" type="button">Resume</button>
-            <button id="resetBtn" type="button">Defaults laden</button>
-          </div>
+          <div id="appWarnings" class="callouts"></div>
           <div id="cacheStatus" class="detail-summary empty">
             Lokaler Arbeitsbestand wird geladen.
           </div>
         </section>
 
-        <section class="panel span-full">
-          <div class="section-head">
-            <h2>Schneller Arbeitsbestand</h2>
-            <div class="actions compact">
-              <button id="selectionAllBtn" type="button">Alle</button>
-              <button id="selectionNoneBtn" type="button">Keine</button>
-              <button id="selectionDuplicatesBtn" type="button">Nur Duplikate</button>
-              <button id="selectionPendingBtn" type="button">Nur offene</button>
+        <!-- Accordion: Session -->
+        <details class="accordion">
+          <summary class="accordion-head">Sicherheit & Session</summary>
+          <section class="accordion-body">
+            <div class="actions compact" style="margin-bottom:10px">
+              <button id="openBeatportWindowBtn" type="button">Beatport-Fenster</button>
+              <button id="authTestBtn" type="button">Session testen</button>
+              <button id="authReconnectBtn" type="button">Neu verbinden</button>
+              <button id="authExportContextBtn" type="button">API-Kontext</button>
             </div>
-          </div>
+            <div class="field-grid">
+              <label>Laufzeitmodus
+                <select id="authMode">
+                  <option value="internal">Interne Beatport-Session</option>
+                  <option value="external-fallback">Externer Fallback</option>
+                </select>
+              </label>
+              <label>Recovery
+                <select id="recoveryPolicy">
+                  <option value="aggressive">Aggressive Recovery</option>
+                  <option value="manual">Nur manuell</option>
+                </select>
+              </label>
+              <label class="check">
+                <input id="fallbackEnabled" type="checkbox" />
+                Externen Fallback erlauben
+              </label>
+            </div>
+            <dl id="authMeta" class="meta-list"></dl>
+            <div id="authCallouts" class="callouts"></div>
+          </section>
+        </details>
 
-          <div class="field-grid">
-            <label class="wide">
-              Filter
-              <input
-                id="playlistFilter"
-                type="text"
-                placeholder="Name, ID oder Track-Anzahl filtern"
-              />
-            </label>
-          </div>
+        <!-- Accordion: Run-Archiv -->
+        <details class="accordion">
+          <summary class="accordion-head">Run-Archiv</summary>
+          <section class="accordion-body">
+            <div class="actions compact" style="margin-bottom:10px">
+              <button id="refreshRunsBtn" type="button">Runs laden</button>
+              <button id="migrateLegacyBtn" type="button">Legacy migrieren</button>
+              <button id="exportZipBtn" type="button">ZIP</button>
+              <button id="openArchiveDirBtn" type="button">Archiv</button>
+              <button id="openExportDirBtn" type="button">Export</button>
+            </div>
+            <div class="field-grid">
+              <label>Run-Filter
+                <select id="runFilter">
+                  <option value="all">Alle</option>
+                  <option value="active">Aktive</option>
+                  <option value="legacy">Nur Legacy</option>
+                  <option value="migrated">Nur migrierte</option>
+                  <option value="completed">Nur abgeschlossen</option>
+                </select>
+              </label>
+              <label class="wide">Aktiver Run
+                <select id="runSelect"></select>
+              </label>
+            </div>
+            <div id="runOverview" class="run-overview"></div>
+            <div id="runMeta" class="detail-meta empty">Noch kein Run</div>
+            <div id="outputFiles" class="file-list"></div>
+            <div id="migrationResult" class="table-wrap empty">Noch keine Migration</div>
+          </section>
+        </details>
 
-          <div id="selectionSummary" class="detail-summary empty">
-            Cache wird geladen, um Playlists für die Tiefenanalyse auszuwählen.
-          </div>
-          <div id="selectionTableWrap" class="table-wrap empty">
-            Noch keine Cache-Daten geladen
-          </div>
-        </section>
+        <!-- Accordion: Scan-Konfiguration -->
+        <details class="accordion">
+          <summary class="accordion-head">Scan-Konfiguration</summary>
+          <section class="accordion-body">
+            <div class="field-grid">
+              <label>Host <input id="host" type="text" /></label>
+              <label>Port <input id="port" type="number" min="1" max="65535" /></label>
+              <label>Target-Pattern <input id="targetPattern" type="text" /></label>
+              <label>Timeout (ms) <input id="timeoutMs" type="number" min="1000" step="500" /></label>
+              <label class="wide">Beatport App Pfad <input id="appPath" type="text" /></label>
+              <label>Analyse-Methode
+                <select id="analysisMethod">
+                  <option value="auto">Auto (XHR, Route, DOM)</option>
+                  <option value="xhr">Nur XHR</option>
+                  <option value="route">Route bevorzugen</option>
+                  <option value="dom">Nur DOM</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggles">
+              <label class="check"><input id="launchApp" type="checkbox" /> App vor Zugriff starten</label>
+              <label class="check"><input id="autoRecoverCdp" type="checkbox" /> CDP-Autorecovery</label>
+            </div>
+            <details style="margin-top:8px">
+              <summary>Erweiterte Einstellungen</summary>
+              <div class="field-grid advanced">
+                <label>Sidebar-Step (px) <input id="sidebarScrollStep" type="number" min="100" step="50" /></label>
+                <label>Deep-Wait (ms) <input id="deepAnalysisWaitMs" type="number" min="100" step="50" /></label>
+                <label class="wide">Host Browser Pfad <input id="hostAppPath" type="text" /></label>
+                <label class="wide">State-Datei <input id="stateFile" type="text" /></label>
+                <label class="wide">Duplikat-CSV <input id="csvFile" type="text" /></label>
+                <label class="wide">Analyse-JSON <input id="analysisJsonFile" type="text" /></label>
+                <label class="wide">Track-CSV <input id="analysisTrackCsvFile" type="text" /></label>
+                <label class="wide">Dimensionen-CSV <input id="analysisSummaryCsvFile" type="text" /></label>
+              </div>
+            </details>
+            <div class="actions">
+              <button id="rebuildCacheBtn" type="button">Cache neu</button>
+              <button id="exportCacheCsvBtn" type="button">CSV</button>
+              <button id="quickScanBtn" type="button">Diagnose</button>
+              <button id="analyzeBtn" type="button">Analysieren</button>
+              <button id="resetBtn" type="button">Defaults</button>
+            </div>
+          </section>
+        </details>
 
-        <section class="panel span-full">
-          <h2>Ergebnis</h2>
-          <h3>Duplikate</h3>
-          <div id="duplicateTableWrap" class="table-wrap empty">Noch kein Run</div>
+        <!-- Accordion: Arbeitsbestand (offen) -->
+        <details class="accordion" open>
+          <summary class="accordion-head">Schneller Arbeitsbestand</summary>
+          <section class="accordion-body">
+            <div class="section-head" style="margin-bottom:8px">
+              <div class="actions compact">
+                <button id="selectionAllBtn" type="button">Alle</button>
+                <button id="selectionNoneBtn" type="button">Keine</button>
+                <button id="selectionDuplicatesBtn" type="button">Duplikate</button>
+                <button id="selectionPendingBtn" type="button">Offene</button>
+              </div>
+              <input id="playlistFilter" type="text" placeholder="Filter..." style="flex:1;min-width:150px" />
+            </div>
+            <div id="selectionSummary" class="detail-summary empty">
+              Cache wird geladen...
+            </div>
+            <div id="selectionTableWrap" class="table-wrap scrollable empty">
+              Noch keine Cache-Daten
+            </div>
+          </section>
+        </details>
 
-          <h3>Tiefenanalyse je Playlist</h3>
-          <div id="analysisTableWrap" class="table-wrap empty">Noch keine Analyse</div>
+        <!-- Accordion: Ergebnis -->
+        <details class="accordion">
+          <summary class="accordion-head">Ergebnis</summary>
+          <section class="accordion-body">
+            <h3>Duplikate</h3>
+            <div id="duplicateTableWrap" class="table-wrap scrollable empty">Noch kein Run</div>
+            <h3>Tiefenanalyse je Playlist</h3>
+            <div id="analysisTableWrap" class="table-wrap scrollable empty">Noch keine Analyse</div>
+            <h3>Playlist-Inhalt</h3>
+            <div id="playlistDetailSummary" class="detail-summary empty">
+              Playlist anklicken, um Inhalt zu sehen.
+            </div>
+            <div id="playlistDetailMeta" class="detail-meta empty"></div>
+            <div id="playlistDetailTableWrap" class="table-wrap scrollable empty">
+              Noch keine Playlist
+            </div>
+          </section>
+        </details>
 
-          <h3>Playlist-Inhalt</h3>
-          <div id="playlistDetailSummary" class="detail-summary empty">
-            Playlist in Discovery, Duplikaten oder Analyse anklicken, um den Inhalt
-            aus dem Cache oder dem ausgewählten Run zu sehen.
-          </div>
-          <div id="playlistDetailMeta" class="detail-meta empty"></div>
-          <div id="playlistDetailTableWrap" class="table-wrap empty">
-            Noch keine Playlist ausgewählt
-          </div>
-        </section>
-
-        <section class="panel warning span-full">
-          <h2>Batch-Löschung</h2>
-          <p>
-            Löschen arbeitet nur gegen bestätigte Duplikate des aktuell
-            ausgewählten abgeschlossenen Runs. Ohne exakten Bestätigungstext wird
-            nichts gelöscht.
-          </p>
-          <label>
-            Bestätigungstext
-            <input id="confirmText" type="text" placeholder="LÖSCHEN BESTÄTIGT" />
-          </label>
-          <div class="actions">
-            <button id="deleteBtn" class="danger" disabled>Löschen starten</button>
-          </div>
-          <div id="deleteResultWrap" class="table-wrap empty">Noch kein Löschlauf</div>
-        </section>
+        <!-- Accordion: Batch-Löschung -->
+        <details class="accordion">
+          <summary class="accordion-head accordion-danger">Batch-Löschung</summary>
+          <section class="accordion-body">
+            <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+              <label style="flex:1;min-width:200px">Bestätigungstext
+                <input id="confirmText" type="text" placeholder="LÖSCHEN BESTÄTIGT" />
+              </label>
+              <button id="deleteBtn" class="danger" disabled>Löschen starten</button>
+            </div>
+            <div id="deleteResultWrap" class="table-wrap scrollable empty" style="margin-top:10px">Noch kein Löschlauf</div>
+          </section>
+        </details>
       </div>
     </main>
 

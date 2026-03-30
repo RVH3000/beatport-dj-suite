@@ -21,6 +21,7 @@
     "beatport:delete": "node tools/bpx.mjs delete"
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
