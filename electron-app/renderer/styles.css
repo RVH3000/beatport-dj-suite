@@ -1020,9 +1020,24 @@ summary {
   overflow: auto;
 }
 
+.wiz-stats-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  margin: 4px 0;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+.wiz-stats-bar b { font-weight: 700; }
+.wiz-stats-bar small { color: var(--muted); margin-left: 1px; }
+
 .wiz-select-bar {
-  margin-top: 10px;
-  padding: 6px 0;
+  margin-top: 6px;
+  padding: 4px 0;
   border-bottom: 1px solid var(--line);
 }
 

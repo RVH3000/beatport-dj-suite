@@ -373,13 +373,48 @@ function render() {
   bindEvents(container);
 }
 
+function computePlaylistStats(trackList) {
+  if (!trackList || !trackList.length) return null;
+  const bpms = trackList.filter(t => t.bpm > 0).map(t => t.bpm);
+  const keys = {};
+  const genres = {};
+  trackList.forEach(t => {
+    if (t.key) keys[t.key] = (keys[t.key] || 0) + 1;
+    if (t.genre) genres[t.genre] = (genres[t.genre] || 0) + 1;
+  });
+  const topKeys = Object.entries(keys).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const topGenres = Object.entries(genres).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const avgBpm = bpms.length ? Math.round(bpms.reduce((s, b) => s + b, 0) / bpms.length) : 0;
+  const minBpm = bpms.length ? Math.min(...bpms) : 0;
+  const maxBpm = bpms.length ? Math.max(...bpms) : 0;
+  // Camelot compatibility check (sequential)
+  let compatGood = 0, compatBad = 0;
+  for (let i = 1; i < trackList.length; i++) {
+    const k1 = trackList[i - 1].key, k2 = trackList[i].key;
+    if (k1 && k2 && k1 === k2) compatGood++;
+    else if (k1 && k2) compatBad++;
+  }
+  return { avgBpm, minBpm, maxBpm, topKeys, topGenres, compatGood, compatBad, total: trackList.length };
+}
+
+function renderPlaylistStats(trackList) {
+  const s = computePlaylistStats(trackList);
+  if (!s) return "";
+  return `<div class="wiz-stats-bar">
+    <span title="Durchschnitt / Min / Max BPM"><b style="color:#ff6b35">${s.avgBpm}</b> BPM <small>(${s.minBpm}–${s.maxBpm})</small></span>
+    <span title="Haeufigste Tonarten">${s.topKeys.map(([k, c]) => `<b style="color:#b197fc">${esc(k)}</b><small>(${c})</small>`).join(" ")}</span>
+    <span title="Haeufigste Genres">${s.topGenres.map(([g, c]) => `${esc(g)}<small>(${c})</small>`).join(" ")}</span>
+    <span title="Key-Kompatibilitaet aufeinanderfolgender Tracks" style="color:${s.compatGood >= s.compatBad ? 'var(--success)' : 'var(--danger)'}">&#9835; ${s.compatGood}/${s.compatGood + s.compatBad} kompatibel</span>
+  </div>`;
+}
+
 function renderTrackPanel() {
   const disableTrackActions = mutationBusy || tracksLoading;
   return `
     <div class="section-head">
       <div>
         <h2>${esc(selectedPlaylist.name)}</h2>
-        <p style="margin:0;color:var(--muted);font-size:0.84rem">
+        <p style="margin:0;color:var(--muted);font-size:0.72rem">
           ID: ${selectedPlaylist.id} · ${selectedPlaylist.trackCount} Tracks · ${
             selectedPlaylist.isPublic ? "Öffentlich" : "Privat"
           }
@@ -411,6 +446,7 @@ function renderTrackPanel() {
       </div>
     </div>
 
+    ${renderPlaylistStats(tracks)}
     ${
       tracksLoading
         ? '<p class="placeholder-text" style="padding:20px">Lade Tracks…</p>'
