@@ -306,7 +306,11 @@ function buildSearchTabHtml() {
         <span id="srchResultCount">0 Treffer</span>
         <span id="srchSelectedCount">0 ausgewählt</span>
         <span id="srchPageInfo"></span>
-        <button type="button" id="srchSavePlaylist" class="srch-save-pl-btn" style="margin-left:auto;padding:5px 14px;font-size:12px;font-weight:600;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;display:none" title="Aktuelle Filteransicht als Beatport-Playlist speichern">&#9654; Als Playlist speichern</button>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button type="button" id="srchCopySelected" style="padding:4px 10px;font-size:11px" title="Ausgewählte Tracks als Text kopieren (Artist — Title — BPM — Key)">Kopieren</button>
+          <button type="button" id="srchRemoveSelected" class="danger" style="padding:4px 10px;font-size:11px" title="Ausgewählte Tracks aus der Ergebnisliste entfernen">Entfernen</button>
+          <button type="button" id="srchSavePlaylist" class="srch-save-pl-btn" style="padding:5px 14px;font-size:12px;font-weight:600;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;display:none" title="Aktuelle Filteransicht als Beatport-Playlist speichern">&#9654; Als Playlist</button>
+        </div>
       </div>
       <!-- Modal: Playlist speichern -->
       <div id="srchPlModal" class="srch-pl-modal" style="display:none">
@@ -360,6 +364,16 @@ function buildSearchTabHtml() {
         <th data-col="count">PLs</th>
       </tr></thead><tbody id="srchBody"></tbody></table></div>
       <div class="srch-pagination" id="srchPagination"></div>
+      <div class="srch-track-detail" id="srchTrackDetail" style="display:none">
+        <div class="srch-detail-header">
+          <div>
+            <strong id="srchDetailTitle"></strong>
+            <span id="srchDetailMeta" style="color:var(--muted);font-size:12px"></span>
+          </div>
+          <button type="button" id="srchDetailClose" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">&times;</button>
+        </div>
+        <div id="srchDetailPlaylists" style="font-size:12px"></div>
+      </div>
     </div>
 
     <!-- SUB-TAB: DUPLIKATE -->
@@ -442,6 +456,40 @@ function bindSearchEvents() {
   }
   $("srchBpmNormToggle")?.addEventListener("change", doSearch);
   $("srchResetBtn")?.addEventListener("click", clearFilters);
+
+  // Copy selected tracks to clipboard
+  $("srchCopySelected")?.addEventListener("click", () => {
+    if (!selectedIds.size) return;
+    const src = getSearchSource();
+    const selected = src.filter((t) => selectedIds.has(t.track_id));
+    const text = selected.map((t) => `${t.artists} — ${t.title} (${t.mix_name}) | ${t.bpm} BPM | ${t.key} ${t.camelot} | ${t.genre}`).join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = $("srchCopySelected");
+      const orig = btn.textContent;
+      btn.textContent = "Kopiert!";
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  });
+
+  // Remove selected tracks from results
+  $("srchRemoveSelected")?.addEventListener("click", () => {
+    if (!selectedIds.size) return;
+    searchResults = searchResults.filter((t) => !selectedIds.has(t.track_id));
+    _distributedPages = null;
+    selectedIds.clear();
+    currentPage = 0;
+    renderSearchPage();
+  });
+
+  // Click track row to show playlist membership
+  document.getElementById("srch-search")?.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr");
+    if (!tr || e.target.closest("input")) return;
+    const cb = tr.querySelector("input[type=checkbox]");
+    if (!cb) return;
+    const trackId = parseInt(cb.value);
+    showTrackDetail(trackId);
+  });
 
   // Select all
   $("srchSelAll")?.addEventListener("change", (e) => {
@@ -1390,4 +1438,28 @@ function renderBpmFlow() {
       const y = h - pad - ((b - min) / range) * (h - 2 * pad);
       return `<circle cx="${x}" cy="${y}" r="3" fill="var(--primary)"><title>${b} BPM</title></circle>`;
     }).join("");
+}
+
+// ─── Track Detail (Playlist-Zugehörigkeit) ───────────────────────────────
+
+function showTrackDetail(trackId) {
+  if (!allTracks) return;
+  const track = allTracks.find((t) => t.i === trackId);
+  if (!track) return;
+
+  const panel = $("srchTrackDetail");
+  panel.style.display = "block";
+  $("srchDetailTitle").textContent = `${track.a || "?"} — ${track.t || "?"}`;
+  $("srchDetailMeta").textContent = ` | ${track.b || "?"} BPM | ${track.k || "?"} ${track.c ? "(" + track.c + ")" : ""} | ${track.g || ""} | ${track.y || ""}`;
+
+  // Playlist-Zugehörigkeit
+  if (track.p && track.p.length > 0) {
+    $("srchDetailPlaylists").innerHTML =
+      `<strong style="color:var(--primary)">In ${track.p.length} Playlist${track.p.length > 1 ? "s" : ""}:</strong><br>` +
+      track.p.map((plName) => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:var(--panel-strong);border:1px solid var(--line);border-radius:4px;font-size:11px">${esc(String(plName))}</span>`).join("");
+  } else {
+    $("srchDetailPlaylists").innerHTML = '<span style="color:var(--muted)">In keiner Playlist</span>';
+  }
+
+  $("srchDetailClose")?.addEventListener("click", () => { panel.style.display = "none"; }, { once: true });
 }

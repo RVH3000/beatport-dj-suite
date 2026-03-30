@@ -1307,52 +1307,86 @@ summary {
   padding: 12px;
 }
 
-/* Hero: kompakte Status-Zeile */
+/* Hero: Status-Dashboard */
 .hero-compact {
-  background: linear-gradient(160deg, #161830 0%, var(--panel) 100%);
+  background: linear-gradient(160deg, #161830 0%, #0f1020 50%, var(--panel) 100%);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
-  padding: 12px 16px;
-  box-shadow: var(--shadow);
+  padding: 14px 16px 10px;
+  box-shadow: var(--shadow-lg);
 }
 
-.hero-row {
+.hero-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.hero-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.15s;
 }
 
-.hero-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.hero-card:hover { border-color: var(--line-strong); }
+
+.hero-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  opacity: 0.6;
 }
 
 .hero-label {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
+  display: block;
 }
 
 .hero-val {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text);
+  display: block;
 }
 
 .hero-val.muted { color: var(--muted); }
 
 .hero-compact .status {
-  padding: 6px 10px;
-  font-size: 0.8rem;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  margin: 0;
+  display: inline-block;
 }
 
-.hero-compact .detail-summary {
-  margin-top: 6px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.hero-status-line {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .hero-grid-compact { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* Accordion Sections */
@@ -1536,4 +1570,10 @@ summary {
 .srch-subcontent{display:none}
 .srch-subcontent.active{display:block;animation:srchFadeIn .2s ease}
 @keyframes srchFadeIn{from{opacity:0}to{opacity:1}}
+/* Track Detail Panel */
+.srch-track-detail{background:var(--panel-strong);border:1px solid var(--primary);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px;animation:srchFadeIn .15s ease}
+.srch-detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
+.srch-detail-header strong{color:#fff;font-size:14px}
+#srchBody tr{cursor:pointer;transition:background .1s}
+#srchBody tr:hover{background:rgba(78,205,196,.04)}
 @media(max-width:900px){.srch-builder-wrap{grid-template-columns:1fr}.srch-filters{grid-template-columns:1fr 1fr}}

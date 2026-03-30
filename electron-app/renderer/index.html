@@ -35,30 +35,45 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <main id="tab-scanner" class="tab-panel active" role="tabpanel">
       <div class="scanner-layout">
-        <!-- Hero: immer sichtbar, kompakt -->
+        <!-- Hero: Status-Dashboard -->
         <section class="panel hero-compact">
-          <div class="hero-row">
-            <div class="hero-cell">
-              <span class="hero-label">Status</span>
-              <p id="status" class="status idle">Bereit</p>
+          <div class="hero-grid-compact">
+            <div class="hero-card">
+              <span class="hero-icon">&#9881;</span>
+              <div>
+                <span class="hero-label">Status</span>
+                <p id="status" class="status idle">Bereit</p>
+              </div>
             </div>
-            <div class="hero-cell" id="appInfo"></div>
-            <div class="hero-cell" id="appCopies">
-              <span class="hero-label">Installationen</span>
-              <span class="hero-val muted">Laden...</span>
+            <div class="hero-card" id="heroCache">
+              <span class="hero-icon">&#128230;</span>
+              <div>
+                <span class="hero-label">Cache</span>
+                <span class="hero-val muted" id="heroCacheVal">Wird geladen...</span>
+              </div>
             </div>
-            <div class="hero-cell">
-              <div class="actions compact">
-                <button id="discoverBtn" class="primary">Delta-Sync</button>
-                <button id="pauseBtn" type="button">Pause</button>
-                <button id="resumeBtn" type="button">Resume</button>
+            <div class="hero-card" id="appInfo">
+              <span class="hero-icon">&#128296;</span>
+              <div>
+                <span class="hero-label">Build</span>
+                <span class="hero-val muted">...</span>
+              </div>
+            </div>
+            <div class="hero-card" id="appCopies">
+              <span class="hero-icon">&#128190;</span>
+              <div>
+                <span class="hero-label">Installationen</span>
+                <span class="hero-val muted">Laden...</span>
               </div>
             </div>
           </div>
-          <div id="appWarnings" class="callouts"></div>
-          <div id="cacheStatus" class="detail-summary empty">
-            Lokaler Arbeitsbestand wird geladen.
+          <div class="hero-actions">
+            <button id="discoverBtn" class="primary" title="Neue Playlists von Beatport holen (nur Unterschiede)">Delta-Sync starten</button>
+            <button id="pauseBtn" type="button" title="Laufenden Scan pausieren">Pause</button>
+            <button id="resumeBtn" type="button" title="Pausierten Scan fortsetzen">Resume</button>
+            <div id="cacheStatus" class="hero-status-line"></div>
           </div>
+          <div id="appWarnings" class="callouts"></div>
         </section>
 
         <!-- Accordion: Session -->
@@ -66,10 +81,10 @@
           <summary class="accordion-head">Sicherheit & Session</summary>
           <section class="accordion-body">
             <div class="actions compact" style="margin-bottom:10px">
-              <button id="openBeatportWindowBtn" type="button">Beatport-Fenster</button>
-              <button id="authTestBtn" type="button">Session testen</button>
-              <button id="authReconnectBtn" type="button">Neu verbinden</button>
-              <button id="authExportContextBtn" type="button">API-Kontext</button>
+              <button id="openBeatportWindowBtn" type="button" title="Internes Beatport-Browser-Fenster oeffnen fuer Login">Beatport-Fenster</button>
+              <button id="authTestBtn" type="button" title="Pruefen ob die aktuelle Session noch gueltig ist">Session testen</button>
+              <button id="authReconnectBtn" type="button" title="Session-Cookies neu laden und Verbindung wiederherstellen">Neu verbinden</button>
+              <button id="authExportContextBtn" type="button" title="API-Token und Cookies fuer externe Tools exportieren">API-Kontext</button>
             </div>
             <div class="field-grid">
               <label>Laufzeitmodus
@@ -99,11 +114,11 @@
           <summary class="accordion-head">Run-Archiv</summary>
           <section class="accordion-body">
             <div class="actions compact" style="margin-bottom:10px">
-              <button id="refreshRunsBtn" type="button">Runs laden</button>
-              <button id="migrateLegacyBtn" type="button">Legacy migrieren</button>
-              <button id="exportZipBtn" type="button">ZIP</button>
-              <button id="openArchiveDirBtn" type="button">Archiv</button>
-              <button id="openExportDirBtn" type="button">Export</button>
+              <button id="refreshRunsBtn" type="button" title="Liste aller gespeicherten Scan-Runs neu laden">Runs laden</button>
+              <button id="migrateLegacyBtn" type="button" title="Alte v1.x Runs ins neue Format konvertieren">Legacy migrieren</button>
+              <button id="exportZipBtn" type="button" title="Ausgewaehlten Run als ZIP-Archiv speichern">ZIP</button>
+              <button id="openArchiveDirBtn" type="button" title="Run-Archiv Ordner im Finder oeffnen">Archiv</button>
+              <button id="openExportDirBtn" type="button" title="Export-Ordner im Finder oeffnen">Export</button>
             </div>
             <div class="field-grid">
               <label>Run-Filter
@@ -163,11 +178,11 @@
               </div>
             </details>
             <div class="actions">
-              <button id="rebuildCacheBtn" type="button">Cache neu</button>
-              <button id="exportCacheCsvBtn" type="button">CSV</button>
-              <button id="quickScanBtn" type="button">Diagnose</button>
-              <button id="analyzeBtn" type="button">Analysieren</button>
-              <button id="resetBtn" type="button">Defaults</button>
+              <button id="rebuildCacheBtn" type="button" title="Lokalen SQLite-Cache komplett neu aus Beatport aufbauen">Cache neu</button>
+              <button id="exportCacheCsvBtn" type="button" title="Alle gecachten Playlists als CSV-Datei exportieren">CSV</button>
+              <button id="quickScanBtn" type="button" title="Kompletter Diagnose-Durchlauf: Session, CDP, Cache pruefen">Diagnose</button>
+              <button id="analyzeBtn" type="button" title="Ausgewaehlte Playlists im Detail analysieren (BPM, Key, Duplikate)">Analysieren</button>
+              <button id="resetBtn" type="button" title="Alle Einstellungen auf Standardwerte zuruecksetzen">Defaults</button>
             </div>
           </section>
         </details>
@@ -178,10 +193,10 @@
           <section class="accordion-body">
             <div class="section-head" style="margin-bottom:8px">
               <div class="actions compact">
-                <button id="selectionAllBtn" type="button">Alle</button>
-                <button id="selectionNoneBtn" type="button">Keine</button>
-                <button id="selectionDuplicatesBtn" type="button">Duplikate</button>
-                <button id="selectionPendingBtn" type="button">Offene</button>
+                <button id="selectionAllBtn" type="button" title="Alle Playlists fuer Analyse auswaehlen">Alle</button>
+                <button id="selectionNoneBtn" type="button" title="Auswahl komplett aufheben">Keine</button>
+                <button id="selectionDuplicatesBtn" type="button" title="Nur Playlists mit Duplikaten auswaehlen">Duplikate</button>
+                <button id="selectionPendingBtn" type="button" title="Nur noch nicht analysierte Playlists auswaehlen">Offene</button>
               </div>
               <input id="playlistFilter" type="text" placeholder="Filter..." style="flex:1;min-width:150px" />
             </div>
