@@ -212,7 +212,17 @@ function renderAnalysis() {
         <h2>Playlist-Overlap</h2>
         <span class="pill">${overlapData.length} Paare mit &ge;2 gemeinsamen Tracks</span>
       </div>
-      <div id="overlap-table-wrap" class="table-wrap" style="max-height:420px"></div>
+      <div id="overlap-table-wrap" class="table-wrap scrollable" style="max-height:320px"></div>
+    </section>
+
+    <section class="panel span-full">
+      <div class="section-head">
+        <h2>Engine DJ Play-Analyse</h2>
+        <button type="button" id="loadPlayAnalytics" style="font-size:0.68rem;padding:3px 8px">Abspieldaten laden</button>
+      </div>
+      <div id="play-analytics-content">
+        <p style="color:var(--muted);font-size:0.72rem">Klicke "Abspieldaten laden" um Abspiel-Statistiken aus der Engine DJ History zu analysieren.</p>
+      </div>
     </section>
   `;
 
@@ -222,7 +232,75 @@ function renderAnalysis() {
     drawKeyWheel();
     drawGenreChart();
     renderOverlapTable();
+    document.getElementById("loadPlayAnalytics")?.addEventListener("click", loadPlayAnalytics);
   });
+}
+
+// ─── Play Analytics (Engine DJ History) ──────────────────────────────────────
+
+async function loadPlayAnalytics() {
+  const container = document.getElementById("play-analytics-content");
+  if (!container) return;
+  container.innerHTML = '<p style="color:var(--muted);font-size:0.72rem">Lade Abspieldaten...</p>';
+
+  try {
+    const data = await window.unifiedApi.enginePlayAnalytics({});
+    renderPlayAnalytics(container, data);
+  } catch (err) {
+    container.innerHTML = `<div class="callout warning">${escapeHtml(err.message || String(err))}</div>`;
+  }
+}
+
+function renderPlayAnalytics(container, data) {
+  const { topPlayed, trackPairs, labelPairs, stats } = data;
+  const esc = (s) => escapeHtml(String(s || ""));
+  const fmt = (n) => Number(n).toLocaleString("de-DE");
+
+  container.innerHTML = `
+    <div class="analysis-stats" style="margin-bottom:10px">
+      <div class="stat-card"><span class="stat-label">Sessions</span><strong class="stat-value">${fmt(stats.sessions)}</strong></div>
+      <div class="stat-card"><span class="stat-label">Total Plays</span><strong class="stat-value">${fmt(stats.totalPlays)}</strong></div>
+      <div class="stat-card"><span class="stat-label">Unique Tracks</span><strong class="stat-value">${fmt(stats.uniqueTracks)}</strong></div>
+      <div class="stat-card"><span class="stat-label">&Oslash; Plays/Track</span><strong class="stat-value">${(stats.totalPlays / (stats.uniqueTracks || 1)).toFixed(1)}</strong></div>
+    </div>
+
+    <h3>Meistgespielte Tracks</h3>
+    <div class="table-wrap scrollable" style="max-height:280px"><table>
+      <thead><tr><th>#</th><th>Artist</th><th>Track</th><th>Label</th><th>BPM</th><th>Plays</th></tr></thead>
+      <tbody>${topPlayed.map((t, i) => `<tr>
+        <td style="color:var(--muted)">${i + 1}</td>
+        <td>${esc(t.artist)}</td>
+        <td><strong>${esc(t.title)}</strong></td>
+        <td style="font-size:0.65rem;color:var(--muted)">${esc(t.label)}</td>
+        <td style="color:#ff6b35;font-weight:700">${Math.round(t.bpm || 0)}</td>
+        <td><span style="color:var(--primary);font-weight:700">${t.playCount}</span></td>
+      </tr>`).join("")}</tbody>
+    </table></div>
+
+    <h3>Track-Paare (regelm&auml;&szlig;ig hintereinander)</h3>
+    <div class="table-wrap scrollable" style="max-height:280px"><table>
+      <thead><tr><th>#</th><th>Track A</th><th>&rarr;</th><th>Track B</th><th>Mal</th></tr></thead>
+      <tbody>${trackPairs.map((p, i) => `<tr>
+        <td style="color:var(--muted)">${i + 1}</td>
+        <td>${esc(p.a1)} &mdash; <strong>${esc(p.t1)}</strong></td>
+        <td style="color:var(--primary)">&rarr;</td>
+        <td>${esc(p.a2)} &mdash; <strong>${esc(p.t2)}</strong></td>
+        <td><span style="color:#ff6b35;font-weight:700">${p.cnt}x</span></td>
+      </tr>`).join("")}</tbody>
+    </table></div>
+
+    <h3>Label-Kombinationen (gleiche Session)</h3>
+    <div class="table-wrap scrollable" style="max-height:240px"><table>
+      <thead><tr><th>#</th><th>Label A</th><th>+</th><th>Label B</th><th>Sessions</th></tr></thead>
+      <tbody>${labelPairs.map((p, i) => `<tr>
+        <td style="color:var(--muted)">${i + 1}</td>
+        <td><strong>${esc(p.l1)}</strong></td>
+        <td style="color:var(--muted)">+</td>
+        <td><strong>${esc(p.l2)}</strong></td>
+        <td><span style="color:#b197fc;font-weight:700">${p.sessions}</span></td>
+      </tr>`).join("")}</tbody>
+    </table></div>
+  `;
 }
 
 // ─── BPM-Histogramm ─────────────────────────────────────────────────────────────

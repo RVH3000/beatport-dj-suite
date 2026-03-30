@@ -1033,6 +1033,62 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle("unified:engine-play-analytics", async (_event, options = {}) => {
+    try {
+      const Database = (await import("better-sqlite3")).default;
+      const { join } = await import("node:path");
+      const { homedir } = await import("node:os");
+      const dbFolder = options.engineDatabaseFolder || join(homedir(), "Music", "Engine Library", "Database2");
+      const hmDb = new Database(join(dbFolder, "hm.db"), { readonly: true });
+
+      // Top gespielt
+      const topPlayed = hmDb.prepare(`
+        SELECT t.title, t.artist, t.genre, t.label, t.bpmAnalyzed as bpm,
+               COUNT(he.id) as playCount, MAX(he.startTime) as lastPlayed
+        FROM HistorylistEntity he JOIN Track t ON he.trackId = t.id
+        GROUP BY he.trackId ORDER BY playCount DESC LIMIT ?
+      `).all(options.limit || 30);
+
+      // Track-Paare
+      const trackPairs = hmDb.prepare(`
+        WITH ordered AS (
+          SELECT he.listId, he.trackId, ROW_NUMBER() OVER (PARTITION BY he.listId ORDER BY he.startTime, he.id) as pos
+          FROM HistorylistEntity he
+        )
+        SELECT t1.artist as a1, t1.title as t1, t2.artist as a2, t2.title as t2, COUNT(*) as cnt
+        FROM ordered o1
+        JOIN ordered o2 ON o2.listId = o1.listId AND o2.pos = o1.pos + 1
+        JOIN Track t1 ON o1.trackId = t1.id JOIN Track t2 ON o2.trackId = t2.id
+        WHERE o1.trackId != o2.trackId
+        GROUP BY o1.trackId, o2.trackId HAVING cnt >= 3
+        ORDER BY cnt DESC LIMIT ?
+      `).all(options.limit || 30);
+
+      // Label-Paare
+      const labelPairs = hmDb.prepare(`
+        SELECT t1.label as l1, t2.label as l2, COUNT(DISTINCT he1.listId) as sessions
+        FROM HistorylistEntity he1
+        JOIN HistorylistEntity he2 ON he2.listId = he1.listId AND he1.id < he2.id
+        JOIN Track t1 ON he1.trackId = t1.id JOIN Track t2 ON he2.trackId = t2.id
+        WHERE t1.label != '' AND t2.label != '' AND t1.label < t2.label
+        GROUP BY t1.label, t2.label ORDER BY sessions DESC LIMIT ?
+      `).all(options.limit || 20);
+
+      // Gesamt-Stats
+      const stats = hmDb.prepare(`
+        SELECT COUNT(DISTINCT he.trackId) as uniqueTracks,
+               COUNT(he.id) as totalPlays,
+               COUNT(DISTINCT he.listId) as sessions
+        FROM HistorylistEntity he
+      `).get();
+
+      hmDb.close();
+      return { topPlayed, trackPairs, labelPairs, stats };
+    } catch (error) {
+      throw new Error(String(error?.message || error));
+    }
+  });
+
   ipcMain.handle("unified:export-m3u", async (_event, options = {}) => {
     try {
       return await exportM3uPlaylist(options);

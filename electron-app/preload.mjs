@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld("unifiedApi", {
     ipcRenderer.invoke("unified:engine-history-sessions", options),
   engineHistoryTracks: (options) =>
     ipcRenderer.invoke("unified:engine-history-tracks", options),
+  enginePlayAnalytics: (options) =>
+    ipcRenderer.invoke("unified:engine-play-analytics", options),
   exportM3u: (options) => ipcRenderer.invoke("unified:export-m3u", options),
   classifyCache: (config) => ipcRenderer.invoke("unified:classify-cache", config),
   sendOscSnapshot: (options) => ipcRenderer.invoke("unified:send-osc-snapshot", options),
