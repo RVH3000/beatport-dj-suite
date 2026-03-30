@@ -200,8 +200,8 @@ body {
 .layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  padding: 16px;
+  gap: 8px;
+  padding: 8px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -211,8 +211,8 @@ body {
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: 16px;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
   box-shadow: var(--shadow);
 }
 
@@ -250,16 +250,16 @@ body {
 }
 
 .panel h2 {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
+  margin: 0 0 6px;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.01em;
 }
 
 .panel h3 {
-  margin: 12px 0 6px;
-  font-size: 0.85rem;
+  margin: 8px 0 4px;
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
@@ -390,9 +390,9 @@ input[type="password"],
 select,
 textarea {
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  font-size: 0.85rem;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.75rem;
   color: var(--text);
   background: var(--bg);
   font-family: inherit;
@@ -444,9 +444,9 @@ textarea:focus {
 
 button {
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 7px 13px;
-  font-size: 0.82rem;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   background: var(--panel-strong);
@@ -584,7 +584,7 @@ button.danger:hover {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   min-width: 100%;
 }
 
@@ -592,7 +592,7 @@ th, td {
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
-  padding: 7px 8px;
+  padding: 4px 6px;
 }
 
 td.wrap-cell,
@@ -607,10 +607,10 @@ th {
   top: 0;
   background: var(--panel-strong);
   z-index: 1;
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: var(--muted);
 }
 
@@ -754,7 +754,7 @@ summary {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .placeholder-panel {
-  min-height: 320px;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -765,7 +765,8 @@ summary {
 .placeholder-text {
   color: var(--muted);
   max-width: 480px;
-  line-height: 1.6;
+  line-height: 1.4;
+  font-size: 0.78rem;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -779,25 +780,25 @@ summary {
 }
 
 .stat-card {
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--panel-strong);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .stat-label {
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--muted);
 }
 
 .stat-value {
-  font-size: 1.3rem;
+  font-size: 1rem;
   color: #fff;
   font-weight: 700;
 }
@@ -881,9 +882,9 @@ summary {
 .export-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 18px 16px;
-  border-radius: var(--radius-lg);
+  gap: 4px;
+  padding: 12px 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--line-strong);
   background: var(--panel-strong);
   text-align: left;
@@ -910,16 +911,16 @@ summary {
 }
 
 .export-card strong {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   color: #fff;
 }
 
 .export-card p {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: var(--muted);
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .export-icon {
@@ -948,9 +949,9 @@ summary {
 
 .wiz-layout {
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 14px;
-  padding: 16px;
+  grid-template-columns: 220px 1fr;
+  gap: 8px;
+  padding: 8px;
 }
 
 .wiz-layout .span-full {
@@ -974,14 +975,14 @@ summary {
 }
 
 .wiz-playlist-item {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  border-radius: 4px;
   border: 1px solid var(--line);
   background: var(--panel-strong);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   transition: border-color 0.12s, background 0.12s;
 }
 
@@ -996,14 +997,14 @@ summary {
 }
 
 .wiz-playlist-item strong {
-  font-size: 0.85rem;
-  line-height: 1.3;
+  font-size: 0.75rem;
+  line-height: 1.2;
   word-break: break-word;
   color: var(--text);
 }
 
 .wiz-track-count {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   color: var(--muted);
 }
 
@@ -1036,21 +1037,21 @@ summary {
 .pipeline-flow {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1.25rem 0.5rem;
-  min-width: 680px;
+  gap: 0.3rem;
+  padding: 0.5rem 0.25rem;
+  min-width: 580px;
 }
 
 .pipeline-node {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.15rem;
   flex: 1;
-  min-width: 100px;
-  padding: 0.75rem 0.5rem;
+  min-width: 80px;
+  padding: 0.4rem 0.3rem;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--panel-strong);
   text-align: center;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -1072,27 +1073,27 @@ summary {
 }
 
 .pipeline-icon {
-  font-size: 1.5rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
 .pipeline-label {
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--text);
 }
 
 .pipeline-sub {
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   color: var(--muted);
 }
 
 .pipeline-badge {
-  font-size: 0.62rem;
+  font-size: 0.55rem;
   font-weight: 600;
-  padding: 0.15rem 0.45rem;
+  padding: 0.1rem 0.35rem;
   border-radius: var(--radius-full);
-  margin-top: 0.2rem;
+  margin-top: 0.1rem;
 }
 
 .pipeline-badge.idle    { background: var(--panel-hover); color: var(--muted); }
@@ -1107,10 +1108,10 @@ summary {
 }
 
 .pipeline-arrow {
-  font-size: 1.1rem;
+  font-size: 0.8rem;
   color: var(--muted);
   flex-shrink: 0;
-  padding: 0 0.1rem;
+  padding: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1121,10 +1122,10 @@ summary {
   background: #07080d;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", "Menlo", monospace;
-  font-size: 0.72rem;
-  max-height: 280px;
+  font-size: 0.68rem;
+  max-height: 200px;
   overflow-y: auto;
   color: #a0a0b0;
 }
