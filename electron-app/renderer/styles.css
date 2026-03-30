@@ -1344,8 +1344,9 @@ summary {
   line-height: 1;
 }
 
-.hero-val { font-size: 0.72rem; color: var(--text); display: block; }
+.hero-val { font-size: 0.72rem; color: var(--text-secondary); display: block; }
 .hero-val.muted { color: var(--muted); }
+.hero-val.accent { color: var(--primary); }
 
 .hero-compact .status { padding: 2px 6px; font-size: 0.72rem; margin: 0; display: inline-block; }
 

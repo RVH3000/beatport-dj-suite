@@ -563,12 +563,12 @@ function renderAppInfo(info) {
     ["Live-Status", info.liveStatusPath],
   ];
 
-  els.appInfo.innerHTML = items
-    .map(
-      ([label, value]) =>
-        `<div><dt>${label}</dt><dd>${value ? String(value) : "–"}</dd></div>`
-    )
-    .join("");
+  // Hero-Card: nur Version kompakt anzeigen
+  els.appInfo.innerHTML = `<span class="hero-icon">&#128296;</span><div><span class="hero-label">Build</span><span class="hero-val">${info.version || "?"}</span></div>`;
+
+  // Vollständige Infos als Tooltip
+  const allInfo = items.map(([l, v]) => `${l}: ${v || "–"}`).join("\n");
+  els.appInfo.title = allInfo;
 
   if (Array.isArray(info.warnings) && info.warnings.length > 0) {
     els.appWarnings.innerHTML = info.warnings
@@ -579,14 +579,10 @@ function renderAppInfo(info) {
       '<div class="callout success">Aktive Installation entspricht der aktuellen App.</div>';
   }
 
-  if (Array.isArray(info.copies) && info.copies.length > 0) {
-    els.appCopies.classList.remove("empty");
-    els.appCopies.innerHTML = info.copies
-      .map((entry) => `<div class="stack-item"><code>${entry}</code></div>`)
-      .join("");
-  } else {
-    clearNode(els.appCopies, "Keine weiteren Installationen gefunden");
-  }
+  // Hero-Card: nur Anzahl anzeigen
+  const copyCount = Array.isArray(info.copies) ? info.copies.length : 0;
+  els.appCopies.innerHTML = `<span class="hero-icon">&#128190;</span><div><span class="hero-label">Installationen</span><span class="hero-val">${copyCount || "Keine"}</span></div>`;
+  if (copyCount) els.appCopies.title = info.copies.join("\n");
 }
 
 function authModeLabel(value) {
