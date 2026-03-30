@@ -2,25 +2,36 @@
 
 **Projekt:** Beatport DJ Suite (All-in-One Beatport Electron App)
 **Repository:** `~/Projects/_local/beatport-dj-suite`
-**Remote:** ⚠️ KEINS — noch nicht auf GitHub gepusht!
-**Version:** 2.0.0
-**Branch:** main
+**Remote:** github.com/RVH3000/beatport-dj-suite (private)
+**Version:** 2.3.0
+**Branch:** main (stable: release/v2.3-stable)
 **Stack:** Electron + Node.js
-**Letzte Aktualisierung:** 2026-03-26 (Pfade aktualisiert nach Ordner-Umstrukturierung)
+**Letzte Aktualisierung:** 2026-03-30
 
 ---
 
 ## Projekt-Kontext
 
-Nachfolger des beatport-scanner v1.5.1. Umstrukturiert als modulare Suite mit Tabs:
-- **Playlist Scanner** — CDP-basiertes Beatport-Scraping
-- **Analysis** — Track-Analyse und Scoring (NEU, in Entwicklung)
-- **Export** — Verschiedene Exportformate (NEU, in Entwicklung)
-- **Playlist Wiz** — Playlist-Builder (NEU, in Entwicklung)
+Nachfolger des beatport-scanner v1.5.1. Modulare Suite mit 8 Tabs:
+- **Scanner** — CDP/XHR-basiertes Beatport-Scraping mit Session-Management
+- **Suche & Filter** — 99k Track-Datenbank, BPM-Lock, Dramaturgie-Score, Playlist Builder (PL WIZ v5)
+- **Analyse** — BPM-Verteilung, Key-Kompatibilitaet, Genre-Breakdown
+- **Playlist WIZ** — Live Playlist-Management (erstellen, umbenennen, Tracks verwalten)
+- **Sync-Pipeline** — Beatport Streaming → DJPlaylists.fm → Lexicon DJ → Engine DJ → USB
+- **Automation** — Geplante Scans, Auto-Sync, Regel-basierte Updates
+- **Export** — Rekordbox XML, Traktor NML, JSON, JSONL, Engine DJ m.db
+- **Einstellungen** — Pfade, Python-Command, OSC-Bridge Config
 
-## Aktueller Stand
+## Design
 
-6 modifizierte Dateien + 4 neue Tab-Module. Aktive Entwicklung.
+Dark Professional Theme (inspiriert von Rekordbox/Traktor/Engine DJ).
+CSS Custom Properties in styles.css, Teal/Cyan Primary (#4ecdc4).
+
+## Wichtige Datenpfade
+
+- **scoring-data.json** (23 MB) → `~/Documents/Claude/Projects/Beatport PL WIZ/scoring-data.json`
+  Wird per IPC geladen, NICHT im Repo enthalten. NICHT loeschen!
+- **sync-presets.json** → `electron-app/data/sync-presets.json`
 
 ## Scripts
 
@@ -33,13 +44,6 @@ npm run beatport:scan    # Scan starten
 
 ## Verwandte Projekte
 
-- **beatport-scanner** → `~/Projects/_github/beatport-scanner` (Vorgänger v1.x)
+- **beatport-scanner** → `~/Projects/_github/beatport-scanner` (Vorgaenger v1.x)
 - **beatport-dedupe** → `~/Projects/_local/beatport-dedupe` (Duplikat-Analyse)
 - **Beatport PL WIZ** → `~/Documents/Claude/Projects/Beatport PL WIZ/` (HTML-Tool, v5)
-
-## ⚠️ Backup-Priorität
-
-Dieses Repo hat KEIN GitHub-Remote. Push empfohlen:
-```bash
-gh repo create RVH3000/beatport-dj-suite --private --source=. --push
-```
