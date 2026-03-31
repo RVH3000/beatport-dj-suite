@@ -208,6 +208,17 @@ function renderMarkup() {
       </div>
     </section>
 
+    <section class="panel span-full">
+      <div class="section-head">
+        <h2>Lexicon Komplett-Export</h2>
+        <button type="button" id="lexiconFullExportBtn" title="Alle Tracks und Playlists aus Lexicon lesen und als CSV + JSON auf den Desktop exportieren" style="padding:4px 10px;font-size:0.68rem">Lexicon auslesen</button>
+      </div>
+      <p style="color:var(--muted);font-size:0.7rem;margin:2px 0 6px">
+        Liest <b>alle</b> Tracks mit saemtlichen Metadaten aus Lexicon (playCount, energy, cuepoints, tags, etc.) und exportiert als CSV + JSON auf den Desktop. Lexicon muss laufen.
+      </p>
+      <div id="lexicon-export-result"></div>
+    </section>
+
     <section class="panel span-full" id="export-result-panel" ${
       lastResult || lastError ? "" : "hidden"
     }>
@@ -226,6 +237,32 @@ function renderMarkup() {
         runExport(format);
       }
     });
+
+  // Lexicon Full Export
+  container.querySelector("#lexiconFullExportBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("lexiconFullExportBtn");
+    const result = document.getElementById("lexicon-export-result");
+    btn.disabled = true;
+    btn.textContent = "Lese Lexicon...";
+    result.innerHTML = '<span style="color:var(--muted);font-size:0.72rem">Lade alle Tracks aus Lexicon...</span>';
+
+    try {
+      const data = await window.unifiedApi.lexiconFullExport({});
+      result.innerHTML = `
+        <div class="callout success" style="font-size:0.72rem">
+          <strong>&check; Export erfolgreich!</strong><br>
+          <b>${data.trackCount.toLocaleString("de-DE")}</b> Tracks + <b>${data.playlistCount}</b> Playlists exportiert.<br>
+          Felder: ${data.fields.join(", ")}<br><br>
+          <code style="font-size:0.65rem">${data.csvPath}</code><br>
+          <code style="font-size:0.65rem">${data.jsonPath}</code>
+        </div>`;
+      btn.textContent = "Fertig!";
+    } catch (err) {
+      result.innerHTML = `<div class="callout warning" style="font-size:0.72rem">${err.message || String(err)}<br><small>Ist Lexicon gestartet? (Port 48624)</small></div>`;
+      btn.textContent = "Lexicon auslesen";
+      btn.disabled = false;
+    }
+  });
 
   if (lastResult || lastError) {
     renderResult();

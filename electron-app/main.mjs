@@ -1033,6 +1033,78 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle("unified:lexicon-full-export", async (_event, options = {}) => {
+    try {
+      const { getPlaylists, getPlaylistTracks } = await import("./api/lexicon-client.mjs");
+      const { writeFile, mkdir } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      const { homedir } = await import("node:os");
+
+      const outputDir = options.outputDir || join(homedir(), "Desktop");
+      const ts = new Date().toISOString().slice(0, 10);
+
+      // 1. Alle Playlists laden
+      const { tree, flat } = await getPlaylists();
+
+      // 2. Alle Tracks paginiert laden
+      const allTracks = [];
+      let offset = 0;
+      const PAGE = 500;
+      let total = null;
+      while (total === null || offset < total) {
+        const resp = await (await fetch(`http://localhost:48624/v1/tracks?limit=${PAGE}&offset=${offset}`, {
+          headers: { Accept: "application/json" },
+        })).json();
+        const tracks = resp?.data?.tracks || resp?.tracks || resp?.data || [];
+        if (total === null) total = resp?.data?.total || tracks.length;
+        allTracks.push(...tracks);
+        offset += PAGE;
+        if (!tracks.length) break;
+      }
+
+      // 3. CSV mit allen Feldern
+      const csvFields = [
+        "title", "artist", "album", "genre", "bpm", "key",
+        "label", "year", "rating", "color", "comment",
+        "playCount", "lastPlayed", "energy", "danceability", "happiness",
+        "bitrate", "sampleRate", "duration", "fileSize",
+        "tags",
+      ];
+      const csvEsc = (v) => {
+        if (v == null) return "";
+        const s = String(v);
+        return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csvHeader = csvFields.join(",");
+      const csvRows = allTracks.map((t) =>
+        csvFields.map((f) => {
+          let val = t[f];
+          if (f === "tags" && Array.isArray(val)) val = val.join("; ");
+          if (f === "duration" && val) val = Math.round(val);
+          return csvEsc(val);
+        }).join(",")
+      );
+      const csvContent = [csvHeader, ...csvRows].join("\n");
+      const csvPath = join(outputDir, `lexicon-export-${ts}.csv`);
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(csvPath, csvContent, "utf-8");
+
+      // 4. JSON komplett (Playlists + Tracks)
+      const jsonPath = join(outputDir, `lexicon-export-${ts}.json`);
+      await writeFile(jsonPath, JSON.stringify({ playlists: flat, tracks: allTracks, exportDate: new Date().toISOString(), totalTracks: allTracks.length }, null, 2), "utf-8");
+
+      return {
+        trackCount: allTracks.length,
+        playlistCount: flat.length,
+        csvPath,
+        jsonPath,
+        fields: csvFields,
+      };
+    } catch (error) {
+      throw new Error(String(error?.message || error));
+    }
+  });
+
   ipcMain.handle("unified:engine-play-analytics", async (_event, options = {}) => {
     try {
       const Database = (await import("better-sqlite3")).default;
