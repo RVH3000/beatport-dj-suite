@@ -58,6 +58,7 @@ import {
 import { classifyTrackBatch } from "./integrations/performance-classifier.mjs";
 import { exportM3uPlaylist } from "./integrations/m3u-exporter.mjs";
 import { sendOscSnapshot } from "./integrations/osc-bridge.mjs";
+import { registerIpcHandlers as registerPipelineHandlers } from "./api/sync_orchestrator.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -926,6 +927,9 @@ app.whenReady().then(() => {
     const raw = await fs.readFile(result.filePaths[0], "utf8");
     return JSON.parse(raw);
   });
+
+  // ── Sync-Pipeline v2.3.0: Automatisierter Orchestrator ──────────────────
+  registerPipelineHandlers(ipcMain, () => mainWindow);
 
   // ── Unified Integration Hub ───────────────────────────────────────────────
 

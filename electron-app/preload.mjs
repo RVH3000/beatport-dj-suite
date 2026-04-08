@@ -123,4 +123,13 @@ contextBridge.exposeInMainWorld("syncApi", {
   // Scoring-Data (Search & Filter Tab)
   loadScoringData:          (filePath)      => ipcRenderer.invoke("sync:load-scoring-data", filePath),
   chooseScoringFile:        ()              => ipcRenderer.invoke("sync:choose-scoring-file"),
+  // Pipeline v2.3.0: Automatisierter Orchestrator
+  runFullPipeline:          (opts)          => ipcRenderer.invoke("sync:run-full-pipeline", opts),
+  prepareDramaturgy:        (opts)          => ipcRenderer.invoke("sync:prepare-dramaturgy", opts),
+  checkPipelineStatus:      ()              => ipcRenderer.invoke("sync:check-pipeline-status"),
+  onPipelineProgress: (cb) => {
+    const handler = (_event, payload) => cb(payload);
+    ipcRenderer.on("sync:pipeline-progress", handler);
+    return () => ipcRenderer.removeListener("sync:pipeline-progress", handler);
+  },
 });
