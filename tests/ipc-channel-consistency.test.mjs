@@ -26,6 +26,21 @@ const mainSource = await fs.readFile(
   "utf-8"
 );
 
+// Module aus electron-app/api/ die IPC-Handler oder Sender registrieren
+// (z.B. sync_orchestrator.mjs sendet sync:pipeline-progress an mainWindow.webContents)
+async function readApiSources() {
+  const apiDir = path.join(ROOT, "electron-app", "api");
+  const entries = await fs.readdir(apiDir).catch(() => []);
+  const sources = await Promise.all(
+    entries
+      .filter((name) => name.endsWith(".mjs"))
+      .map((name) => fs.readFile(path.join(apiDir, name), "utf-8"))
+  );
+  return sources.join("\n");
+}
+const apiSources = await readApiSources();
+const allMainScopeSource = mainSource + "\n" + apiSources;
+
 // ── IPC-Channel-Extraktion ─────────────────────────────────────────────────
 
 /**
@@ -78,8 +93,9 @@ function extractMainSendChannels(source) {
 }
 
 const preloadChannels = extractPreloadChannels(preloadSource);
-const mainHandleChannels = extractMainChannels(mainSource);
-const mainSendChannels = extractMainSendChannels(mainSource);
+// Handler & Sender werden auch in api/-Modulen registriert (z.B. sync_orchestrator.mjs)
+const mainHandleChannels = extractMainChannels(allMainScopeSource);
+const mainSendChannels = extractMainSendChannels(allMainScopeSource);
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 

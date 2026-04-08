@@ -204,7 +204,12 @@ describe("Source-Validierung", () => {
   });
 
   it("importiert BrowserWindow aus electron", () => {
-    assert.ok(source.includes('import { BrowserWindow } from "electron"'));
+    // Erlaubt zusätzliche named imports (z.B. BrowserWindow + session)
+    assert.match(
+      source,
+      /import\s*\{[^}]*\bBrowserWindow\b[^}]*\}\s*from\s*["']electron["']/,
+      'session-manager.mjs muss BrowserWindow aus "electron" importieren'
+    );
   });
 });
 

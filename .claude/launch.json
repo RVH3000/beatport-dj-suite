@@ -3,26 +3,26 @@
   "configurations": [
     {
       "name": "Beatport DJ Suite (Electron)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "/Users/roberth./Projects/_local/beatport-dj-suite", "run", "desktop:dev"],
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["/Users/roberth./Projects/_local/beatport-dj-suite/.claude/worktrees/beatport-dj-suite-3.5/node_modules/electron/cli.js", "/Users/roberth./Projects/_local/beatport-dj-suite/.claude/worktrees/beatport-dj-suite-3.5", "--remote-debugging-port=9222"],
       "port": 9222
     },
     {
       "name": "Beatport Scanner (CLI)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "/Users/roberth./Projects/_local/beatport-dj-suite", "run", "beatport:scan"],
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
+      "runtimeArgs": ["--prefix", "/Users/roberth./Projects/_local/beatport-dj-suite/.claude/worktrees/beatport-dj-suite-3.5", "run", "beatport:scan"],
       "port": null
     },
     {
       "name": "Diagnose / Check",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "/Users/roberth./Projects/_local/beatport-dj-suite", "run", "check"],
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
+      "runtimeArgs": ["--prefix", "/Users/roberth./Projects/_local/beatport-dj-suite/.claude/worktrees/beatport-dj-suite-3.5", "run", "check"],
       "port": null
     },
     {
       "name": "Smoke-Test Beatport",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "/Users/roberth./Projects/_local/beatport-dj-suite", "run", "smoke:beatport"],
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
+      "runtimeArgs": ["--prefix", "/Users/roberth./Projects/_local/beatport-dj-suite/.claude/worktrees/beatport-dj-suite-3.5", "run", "smoke:beatport"],
       "port": null
     }
   ]
