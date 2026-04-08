@@ -23,6 +23,7 @@
     <nav class="tab-bar" role="tablist">
       <button class="tab active" role="tab" aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-search"     data-tab="search">Suche & Filter</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-labels"     data-tab="labels" title="Gefolgte Beatport-Labels aus /my-beatport/labels/">Labels</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
       <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-sync"        data-tab="sync">Sync-Pipeline</button>
@@ -320,6 +321,30 @@
             </p>
           </section>
         </div>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: Labels (gefolgte Beatport-Labels, read-only)                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-labels" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" style="grid-template-columns:1fr">
+        <section class="panel span-full">
+          <div class="section-head">
+            <h2>Gefolgte Beatport-Labels</h2>
+            <div class="actions compact">
+              <input id="labelsFilter" type="search" placeholder="Filter (Name)…" style="padding:6px 10px;font-size:12px" />
+              <select id="labelsOrder" style="padding:6px 10px;font-size:12px">
+                <option value="count">Nach Releases</option>
+                <option value="name">Alphabetisch</option>
+                <option value="recent">Zuletzt gesehen</option>
+              </select>
+              <button id="labelsRefreshBtn" type="button">↻ Neu laden</button>
+            </div>
+          </div>
+          <div id="labelsStats" class="detail-summary empty">Lade …</div>
+          <div id="labelsGrid" class="labels-grid"></div>
+        </section>
       </div>
     </main>
 

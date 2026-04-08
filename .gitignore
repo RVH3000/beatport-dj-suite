@@ -13,3 +13,7 @@ dist-electron/
 # Lose Skill-Dateien (gehören in ~/.claude/skills, nicht ins Repo)
 *.skill
 terminal-reader-skill/
+
+# Label-Import Task A (2026-04-08)
+data/*.db
+data/*.backup-*.db

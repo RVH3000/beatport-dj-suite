@@ -517,6 +517,25 @@ app.whenReady().then(() => {
     );
   });
 
+  // ── Labels (bp_labels in data/suite.db, read-only) ───────────────────────
+  const labelsDbPath = resolveBundledPath("data/suite.db");
+
+  ipcMain.handle("labels:list", async (_event, options = {}) => {
+    const order = options.order || "count";
+    const limit = Math.min(Number(options.limit) || 2000, 5000);
+    return runPythonJson(
+      "scripts/query_beatport_labels.py",
+      ["--db", labelsDbPath, "list", "--order", order, "--limit", String(limit)],
+    );
+  });
+
+  ipcMain.handle("labels:stats", async () => {
+    return runPythonJson(
+      "scripts/query_beatport_labels.py",
+      ["--db", labelsDbPath, "stats"],
+    );
+  });
+
   // ── Playlist WIZ — XHR-basierte CRUD-Operationen ─────────────────────────
   // Strategie: Bearer-Token passiv via webRequest.onBeforeSendHeaders abfangen.
   // Der Listener läuft auf der Beatport-Session-Partition und liest den
