@@ -269,15 +269,15 @@ function buildSearchTabHtml() {
         <button class="primary" id="srchResetBtn" type="button" style="padding:6px 12px;font-size:12px">Reset</button>
       </div>
       <div class="srch-filters">
-        <div class="srch-fg srch-fg-wide"><label>Genre <span id="srchGenreCount" class="srch-chip-count"></span></label><div id="srchGenreChips" class="srch-chips"></div><select id="srchGenre" hidden><option value="">Alle</option></select></div>
-        <div class="srch-fg srch-fg-wide"><label>Sub-Genre <span id="srchSubGenreCount" class="srch-chip-count"></span></label><div id="srchSubGenreChips" class="srch-chips"></div><select id="srchSubGenre" hidden><option value="">Alle</option></select></div>
-        <div class="srch-fg"><label>BPM Min</label><input type="number" id="srchBpmMin" min="60" max="200" placeholder="60"></div>
-        <div class="srch-fg"><label>BPM Max</label><input type="number" id="srchBpmMax" min="60" max="200" placeholder="200"></div>
-        <div class="srch-fg"><label>Tonart</label><select id="srchKey"><option value="">Alle</option></select></div>
-        <div class="srch-fg"><label>Jahr Min</label><input type="number" id="srchYearMin" min="1990" max="2030" placeholder="1990"></div>
-        <div class="srch-fg"><label>Jahr Max</label><input type="number" id="srchYearMax" min="1990" max="2030" placeholder="2026"></div>
-        <div class="srch-fg"><label>Label</label><select id="srchLabel"><option value="">Alle</option></select></div>
-        <div class="srch-fg"><label>Flags</label><select id="srchFlags"><option value="">Alle</option><option value="hype">Nur Hype</option><option value="dj">Nur DJ Edit</option></select></div>
+        <div class="srch-fg srch-fg-wide"><label title="Multi-Select: Klick aktiviert/deaktiviert. Mehrere gleichzeitig moeglich. Sub-Genres filtern automatisch nach gewaehlten Genres.">Genre <span id="srchGenreCount" class="srch-chip-count"></span></label><div id="srchGenreChips" class="srch-chips"></div><select id="srchGenre" hidden><option value="">Alle</option></select></div>
+        <div class="srch-fg srch-fg-wide"><label title="Nur Sub-Genres der oben gewaehlten Parent-Genres (kaskadierend). Ohne Genre-Auswahl: alle Sub-Genres.">Sub-Genre <span id="srchSubGenreCount" class="srch-chip-count"></span></label><div id="srchSubGenreChips" class="srch-chips"></div><select id="srchSubGenre" hidden><option value="">Alle</option></select></div>
+        <div class="srch-fg"><label title="Untere BPM-Grenze. Mit Normalisierung (Toggle) werden Werte halbiert/verdoppelt fuer Genre-uebergreifende Vergleiche.">BPM Min</label><input type="number" id="srchBpmMin" min="60" max="200" placeholder="60"></div>
+        <div class="srch-fg"><label title="Obere BPM-Grenze.">BPM Max</label><input type="number" id="srchBpmMax" min="60" max="200" placeholder="200"></div>
+        <div class="srch-fg"><label title="Musikalische Tonart mit Camelot-Code. Perfect/Good/OK/Bad-Kompatibilitaet fuer harmonisches Mixing.">Tonart</label><select id="srchKey"><option value="">Alle</option></select></div>
+        <div class="srch-fg"><label title="Release-Zeitraum einschraenken: fruehestes Jahr.">Jahr Min</label><input type="number" id="srchYearMin" min="1990" max="2030" placeholder="1990"></div>
+        <div class="srch-fg"><label title="Release-Zeitraum einschraenken: spaetestes Jahr.">Jahr Max</label><input type="number" id="srchYearMax" min="1990" max="2030" placeholder="2026"></div>
+        <div class="srch-fg"><label title="Beatport-Label filtern (Top 500, nach Haeufigkeit sortiert).">Label</label><select id="srchLabel"><option value="">Alle</option></select></div>
+        <div class="srch-fg"><label title="Hype-Tracks oder DJ Edits filtern.">Flags</label><select id="srchFlags"><option value="">Alle</option><option value="hype">Nur Hype</option><option value="dj">Nur DJ Edit</option></select></div>
         <div class="srch-fg"><label>Sortierung</label><select id="srchSort">
           <option value="count-desc">PLs absteigend</option><option value="count-asc">PLs aufsteigend</option>
           <option value="bpm-asc">BPM aufsteigend</option><option value="bpm-desc">BPM absteigend</option>
@@ -352,14 +352,19 @@ function buildSearchTabHtml() {
         <div class="srch-tv-row"><div class="srch-tv-label">Key Match</div><div class="srch-tv-bars" id="srchTvKey"></div></div>
         <div class="srch-tv-row"><div class="srch-tv-label">Dramaturgie</div><div class="srch-tv-bars" id="srchTvDrama"></div></div>
       </div>
-      <div class="table-wrap"><table><thead><tr>
-        <th style="width:30px"><input type="checkbox" id="srchSelAll"></th>
-        <th data-col="title">Title</th><th data-col="artists">Artist</th><th data-col="genre">Genre</th>
-        <th data-col="bpm">BPM</th><th data-col="key">Key</th><th data-col="camelot">Camelot</th>
-        <th data-col="drama">Drama</th><th data-col="year">Jahr</th><th data-col="label">Label</th>
-        <th data-col="count">PLs</th>
-      </tr></thead><tbody id="srchBody"></tbody></table></div>
-      <div class="srch-pagination" id="srchPagination"></div>
+      <div class="srch-results-split">
+        <div class="srch-results-main">
+          <div class="table-wrap"><table><thead><tr>
+            <th style="width:30px"><input type="checkbox" id="srchSelAll"></th>
+            <th data-col="title">Title</th><th data-col="artists">Artist</th><th data-col="genre">Genre</th>
+            <th data-col="bpm">BPM</th><th data-col="key">Key</th><th data-col="camelot">Camelot</th>
+            <th data-col="drama">Drama</th><th data-col="year">Jahr</th><th data-col="label">Label</th>
+            <th data-col="count">PLs</th><th></th>
+          </tr></thead><tbody id="srchBody"></tbody></table></div>
+          <div class="srch-pagination" id="srchPagination"></div>
+        </div>
+        <div class="srch-reco-area" id="srchRecoArea"></div>
+      </div>
     </div>
 
     <!-- SUB-TAB: DUPLIKATE -->
@@ -1525,8 +1530,8 @@ function renderBpmFlow() {
       panel = document.createElement("div");
       panel.id = "srchRecoPanel";
       panel.className = "srch-reco-panel";
-      const container = document.getElementById("search-content") || document.getElementById("tab-search");
-      if (container) container.appendChild(panel);
+      const container = document.getElementById("srchRecoArea") || document.getElementById("search-content") || document.getElementById("tab-search");
+      if (container) { container.innerHTML = ""; container.appendChild(panel); }
     }
 
     const source = allTracks?.find((t) => t.track_id === trackId);

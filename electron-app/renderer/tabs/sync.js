@@ -45,35 +45,35 @@ function buildSyncTabHtml() {
     <section class="panel span-full pipeline-section">
       <h2>Sync-Pipeline</h2>
       <div class="pipeline-flow">
-        <div class="pipeline-node" id="pnode-beatport">
+        <div class="pipeline-node" id="pnode-beatport" title="Quelle: Deine Beatport-Streaming-Playlists (via interne Session + XHR-API)">
           <div class="pipeline-icon">🎵</div>
           <div class="pipeline-label">Beatport</div>
           <div class="pipeline-sub">Streaming Playlists</div>
           <div class="pipeline-badge idle" id="badge-beatport">–</div>
         </div>
         <div class="pipeline-arrow" id="parrow-1">→</div>
-        <div class="pipeline-node" id="pnode-djpl">
+        <div class="pipeline-node" id="pnode-djpl" title="Bruecke: Konvertiert Beatport-Playlists in Lexicon-kompatibles Format. Einziger Weg mit vollstaendigen Metadaten.">
           <div class="pipeline-icon">🌐</div>
           <div class="pipeline-label">DJPlaylists.fm</div>
           <div class="pipeline-sub">Brücke & Konvertierung</div>
           <div class="pipeline-badge idle" id="badge-djpl">Prüfen…</div>
         </div>
         <div class="pipeline-arrow" id="parrow-2">→</div>
-        <div class="pipeline-node" id="pnode-lexicon">
+        <div class="pipeline-node" id="pnode-lexicon" title="Library-Manager: Empfaengt Playlists von DJPL.fm, exportiert nach Engine DJ. Lokaler Server auf Port 48624.">
           <div class="pipeline-icon">📚</div>
           <div class="pipeline-label">Lexicon DJ</div>
           <div class="pipeline-sub">Library-Management</div>
           <div class="pipeline-badge idle" id="badge-lexicon">Prüfen…</div>
         </div>
         <div class="pipeline-arrow" id="parrow-3">→</div>
-        <div class="pipeline-node" id="pnode-engine">
+        <div class="pipeline-node" id="pnode-engine" title="Ziel-Library: Engine DJ Datenbank (m.db). Tracks + Playlists werden hier gespeichert.">
           <div class="pipeline-icon">💿</div>
           <div class="pipeline-label">Engine DJ</div>
           <div class="pipeline-sub">Lokale Library</div>
           <div class="pipeline-badge idle" id="badge-engine">–</div>
         </div>
         <div class="pipeline-arrow" id="parrow-4">→</div>
-        <div class="pipeline-node" id="pnode-usb">
+        <div class="pipeline-node" id="pnode-usb" title="Hardware: USB-Stick oder SSD mit Engine-DB fuer Denon Prime 4+ Standalone-Player. Automatische Detection unter /Volumes/.">
           <div class="pipeline-icon">🖲</div>
           <div class="pipeline-label">USB / Prime 4+</div>
           <div class="pipeline-sub">Denon Hardware</div>
@@ -153,8 +153,8 @@ function buildSyncTabHtml() {
       <div class="section-head">
         <h2>Beatport → DJPlaylists.fm (Diff-Import)</h2>
         <div class="actions compact">
-          <button id="syncDiffLoadBtn" type="button">Diff laden</button>
-          <button id="syncDiffImportBtn" class="primary" type="button" disabled>Fehlende importieren</button>
+          <button id="syncDiffLoadBtn" type="button" title="Vergleicht alle Beatport-Playlists mit DJPL.fm und zeigt welche fehlen">Diff laden</button>
+          <button id="syncDiffImportBtn" class="primary" type="button" disabled title="Importiert fehlende Playlists einzeln, sequenziell nach DJPlaylists.fm (mit Delay + Fortschritt)">Fehlende importieren</button>
         </div>
       </div>
       <p class="callout info" style="margin-bottom:0.75rem">
@@ -182,8 +182,8 @@ function buildSyncTabHtml() {
       <div class="section-head">
         <h2>DJPlaylists.fm → Lexicon (Alle Playlisten)</h2>
         <div class="actions compact">
-          <button id="syncDjplScrapeBtn" type="button">Playlisten laden</button>
-          <button id="syncDjplToLexiconBtn" class="primary" type="button" disabled>
+          <button id="syncDjplScrapeBtn" type="button" title="Liest alle Playlists aus deinem DJPlaylists.fm-Account via Supabase aus">Playlisten laden</button>
+          <button id="syncDjplToLexiconBtn" class="primary" type="button" disabled title="Speichert alle geladenen DJPL.fm-Playlists sequenziell in Lexicon DJ (POST /api/playlist/save)">
             Alle → Lexicon speichern
           </button>
         </div>
