@@ -269,8 +269,8 @@ function buildSearchTabHtml() {
         <button class="primary" id="srchResetBtn" type="button" style="padding:6px 12px;font-size:12px">Reset</button>
       </div>
       <div class="srch-filters">
-        <div class="srch-fg"><label>Genre</label><select id="srchGenre"><option value="">Alle</option></select></div>
-        <div class="srch-fg"><label>Sub-Genre</label><select id="srchSubGenre"><option value="">Alle</option></select></div>
+        <div class="srch-fg srch-fg-wide"><label>Genre <span id="srchGenreCount" class="srch-chip-count"></span></label><div id="srchGenreChips" class="srch-chips"></div><select id="srchGenre" hidden><option value="">Alle</option></select></div>
+        <div class="srch-fg srch-fg-wide"><label>Sub-Genre <span id="srchSubGenreCount" class="srch-chip-count"></span></label><div id="srchSubGenreChips" class="srch-chips"></div><select id="srchSubGenre" hidden><option value="">Alle</option></select></div>
         <div class="srch-fg"><label>BPM Min</label><input type="number" id="srchBpmMin" min="60" max="200" placeholder="60"></div>
         <div class="srch-fg"><label>BPM Max</label><input type="number" id="srchBpmMax" min="60" max="200" placeholder="200"></div>
         <div class="srch-fg"><label>Tonart</label><select id="srchKey"><option value="">Alle</option></select></div>
@@ -864,6 +864,7 @@ function processLoadedData(data) {
     initFilters();
     initSubGenreFilter();
     initLabelFilter();
+    initChipFilters();
 
     // Render everything
     renderDashboard();
@@ -1026,6 +1027,80 @@ function initSubGenreFilter() {
   });
 }
 
+// ─── Multi-Select Chips für Genre / Sub-Genre (v3.5.2) ───────────────────────
+const selectedGenres = new Set();
+const selectedSubGenres = new Set();
+
+function renderGenreChips() {
+  const host = $("srchGenreChips");
+  if (!host || !allTracks) return;
+  const map = new Map();
+  allTracks.forEach((t) => { if (t.g) map.set(t.g, (map.get(t.g) || 0) + 1); });
+  const entries = [...map.entries()].sort((a, b) => b[1] - a[1]);
+  host.innerHTML = entries.map(([g, cnt]) => {
+    const on = selectedGenres.has(g) ? "on" : "";
+    return `<button type="button" class="srch-chip ${on}" data-g="${esc(g)}">${esc(g)} <span class="c">${fmt(cnt)}</span></button>`;
+  }).join("");
+  const cnt = $("srchGenreCount");
+  if (cnt) cnt.textContent = selectedGenres.size ? `(${selectedGenres.size} aktiv)` : "";
+}
+
+function renderSubGenreChips() {
+  const host = $("srchSubGenreChips");
+  if (!host || !allTracks) return;
+  const map = new Map();
+  allTracks.forEach((t) => {
+    if (!t.sg) return;
+    if (selectedGenres.size && !selectedGenres.has(t.g)) return;
+    map.set(t.sg, (map.get(t.sg) || 0) + 1);
+  });
+  const entries = [...map.entries()].sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    host.innerHTML = `<span class="srch-chips-empty">${selectedGenres.size ? "Keine Sub-Genres in den gewählten Genres." : "Genre wählen, um Sub-Genres zu sehen."}</span>`;
+  } else {
+    host.innerHTML = entries.map(([sg, cnt]) => {
+      const on = selectedSubGenres.has(sg) ? "on" : "";
+      return `<button type="button" class="srch-chip ${on}" data-sg="${esc(sg)}">${esc(sg)} <span class="c">${fmt(cnt)}</span></button>`;
+    }).join("");
+  }
+  // Remove now-invalid sub-genre selections
+  for (const sg of [...selectedSubGenres]) {
+    if (!map.has(sg)) selectedSubGenres.delete(sg);
+  }
+  const cnt = $("srchSubGenreCount");
+  if (cnt) cnt.textContent = selectedSubGenres.size ? `(${selectedSubGenres.size} aktiv)` : "";
+}
+
+function initChipFilters() {
+  const gh = $("srchGenreChips");
+  const sh = $("srchSubGenreChips");
+  if (gh && !gh.dataset.bound) {
+    gh.dataset.bound = "1";
+    gh.addEventListener("click", (e) => {
+      const btn = e.target.closest(".srch-chip");
+      if (!btn) return;
+      const g = btn.dataset.g;
+      if (selectedGenres.has(g)) selectedGenres.delete(g); else selectedGenres.add(g);
+      renderGenreChips();
+      renderSubGenreChips();
+      doSearch();
+    });
+  }
+  if (sh && !sh.dataset.bound) {
+    sh.dataset.bound = "1";
+    sh.addEventListener("click", (e) => {
+      const btn = e.target.closest(".srch-chip");
+      if (!btn) return;
+      const sg = btn.dataset.sg;
+      if (selectedSubGenres.has(sg)) selectedSubGenres.delete(sg); else selectedSubGenres.add(sg);
+      renderSubGenreChips();
+      doSearch();
+    });
+  }
+  renderGenreChips();
+  renderSubGenreChips();
+}
+
 function initLabelFilter() {
   const sel = $("srchLabel");
   if (!allTracks || sel.children.length > 1) return;
@@ -1040,6 +1115,10 @@ function clearFilters(triggerSearch = true) {
   $("srchQ").value = "";
   $("srchGenre").value = "";
   $("srchSubGenre").value = "";
+  selectedGenres.clear();
+  selectedSubGenres.clear();
+  if (typeof renderGenreChips === "function") renderGenreChips();
+  if (typeof renderSubGenreChips === "function") renderSubGenreChips();
   $("srchBpmMin").value = "";
   $("srchBpmMax").value = "";
   $("srchKey").value = "";
@@ -1107,11 +1186,34 @@ function setSortScope(scope) {
 
 // ─── Search & Render ─────────────────────────────────────────────────────────
 
+// Wildcard-Suche: * → beliebig viele Zeichen, ? → ein Zeichen.
+// Ohne Wildcards: normales substring-includes (wie bisher).
+function _buildQueryMatcher(raw) {
+  const q = raw.toLowerCase().trim();
+  if (!q) return null;
+  if (!q.includes("*") && !q.includes("?")) {
+    return (s) => s.toLowerCase().includes(q);
+  }
+  // Wildcard → Regex: escape alles außer * und ?
+  const pattern = q.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+                    .replace(/\*/g, ".*")
+                    .replace(/\?/g, ".");
+  try {
+    const re = new RegExp(pattern);
+    return (s) => re.test(s.toLowerCase());
+  } catch {
+    return (s) => s.toLowerCase().includes(q);
+  }
+}
+
 function doSearch() {
   if (!allTracks) return;
-  const qVal = ($("srchQ")?.value ?? "").toLowerCase();
+  const qVal = ($("srchQ")?.value ?? "");
+  const qMatch = _buildQueryMatcher(qVal);
   const genre = $("srchGenre")?.value ?? "";
   const subGenre = $("srchSubGenre")?.value ?? "";
+  const useGenreSet = selectedGenres.size > 0;
+  const useSubSet = selectedSubGenres.size > 0;
   const bpmMin = parseInt($("srchBpmMin")?.value) || 0;
   const bpmMax = parseInt($("srchBpmMax")?.value) || 999;
   const key = $("srchKey")?.value ?? "";
@@ -1123,9 +1225,11 @@ function doSearch() {
 
   const src = getSearchSource();
   searchResults = src.filter((t) => {
-    if (qVal && !((t.title || "").toLowerCase().includes(qVal) || (t.artists || "").toLowerCase().includes(qVal) || (t.label || "").toLowerCase().includes(qVal) || (t.release || "").toLowerCase().includes(qVal))) return false;
-    if (genre && t.genre !== genre) return false;
-    if (subGenre && t.sub_genre !== subGenre) return false;
+    if (qMatch && !(qMatch(t.title || "") || qMatch(t.artists || "") || qMatch(t.label || "") || qMatch(t.release || ""))) return false;
+    if (useGenreSet) { if (!selectedGenres.has(t.genre)) return false; }
+    else if (genre && t.genre !== genre) return false;
+    if (useSubSet) { if (!selectedSubGenres.has(t.sub_genre)) return false; }
+    else if (subGenre && t.sub_genre !== subGenre) return false;
     const effectiveBpm = useNorm ? t.bpmNorm : t.bpm;
     if (effectiveBpm && (effectiveBpm < bpmMin || effectiveBpm > bpmMax)) return false;
     if (key && t.key !== key) return false;
@@ -1174,6 +1278,7 @@ function renderSearchPage() {
       <td>${t.year || "\u2014"}</td>
       <td style="font-size:11px">${esc(t.label) || "\u2014"}</td>
       <td><span class="srch-badge ${badgeCls(t.count)}">${t.count}</span></td>
+      <td><button class="srch-reco-btn" data-tid="${t.track_id}" title="Empfehlungen laden">&#x1F52E;</button></td>
     </tr>`;
   }).join("");
 
@@ -1391,3 +1496,72 @@ function renderBpmFlow() {
       return `<circle cx="${x}" cy="${y}" r="3" fill="var(--primary)"><title>${b} BPM</title></circle>`;
     }).join("");
 }
+
+// ─── Recommendations Panel (Feature 2) ─────────────────────────────────────
+(function initRecoPanel() {
+  // Delegierter Click-Handler auf Reco-Buttons in der Suchtabelle
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".srch-reco-btn");
+    if (!btn) return;
+    const tid = Number(btn.dataset.tid);
+    if (!tid || !window.recommendationsApi) return;
+
+    btn.textContent = "…";
+    btn.disabled = true;
+    try {
+      const result = await window.recommendationsApi.forTrack(tid, 20);
+      showRecoPanel(tid, result);
+    } catch (err) {
+      showRecoPanel(tid, { ok: false, error: err.message, tracks: [] });
+    } finally {
+      btn.textContent = "\u{1F52E}";
+      btn.disabled = false;
+    }
+  });
+
+  function showRecoPanel(trackId, result) {
+    let panel = document.getElementById("srchRecoPanel");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "srchRecoPanel";
+      panel.className = "srch-reco-panel";
+      const container = document.getElementById("search-content") || document.getElementById("tab-search");
+      if (container) container.appendChild(panel);
+    }
+
+    const source = allTracks?.find((t) => t.track_id === trackId);
+    const sourceTitle = source ? `${source.title} — ${source.artists}` : `Track ${trackId}`;
+
+    if (!result.ok || !result.tracks?.length) {
+      panel.innerHTML = `
+        <div class="srch-reco-head">
+          <strong>Empfehlungen für:</strong> ${esc(sourceTitle)}
+          <button class="srch-reco-close" title="Schließen">&times;</button>
+        </div>
+        <p style="color:var(--muted);padding:12px">${esc(result.error || "Keine Empfehlungen gefunden.")}</p>
+      `;
+      panel.querySelector(".srch-reco-close")?.addEventListener("click", () => panel.remove());
+      return;
+    }
+
+    panel.innerHTML = `
+      <div class="srch-reco-head">
+        <strong>Empfehlungen für:</strong> ${esc(sourceTitle)} <span style="color:var(--muted)">(${result.tracks.length} Vorschläge${result.endpoint ? " via " + result.endpoint.split("/").slice(-2, -1)[0] : ""})</span>
+        <button class="srch-reco-close" title="Schließen">&times;</button>
+      </div>
+      <div class="srch-reco-list">
+        ${result.tracks.map((r) => `
+          <div class="srch-reco-item">
+            ${r.image ? `<img src="${esc(r.image.replace("{w}", "60").replace("{h}", "60"))}" class="srch-reco-thumb" loading="lazy" />` : ""}
+            <div class="srch-reco-meta">
+              <div class="srch-reco-title">${esc(r.title)} <span style="color:var(--muted);font-size:10px">${esc(r.mix_name)}</span></div>
+              <div class="srch-reco-artist">${esc(r.artists)} · ${esc(r.genre)} · ${r.bpm || "?"} BPM · ${esc(r.key)}</div>
+              <div class="srch-reco-label" style="font-size:10px;color:var(--muted)">${esc(r.label)}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    panel.querySelector(".srch-reco-close")?.addEventListener("click", () => panel.remove());
+  }
+})();

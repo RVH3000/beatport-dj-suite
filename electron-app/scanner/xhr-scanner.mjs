@@ -279,6 +279,53 @@ export class BeatportXhrClient {
     log(`Playlist ${playlistId} gelöscht.`);
     return { ok: true };
   }
+
+  // ─── Recommendations (Discovery + Fetch) ────────────────────────────────
+  async fetchRecommendations(trackId, limit = 20) {
+    // Multi-Endpoint-Discovery: Beatport-API-Pfad ist nicht dokumentiert,
+    // wir probieren die wahrscheinlichsten Varianten durch.
+    const endpoints = [
+      `${API_BASE}/catalog/tracks/${trackId}/recommendations/?per_page=${limit}`,
+      `${API_BASE}/catalog/tracks/${trackId}/similar/?per_page=${limit}`,
+      `${API_BASE}/my/recommendations/?track_id=${trackId}&per_page=${limit}`,
+      `${API_BASE}/catalog/recommendations/?track_ids=${trackId}&per_page=${limit}`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const payload = await this.fetch(url);
+        const results = Array.isArray(payload?.results) ? payload.results : Array.isArray(payload) ? payload : [];
+        if (results.length > 0) {
+          log(`Recommendations für Track ${trackId}: ${results.length} Treffer (via ${url.split("?")[0]})`);
+          return {
+            ok: true,
+            trackId,
+            endpoint: url.split("?")[0],
+            count: results.length,
+            tracks: results.map((t) => ({
+              id: t.id,
+              title: t.name || t.title || "",
+              mix_name: t.mix_name || "",
+              artists: (t.artists || []).map((a) => a.name || a).join(", "),
+              genre: t.genre?.name || "",
+              bpm: t.bpm,
+              key: t.key?.name || t.key || "",
+              label: t.label?.name || "",
+              release: t.release?.name || "",
+              length_ms: t.length_ms || t.length,
+              image: t.image?.dynamic_uri || t.image?.uri || "",
+            })),
+          };
+        }
+      } catch (err) {
+        // Endpoint nicht vorhanden oder Auth-Fehler — nächsten probieren
+        if (err.message.includes("Auth-Fehler")) throw err;
+        continue;
+      }
+    }
+
+    return { ok: false, trackId, error: "Kein Recommendations-Endpoint gefunden", tracks: [] };
+  }
 }
 
 // ─── Normalisierung ────────────────────────────────────────────────────────────

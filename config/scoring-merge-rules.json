@@ -1,0 +1,33 @@
+{
+  "_doc": "Regeln für den Engine-DB → scoring-data.json Merge. Strategien: keep_old | fill_missing | overwrite_newer | overwrite_always | ask. 'ask' sammelt echte Konflikte (beide Seiten gesetzt, unterschiedlich) und stellt sie am Ende im UI zur Wahl.",
+  "version": 1,
+  "default_strategy": "fill_missing",
+  "field_rules": {
+    "sub_genre":   "fill_missing",
+    "bpm":         "ask",
+    "key":         "ask",
+    "camelot":     "fill_missing",
+    "year":        "fill_missing",
+    "label":       "ask",
+    "length_ms":   "fill_missing",
+    "rating":      "overwrite_newer",
+    "play_count":  "overwrite_newer",
+    "last_played": "overwrite_newer",
+    "plays_total": "overwrite_newer",
+    "file_path":   "overwrite_always",
+    "comment":     "fill_missing"
+  },
+  "match": {
+    "primary":  "beatport_id",
+    "fallback": "title_artist_mix"
+  },
+  "sources": {
+    "scoring_data": "~/Documents/Claude/Projects/Beatport PL WIZ/scoring-data.json",
+    "engine_database_folder": "~/Music/Engine Library/Database2"
+  },
+  "outputs": {
+    "preview":     "config/scoring-merge-preview.json",
+    "audit_log":   "config/scoring-merge-log.jsonl",
+    "backup_dir":  "config/scoring-backups"
+  }
+}

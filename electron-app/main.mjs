@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
+import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -508,6 +509,13 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle("engine:discover-all-databases", async () => {
+    return runPythonJson(
+      "electron-app/integrations/python/engine_tools.py",
+      ["discover-all-databases"],
+    );
+  });
+
   ipcMain.handle("engine:inspect-schema", async (_event, databaseFolder) => {
     const args = ["inspect-schema"];
     if (databaseFolder) args.unshift("--database-folder", databaseFolder);
@@ -515,6 +523,151 @@ app.whenReady().then(() => {
       "electron-app/integrations/python/engine_tools.py",
       args,
     );
+  });
+
+  // ── Scoring-Data ↔ Engine DB Merge (non-destruktiv, Preview → Apply) ───────
+  const scoringMergeRulesPath = resolveBundledPath("config/scoring-merge-rules.json");
+  const scoringMergePreviewPath = resolveBundledPath("config/scoring-merge-preview.json");
+  const scoringMergeLogPath = resolveBundledPath("config/scoring-merge-log.jsonl");
+  const scoringMergeBackupDir = resolveBundledPath("config/scoring-backups");
+
+  ipcMain.handle("scoring:merge-engine-preview", async () => {
+    const repoRoot = path.dirname(resolveBundledPath("package.json"));
+    return runPythonJson(
+      "electron-app/integrations/python/merge_engine_scoring.py",
+      [
+        "--config",   scoringMergeRulesPath,
+        "--out",      scoringMergePreviewPath,
+        "--repo-root", repoRoot,
+      ],
+    );
+  });
+
+  ipcMain.handle("scoring:merge-engine-read-preview", async () => {
+    try {
+      const raw = await fs.readFile(scoringMergePreviewPath, "utf8");
+      return JSON.parse(raw);
+    } catch (err) {
+      return { ok: false, error: `Preview nicht vorhanden: ${err.message}` };
+    }
+  });
+
+  ipcMain.handle("scoring:merge-engine-apply", async (_event, options = {}) => {
+    // options: { enrichments: boolean, overwrites: boolean,
+    //            conflictResolutions: { "trackId|field": "old"|"new"|"skip" } }
+    const applyEnrich = options.enrichments !== false;
+    const applyOverwrite = options.overwrites === true;
+    const resolutions = options.conflictResolutions || {};
+
+    // 1. Regeln + Preview lesen
+    const rulesRaw = await fs.readFile(scoringMergeRulesPath, "utf8");
+    const rules = JSON.parse(rulesRaw);
+    const previewRaw = await fs.readFile(scoringMergePreviewPath, "utf8");
+    const preview = JSON.parse(previewRaw);
+    if (!preview.ok) {
+      throw new Error(`Preview ungültig: ${preview.error || "unbekannt"}`);
+    }
+
+    // 2. scoring-data.json laden
+    const scoringPath = rules.sources.scoring_data.replace(/^~/, os.homedir());
+    const scoringRaw = await fs.readFile(scoringPath, "utf8");
+    const scoring = JSON.parse(scoringRaw);
+    if (!Array.isArray(scoring.all_tracks)) {
+      throw new Error("scoring-data.json hat kein all_tracks Array.");
+    }
+
+    // 3. Backup anlegen
+    await fs.mkdir(scoringMergeBackupDir, { recursive: true });
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const backupPath = path.join(scoringMergeBackupDir, `scoring-data.json.backup_${ts}`);
+    await fs.copyFile(scoringPath, backupPath);
+
+    // 4. Index aller Tracks nach track_id (Kurzform 'i')
+    const byId = new Map();
+    for (const t of scoring.all_tracks) {
+      if (typeof t.i === "number") byId.set(t.i, t);
+    }
+
+    // Kurz-↔Langform Mapping (spiegelt SHORT_TO_LONG in Python)
+    const LONG_TO_SHORT = {
+      track_id: "i", title: "t", mix_name: "m", artists: "a", genre: "g",
+      bpm: "b", key: "k", camelot: "c", year: "y", label: "l",
+      length_ms: "ms", release: "r",
+    };
+    // Zusätzliche Felder die in scoring-data als Langform abgelegt werden
+    const PASSTHROUGH_FIELDS = new Set([
+      "sub_genre", "rating", "play_count", "last_played", "plays_total",
+      "file_path", "comment",
+    ]);
+    const fieldKey = (f) => LONG_TO_SHORT[f] || f;
+
+    const applied = { enrich: 0, overwrite: 0, conflict: 0, skipped: 0 };
+    const logEntries = [];
+
+    function writeField(track, field, value, source) {
+      const k = fieldKey(field);
+      const before = track[k];
+      track[k] = value;
+      logEntries.push({
+        ts: new Date().toISOString(),
+        track_id: track.i,
+        field,
+        before,
+        after: value,
+        source, // "enrich" | "overwrite" | "conflict:new"
+      });
+    }
+
+    // 5. Enrichments anwenden
+    if (applyEnrich) {
+      for (const en of preview.enrichments || []) {
+        const track = byId.get(en.track_id);
+        if (!track) { applied.skipped++; continue; }
+        writeField(track, en.field, en.value, "enrich");
+        applied.enrich++;
+      }
+    }
+
+    // 6. Silent overwrites (wenn aktiviert)
+    if (applyOverwrite) {
+      for (const ov of preview.overwrites || []) {
+        const track = byId.get(ov.track_id);
+        if (!track) { applied.skipped++; continue; }
+        writeField(track, ov.field, ov.new, "overwrite");
+        applied.overwrite++;
+      }
+    }
+
+    // 7. Konflikt-Auflösungen anwenden
+    for (const c of preview.conflicts || []) {
+      const key = `${c.track_id}|${c.field}`;
+      const resolution = resolutions[key];
+      if (!resolution || resolution === "skip") { applied.skipped++; continue; }
+      const track = byId.get(c.track_id);
+      if (!track) { applied.skipped++; continue; }
+      if (resolution === "new") {
+        writeField(track, c.field, c.new, "conflict:new");
+        applied.conflict++;
+      } else {
+        applied.skipped++;
+      }
+    }
+
+    // 8. scoring-data.json schreiben
+    await fs.writeFile(scoringPath, JSON.stringify(scoring), "utf8");
+
+    // 9. Audit-Log anhängen
+    await fs.mkdir(path.dirname(scoringMergeLogPath), { recursive: true });
+    const logText = logEntries.map((e) => JSON.stringify(e)).join("\n") + (logEntries.length ? "\n" : "");
+    if (logText) await fs.appendFile(scoringMergeLogPath, logText, "utf8");
+
+    return {
+      ok: true,
+      backup: backupPath,
+      applied,
+      log_entries: logEntries.length,
+      scoring_path: scoringPath,
+    };
   });
 
   // ── Playlist WIZ — XHR-basierte CRUD-Operationen ─────────────────────────
@@ -642,6 +795,34 @@ app.whenReady().then(() => {
     } catch (error) {
       throw new Error(toErrorMessage(error));
     }
+  });
+
+  ipcMain.handle("recommendations:for-track", async (_event, trackId, limit = 20) => {
+    try {
+      const client = await createXhrClient();
+      return await client.fetchRecommendations(trackId, limit);
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  // Groof.app Integration
+  let groofClient = null;
+  async function getGroofClient() {
+    if (!groofClient) {
+      groofClient = await import("./api/groof-client.mjs");
+    }
+    return groofClient;
+  }
+
+  ipcMain.handle("recommendations:via-groof", async (_event, trackIds, limit = 20) => {
+    const gc = await getGroofClient();
+    return gc.fetchRecommendations({ trackIds, limit });
+  });
+
+  ipcMain.handle("recommendations:groof-status", async () => {
+    const gc = await getGroofClient();
+    return gc.getGroofStatus();
   });
 
   ipcHandle("cache:get-status", (config) => getCacheStatus(config));

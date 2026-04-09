@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Beatport Database Specialist</p>
-        <h1>Beatport DJ Suite</h1>
+        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.0</span></h1>
       </div>
       <p class="subtitle">
         Scanner, Analyse, Playlist-Management, Automation &amp; Export
@@ -20,224 +20,237 @@
       </p>
     </header>
 
+    <nav class="group-bar" role="tablist" aria-label="Workflow-Gruppen">
+      <button class="group active" data-group="library"  aria-selected="true"  title="Datenquellen & Caches: Scanner, Arbeitsbestand, Ergebnisse, Engine-Import, Löschen">📚 Library</button>
+      <button class="group"        data-group="explore"  aria-selected="false" title="Daten verstehen: Suchen, Filtern, Dashboards, Playlist-Overlap-Analyse">🔍 Explore</button>
+      <button class="group"        data-group="build"    aria-selected="false" title="Playlists erstellen: aus Filtern, Live-Beatport (Wiz), Quick Actions">🛠 Build</button>
+      <button class="group"        data-group="pipeline" aria-selected="false" title="Transfer & Export: Sync nach Lexicon/Engine, Export in DJ-Formate, Automation">🚀 Pipeline</button>
+      <button class="group"        data-group="settings" aria-selected="false" title="Konfiguration: Auth, Pfade, Presets">⚙️ Settings</button>
+    </nav>
+
     <nav class="tab-bar" role="tablist">
-      <button class="tab active" role="tab" aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
-      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-search"     data-tab="search">Suche & Filter</button>
-      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
-      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
-      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-sync"        data-tab="sync">Sync-Pipeline</button>
-      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-automation" data-tab="automation">Automation</button>
-      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-export"     data-tab="export">Export</button>
-      <button class="tab"        role="tab" aria-selected="false" aria-controls="tab-settings"   data-tab="settings">Einstellungen</button>
+      <button class="tab active" role="tab" data-group="library"  aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
+      <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-search"     data-tab="search">Suche & Filter</button>
+      <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
+      <button class="tab"        role="tab" data-group="build"    aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
+      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-sync"       data-tab="sync">Sync</button>
+      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-export"     data-tab="export">Export</button>
+      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-automation" data-tab="automation">Automation</button>
+      <button class="tab"        role="tab" data-group="settings" aria-selected="false" aria-controls="tab-settings"   data-tab="settings">Einstellungen</button>
     </nav>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- TAB 1: Scanner (bestehende UI)                                     -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <main id="tab-scanner" class="tab-panel active" role="tabpanel">
-      <div class="layout">
-        <section class="panel hero">
-          <div class="hero-grid">
-            <div>
-              <h2>App-Status</h2>
-              <p id="status" class="status idle">Bereit</p>
-              <div id="appWarnings" class="callouts"></div>
-            </div>
-            <div>
-              <h2>Build & Pfad</h2>
-              <dl id="appInfo" class="meta-list"></dl>
-            </div>
-            <div>
-              <h2>Installationen</h2>
-              <div id="appCopies" class="stack-list empty">Noch nicht geladen</div>
-            </div>
+      <!-- ─── Library Sub-Tabs ─── -->
+      <nav class="sub-tabs library-subnav" role="tablist" aria-label="Library">
+        <button class="sub-tab active" data-libsub="scan"    title="Cockpit: Delta-Sync starten, Runs verwalten, Sicherheit & Session-Kontrolle, erweiterte Scan-Konfiguration">Scanner</button>
+        <button class="sub-tab"        data-libsub="working" title="Aktueller Playlist-Arbeitsbestand: Auswahl für Tiefenanalyse, Duplikate/offene Playlists filtern">Arbeitsbestand</button>
+        <button class="sub-tab"        data-libsub="results" title="Scan-Ergebnisse: Duplikate, Tiefenanalyse pro Playlist, Track-Inhalt einzelner Playlists">Ergebnis</button>
+        <button class="sub-tab"        data-libsub="engine"  title="Engine DJ DB → scoring-data.json Merge: History, Ratings, Play-Counts importieren (read-only, mit Backup)">Engine-Import</button>
+        <button class="sub-tab"        data-libsub="delete"  title="Gefahrenzone: Batch-Löschung bestätigter Duplikate im aktiven Run">Löschen</button>
+      </nav>
+
+      <div class="sub-content active" data-libsub="scan">
+      <div class="layout cockpit">
+
+        <!-- ─── Status-Bar (Status + Session-Actions vereint) ─── -->
+        <section class="status-bar">
+          <p id="status" class="status idle">Bereit</p>
+          <div class="status-actions">
+            <button id="openBeatportWindowBtn" type="button" title="Internes Beatport-Fenster öffnen (für Login + manuelle Checks)">🎵 Beatport öffnen</button>
+            <button id="authTestBtn" type="button" title="Prüft aktuellen Session-Status: Cookie gültig? Token frisch? Keine Navigation">✓ Test</button>
+            <button id="authReconnectBtn" type="button" class="primary-soft" title="Session neu aufbauen: verwirft alten Token und holt frischen via interne Beatport-Page">↻ Reconnect</button>
+            <button id="authExportContextBtn" type="button" title="Bearer-Token + Cookies als JSON exportieren (für externe XHR-Tools)">⇪ API-Kontext</button>
           </div>
+          <div id="appWarnings" class="callouts inline"></div>
         </section>
 
-        <section class="panel">
-          <div class="section-head">
-            <h2>Sicherheit & Session</h2>
-            <div class="actions compact">
-              <button id="openBeatportWindowBtn" type="button">Beatport-Fenster öffnen</button>
-              <button id="authTestBtn" type="button">Session testen</button>
-              <button id="authReconnectBtn" type="button">Neu verbinden</button>
-              <button id="authExportContextBtn" type="button" title="API-Token für das XHR-Tool exportieren">API-Kontext exportieren</button>
+        <!-- ─── Cockpit (2 Spalten: Action / Run) ─── -->
+        <div class="cockpit-grid">
+
+          <!-- Hero Action -->
+          <section class="panel cockpit-action">
+            <h2 class="cockpit-h">Scan <span class="help-icon" data-tip="Delta-Sync startet einen Chrome-DevTools-Scan der Beatport-DJ-Weboberfläche.
+
+Schritte:
+1. Öffnet die interne Beatport-Session (oder externen Fallback)
+2. Iteriert durch deine Playlists
+3. Holt Track-Metadaten via XHR (bevorzugt), Route, oder DOM
+4. Speichert als neuer Run im Archiv (alte Runs bleiben unangetastet)
+
+'Cache neu aufbauen' verwirft den lokalen Arbeitsbestand.
+'Diagnose-Komplettlauf' prüft Verbindung + Session + eine Test-Playlist.">?</span></h2>
+            <button id="discoverBtn" class="primary hero-btn" title="Neuen Run starten: holt alle Playlists + Delta-Änderungen von Beatport">▶ Delta-Sync starten</button>
+            <div class="quick-actions">
+              <button id="rebuildCacheBtn" type="button" title="Lokalen Cache komplett verwerfen und aus Runs neu aufbauen">Cache neu aufbauen</button>
+              <button id="exportCacheCsvBtn" type="button" title="Kompletten lokalen Arbeitsbestand als CSV exportieren">CSV exportieren</button>
+              <button id="quickScanBtn" type="button" title="Diagnose-Lauf: prüft Verbindung, Session und eine Test-Playlist ohne kompletten Scan">Diagnose-Komplettlauf</button>
+              <button id="analyzeBtn" type="button" title="Tiefenanalyse der im Arbeitsbestand markierten Playlists (Drama-Score, BPM-Cluster)">Auswahl analysieren</button>
             </div>
-          </div>
-
-          <div class="field-grid">
-            <label>
-              Laufzeitmodus
-              <select id="authMode">
-                <option value="internal">Interne Beatport-Session</option>
-                <option value="external-fallback">Externer Fallback</option>
-              </select>
-            </label>
-            <label>
-              Recovery
-              <select id="recoveryPolicy">
-                <option value="aggressive">Aggressive Recovery</option>
-                <option value="manual">Nur manuell</option>
-              </select>
-            </label>
-            <label class="check">
-              <input id="fallbackEnabled" type="checkbox" />
-              Externen Fallback erlauben, wenn die interne Session nicht bereit ist
-            </label>
-          </div>
-
-          <div class="callouts compact-callouts">
-            <div class="callout info">
-              Passwort wird nicht gespeichert. Die App hält nur Cookies und Storage
-              im internen Beatport-Profil und öffnet bei Session-Verlust das interne
-              Beatport-Fenster zur erneuten Anmeldung.
+            <div class="quick-actions secondary">
+              <button id="pauseBtn" type="button" title="Aktuell laufenden Scan pausieren (sicher unterbrechen, später mit Resume fortsetzen)">⏸ Pause</button>
+              <button id="resumeBtn" type="button" title="Pausierten oder abgebrochenen Scan ab der letzten Position fortsetzen">⏵ Resume</button>
+              <button id="resetBtn" type="button" title="Konfiguration auf Werkseinstellungen zurücksetzen (keine Daten werden gelöscht)">↺ Defaults</button>
             </div>
-          </div>
-
-          <dl id="authMeta" class="meta-list"></dl>
-          <div id="authCallouts" class="callouts"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <h2>Run-Archiv</h2>
-            <div class="actions compact">
-              <button id="refreshRunsBtn" type="button">Runs neu laden</button>
-              <button id="migrateLegacyBtn" type="button">Legacy-Runs migrieren</button>
-              <button id="exportZipBtn" type="button">ZIP exportieren</button>
-              <button id="openArchiveDirBtn" type="button">Archiv öffnen</button>
-              <button id="openExportDirBtn" type="button">Export öffnen</button>
+            <div id="cacheStatus" class="detail-summary empty">
+              Lokaler Arbeitsbestand wird geladen.
             </div>
-          </div>
+          </section>
 
-          <div class="field-grid">
-            <label>
-              Run-Filter
-              <select id="runFilter">
-                <option value="all">Alle</option>
-                <option value="active">Aktive</option>
-                <option value="legacy">Nur Legacy</option>
-                <option value="migrated">Nur migrierte</option>
-                <option value="completed">Nur abgeschlossen</option>
-              </select>
-            </label>
-            <label class="wide">
-              Aktiver Run
-              <select id="runSelect"></select>
-            </label>
-          </div>
+          <!-- Run-Panel -->
+          <section class="panel cockpit-run">
+            <div class="section-head">
+              <h2 class="cockpit-h">Aktiver Run <span class="help-icon" data-tip="Ein 'Run' ist ein zeitlich markierter Snapshot deiner Beatport-Library.
 
-          <div id="runOverview" class="run-overview"></div>
-          <div id="runMeta" class="detail-meta empty">Noch kein Run ausgewählt</div>
-          <div class="callouts compact-callouts">
-            <div class="callout info">
-              Bestehende Runs werden nicht überschrieben. Discovery erzeugt immer
-              einen neuen Run, Analyse und Resume arbeiten auf dem ausgewählten Run.
+Wichtig:
+• Delta-Sync = neuer Run (alte werden nie überschrieben)
+• Analyse & Resume = arbeiten auf dem ausgewählten Run
+• Alle Runs liegen im Archiv-Ordner
+
+Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</span></h2>
+              <div class="actions compact">
+                <button id="refreshRunsBtn" type="button" title="Runs neu laden">⟳</button>
+              </div>
             </div>
-          </div>
-          <div id="outputFiles" class="file-list"></div>
-          <div id="migrationResult" class="table-wrap empty">Noch keine Migration ausgeführt</div>
-        </section>
 
-        <section class="panel">
-          <h2>Scan-Konfiguration</h2>
-
-          <div class="field-grid">
-            <label>
-              Host
-              <input id="host" type="text" />
-            </label>
-            <label>
-              Port
-              <input id="port" type="number" min="1" max="65535" />
-            </label>
-            <label>
-              Target-Pattern
-              <input id="targetPattern" type="text" />
-            </label>
-            <label>
-              Timeout (ms)
-              <input id="timeoutMs" type="number" min="1000" step="500" />
-            </label>
-            <label class="wide">
-              Beatport App Pfad
-              <input id="appPath" type="text" />
-            </label>
-            <label>
-              Analyse-Methode
-              <select id="analysisMethod">
-                <option value="auto">Auto (XHR bevorzugen, Route, DOM Fallback)</option>
-                <option value="xhr">Nur XHR</option>
-                <option value="route">Route bevorzugen</option>
-                <option value="dom">Nur DOM</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="toggles">
-            <label class="check">
-              <input id="launchApp" type="checkbox" />
-              App/Host vor Zugriff starten (`open -na ... --remote-debugging-port`)
-            </label>
-            <label class="check">
-              <input id="autoRecoverCdp" type="checkbox" />
-              CDP-Autorecovery (Host-Browser neu starten bei Port-Fehler)
-            </label>
-          </div>
-
-          <details>
-            <summary>Erweiterte Einstellungen</summary>
-            <div class="field-grid advanced">
-              <label>
-                Sidebar-Step (px)
-                <input id="sidebarScrollStep" type="number" min="100" step="50" />
+            <div class="field-grid">
+              <label class="wide">
+                Run
+                <select id="runSelect"></select>
               </label>
               <label>
-                Deep-Wait (ms)
-                <input id="deepAnalysisWaitMs" type="number" min="100" step="50" />
+                Filter
+                <select id="runFilter">
+                  <option value="all">Alle</option>
+                  <option value="active">Aktive</option>
+                  <option value="legacy">Nur Legacy</option>
+                  <option value="migrated">Nur migrierte</option>
+                  <option value="completed">Nur abgeschlossen</option>
+                </select>
               </label>
-              <label class="wide">
-                Host Browser App Pfad
-                <input id="hostAppPath" type="text" />
-              </label>
-              <label class="wide">
-                State-Datei
-                <input id="stateFile" type="text" />
-              </label>
-              <label class="wide">
-                Duplikat-CSV
-                <input id="csvFile" type="text" />
-              </label>
-              <label class="wide">
-                Analyse-JSON
-                <input id="analysisJsonFile" type="text" />
-              </label>
-              <label class="wide">
-                Track-CSV
-                <input id="analysisTrackCsvFile" type="text" />
-              </label>
-              <label class="wide">
-                Dimensionen-CSV
-                <input id="analysisSummaryCsvFile" type="text" />
-              </label>
+            </div>
+
+            <div id="runOverview" class="run-overview"></div>
+            <div id="runMeta" class="detail-meta empty">Noch kein Run ausgewählt</div>
+
+            <div class="actions compact">
+              <button id="openArchiveDirBtn" type="button">📂 Archiv</button>
+              <button id="openExportDirBtn" type="button">📂 Export</button>
+              <button id="exportZipBtn" type="button">ZIP</button>
+              <button id="migrateLegacyBtn" type="button">Legacy migrieren</button>
+            </div>
+            <div id="outputFiles" class="file-list"></div>
+            <div id="migrationResult" class="table-wrap empty">Noch keine Migration ausgeführt</div>
+          </section>
+
+        </div>
+
+        <!-- ─── Accordions: Konfig / Sicherheit / Diagnose (default zu) ─── -->
+        <section class="panel accordion-panel">
+          <details class="cockpit-acc">
+            <summary>⚙️ Scan-Konfiguration</summary>
+            <div class="acc-body">
+              <div class="field-grid">
+                <label>Host <input id="host" type="text" /></label>
+                <label>Port <input id="port" type="number" min="1" max="65535" /></label>
+                <label>Target-Pattern <input id="targetPattern" type="text" /></label>
+                <label>Timeout (ms) <input id="timeoutMs" type="number" min="1000" step="500" /></label>
+                <label class="wide">Beatport App Pfad <input id="appPath" type="text" /></label>
+                <label>
+                  Analyse-Methode
+                  <select id="analysisMethod">
+                    <option value="auto">Auto (XHR bevorzugen, Route, DOM Fallback)</option>
+                    <option value="xhr">Nur XHR</option>
+                    <option value="route">Route bevorzugen</option>
+                    <option value="dom">Nur DOM</option>
+                  </select>
+                </label>
+              </div>
+              <div class="toggles">
+                <label class="check">
+                  <input id="launchApp" type="checkbox" />
+                  App/Host vor Zugriff starten (`open -na ... --remote-debugging-port`)
+                </label>
+                <label class="check">
+                  <input id="autoRecoverCdp" type="checkbox" />
+                  CDP-Autorecovery (Host-Browser neu starten bei Port-Fehler)
+                </label>
+              </div>
+              <details>
+                <summary>Erweiterte Pfade & Tuning</summary>
+                <div class="field-grid advanced">
+                  <label>Sidebar-Step (px) <input id="sidebarScrollStep" type="number" min="100" step="50" /></label>
+                  <label>Deep-Wait (ms) <input id="deepAnalysisWaitMs" type="number" min="100" step="50" /></label>
+                  <label class="wide">Host Browser App Pfad <input id="hostAppPath" type="text" /></label>
+                  <label class="wide">State-Datei <input id="stateFile" type="text" /></label>
+                  <label class="wide">Duplikat-CSV <input id="csvFile" type="text" /></label>
+                  <label class="wide">Analyse-JSON <input id="analysisJsonFile" type="text" /></label>
+                  <label class="wide">Track-CSV <input id="analysisTrackCsvFile" type="text" /></label>
+                  <label class="wide">Dimensionen-CSV <input id="analysisSummaryCsvFile" type="text" /></label>
+                </div>
+              </details>
             </div>
           </details>
 
-          <div class="actions">
-            <button id="discoverBtn" class="primary">Delta-Sync</button>
-            <button id="rebuildCacheBtn" type="button">Cache neu aufbauen</button>
-            <button id="exportCacheCsvBtn" type="button">CSV exportieren</button>
-            <button id="quickScanBtn" type="button">Diagnose-Komplettlauf</button>
-            <button id="analyzeBtn" type="button">Auswahl analysieren</button>
-            <button id="pauseBtn" type="button">Pause anfordern</button>
-            <button id="resumeBtn" type="button">Resume</button>
-            <button id="resetBtn" type="button">Defaults laden</button>
-          </div>
-          <div id="cacheStatus" class="detail-summary empty">
-            Lokaler Arbeitsbestand wird geladen.
-          </div>
+          <details class="cockpit-acc">
+            <summary>🔐 Sicherheit & Session</summary>
+            <div class="acc-body">
+              <p class="acc-hint">Aktions-Buttons (Öffnen / Test / Reconnect) sind oben in der Status-Bar. Hier nur Konfiguration.</p>
+              <div class="field-grid">
+                <label>
+                  Laufzeitmodus
+                  <select id="authMode">
+                    <option value="internal">Interne Beatport-Session</option>
+                    <option value="external-fallback">Externer Fallback</option>
+                  </select>
+                </label>
+                <label>
+                  Recovery
+                  <select id="recoveryPolicy">
+                    <option value="aggressive">Aggressive Recovery</option>
+                    <option value="manual">Nur manuell</option>
+                  </select>
+                </label>
+                <label class="check">
+                  <input id="fallbackEnabled" type="checkbox" />
+                  Externen Fallback erlauben, wenn die interne Session nicht bereit ist
+                </label>
+              </div>
+              <div class="callouts compact-callouts">
+                <div class="callout info">
+                  Passwort wird nicht gespeichert. Die App hält nur Cookies und Storage
+                  im internen Beatport-Profil und öffnet bei Session-Verlust das interne
+                  Beatport-Fenster zur erneuten Anmeldung.
+                </div>
+              </div>
+              <dl id="authMeta" class="meta-list"></dl>
+              <div id="authCallouts" class="callouts"></div>
+            </div>
+          </details>
+
+          <details class="cockpit-acc">
+            <summary>🩺 Diagnose & Build</summary>
+            <div class="acc-body">
+              <div class="hero-grid">
+                <div>
+                  <h3>Build & Pfad</h3>
+                  <dl id="appInfo" class="meta-list"></dl>
+                </div>
+                <div>
+                  <h3>Installationen</h3>
+                  <div id="appCopies" class="stack-list empty">Noch nicht geladen</div>
+                </div>
+              </div>
+            </div>
+          </details>
         </section>
 
+      </div><!-- /sub-content scan -->
+      </div><!-- /layout cockpit -->
+
+      <div class="sub-content" data-libsub="working">
         <section class="panel span-full">
           <div class="section-head">
             <h2>Schneller Arbeitsbestand</h2>
@@ -268,6 +281,9 @@
           </div>
         </section>
 
+      </div><!-- /sub-content working -->
+
+      <div class="sub-content" data-libsub="results">
         <section class="panel span-full">
           <h2>Ergebnis</h2>
           <h3>Duplikate</h3>
@@ -287,6 +303,80 @@
           </div>
         </section>
 
+      </div><!-- /sub-content results -->
+
+      <div class="sub-content" data-libsub="engine">
+        <section class="panel span-full">
+          <div class="section-head">
+            <h2>Engine DJ → scoring-data.json Merge <span class="help-icon" data-tip="Non-destruktiver Import von Engine-DB-Daten in deine zentrale scoring-data.json.
+
+Was importiert wird:
+• Ratings (0-5 Sterne aus Engine 0-100)
+• Play-Counts (aus Historylist: wie oft in DJ-Sessions gespielt)
+• Last-Played (echter Session-Zeitpunkt)
+• File-Paths (voller Pfad zur lokalen Audio-Datei)
+• Comments, Labels, Year
+
+Match-Strategie:
+1. Beatport-ID (aus Streaming-URI) → scoring track_id (primär)
+2. Titel+Artists (Fallback)
+
+Sicherheit:
+• Engine-DBs werden READ-ONLY geöffnet (PRAGMA query_only)
+• scoring-data.json wird VOR dem Write mit Timestamp-Backup gesichert
+• Jede Änderung wird ins Audit-Log geschrieben
+• 'Echte Konflikte' (beide Seiten gesetzt, unterschiedlich) werden dir einzeln vorgelegt">?</span></h2>
+            <div class="actions compact">
+              <button id="engMergePreviewBtn" type="button" class="primary" title="Liest Engine-DB read-only, matcht gegen scoring-data, zeigt was sich ändern würde">Preview laden</button>
+              <button id="engMergeApplyBtn"   type="button" disabled title="Backup + Write: nur die angezeigten Änderungen + deine Konflikt-Auflösungen">Änderungen anwenden</button>
+            </div>
+          </div>
+
+          <p class="acc-hint">
+            Read-only Zugriff auf <kbd>~/Music/Engine Library/Database2</kbd>.
+            Matching primär per Beatport-ID (aus Streaming-URI), Fallback über Titel+Artists.
+            Scoring-Daten werden <strong>nie überschrieben</strong>, ohne dass du die Änderung bestätigst.
+            Vor jedem Apply wird ein Backup angelegt.
+          </p>
+
+          <div id="engMergeStatus" class="detail-summary empty">
+            Noch keine Preview geladen. Klicke <strong>Preview laden</strong>.
+          </div>
+
+          <div id="engMergeStats" class="eng-stats" hidden></div>
+
+          <details id="engMergeEnrichments" class="cockpit-acc" hidden>
+            <summary>➕ Anreicherungen (leere Felder füllen) — <span id="engEnrichCount">0</span></summary>
+            <div class="acc-body">
+              <div id="engEnrichList" class="eng-list"></div>
+            </div>
+          </details>
+
+          <details id="engMergeConflicts" class="cockpit-acc" hidden>
+            <summary>⚠️ Echte Konflikte (beide Seiten gesetzt, unterschiedlich) — <span id="engConflictCount">0</span></summary>
+            <div class="acc-body">
+              <div class="actions compact">
+                <button id="engConflictsAllOld" type="button">Alle: alt behalten</button>
+                <button id="engConflictsAllNew" type="button">Alle: Engine-Wert übernehmen</button>
+                <button id="engConflictsAllSkip" type="button">Alle: überspringen</button>
+              </div>
+              <div id="engConflictList" class="eng-list"></div>
+            </div>
+          </details>
+
+          <details id="engMergeUnmatched" class="cockpit-acc" hidden>
+            <summary>🔍 Engine-Tracks ohne Scoring-Match — <span id="engUnmatchedCount">0</span></summary>
+            <div class="acc-body">
+              <p class="acc-hint">Diese Tracks existieren in Engine, aber nicht in scoring-data.json. Werden zunächst <strong>nicht</strong> automatisch importiert.</p>
+              <div id="engUnmatchedList" class="eng-list"></div>
+            </div>
+          </details>
+
+          <div id="engMergeResult" class="detail-summary empty" hidden></div>
+        </section>
+      </div><!-- /sub-content engine -->
+
+      <div class="sub-content" data-libsub="delete">
         <section class="panel warning span-full">
           <h2>Batch-Löschung</h2>
           <p>
@@ -303,7 +393,7 @@
           </div>
           <div id="deleteResultWrap" class="table-wrap empty">Noch kein Löschlauf</div>
         </section>
-      </div>
+      </div><!-- /sub-content delete -->
     </main>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->

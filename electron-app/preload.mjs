@@ -48,6 +48,12 @@ contextBridge.exposeInMainWorld("playlistApi", {
   removeTracks: (playlistId, trackIds) => ipcRenderer.invoke("playlist:remove-tracks", playlistId, trackIds),
 });
 
+contextBridge.exposeInMainWorld("recommendationsApi", {
+  forTrack: (trackId, limit) => ipcRenderer.invoke("recommendations:for-track", trackId, limit),
+  viaGroof: (trackIds, limit) => ipcRenderer.invoke("recommendations:via-groof", trackIds, limit),
+  groofStatus: () => ipcRenderer.invoke("recommendations:groof-status"),
+});
+
 contextBridge.exposeInMainWorld("exportApi", {
   chooseSavePath: (options) => ipcRenderer.invoke("export:choose-save-path", options),
   generate: (config, query) => ipcRenderer.invoke("export:generate", config, query),
@@ -76,8 +82,15 @@ contextBridge.exposeInMainWorld("analysisApi", {
 
 contextBridge.exposeInMainWorld("engineApi", {
   discoverDatabases: () => ipcRenderer.invoke("engine:discover-databases"),
+  discoverAllDatabases: () => ipcRenderer.invoke("engine:discover-all-databases"),
   importStreaming: (options) => ipcRenderer.invoke("engine:import-streaming", options),
   inspectSchema: (dbFolder) => ipcRenderer.invoke("engine:inspect-schema", dbFolder),
+});
+
+contextBridge.exposeInMainWorld("scoringMergeApi", {
+  preview: () => ipcRenderer.invoke("scoring:merge-engine-preview"),
+  readPreview: () => ipcRenderer.invoke("scoring:merge-engine-read-preview"),
+  apply: (options) => ipcRenderer.invoke("scoring:merge-engine-apply", options),
 });
 
 contextBridge.exposeInMainWorld("authApi", {

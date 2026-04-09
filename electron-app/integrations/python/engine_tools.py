@@ -60,6 +60,71 @@ def resolve_database_folder(raw_folder: str | None) -> Path | None:
     return None
 
 
+def discover_all_engine_databases() -> list[dict]:
+    """Findet alle Engine-DJ-Datenbanken: lokal + USB-Volumes.
+
+    Gibt eine Liste von Dicts zurueck:
+      { source: "local"|"usb", volume: str, path: str, databases: [...] }
+    """
+    results: list[dict] = []
+
+    # 1. Lokale Kandidaten
+    home = Path.home()
+    local_candidates = [
+        home / "Music" / "Engine Library" / "Database2",
+        home / "Music" / "Engine Library",
+        home / "Documents" / "Engine Library" / "Database2",
+        home / "Documents" / "Engine Library",
+        home / "Engine Library" / "Database2",
+    ]
+    for candidate in local_candidates:
+        folder = _resolve_candidate(candidate)
+        if folder and not any(r["path"] == str(folder) for r in results):
+            results.append(_describe_db(folder, "local", "Lokal"))
+
+    # 2. USB/externe Volumes unter /Volumes/
+    volumes_root = Path("/Volumes")
+    if volumes_root.is_dir():
+        for vol in sorted(volumes_root.iterdir()):
+            if not vol.is_dir() or vol.name.startswith("."):
+                continue
+            usb_candidates = [
+                vol / "Engine Library" / "Database2",
+                vol / "Engine Library",
+            ]
+            for candidate in usb_candidates:
+                folder = _resolve_candidate(candidate)
+                if folder and not any(r["path"] == str(folder) for r in results):
+                    results.append(_describe_db(folder, "usb", vol.name))
+
+    return results
+
+
+def _resolve_candidate(candidate: Path) -> Path | None:
+    if not candidate.exists():
+        return None
+    if candidate.name == "Database2" and candidate.is_dir():
+        return candidate
+    if (candidate / "Database2").is_dir():
+        return candidate / "Database2"
+    if any((candidate / v).exists() for v in DATABASE_FILES.values()):
+        return candidate
+    return None
+
+
+def _describe_db(folder: Path, source: str, volume: str) -> dict:
+    dbs = []
+    for key, fname in DATABASE_FILES.items():
+        p = folder / fname
+        dbs.append({"id": key, "name": fname, "exists": p.exists()})
+    return {
+        "source": source,
+        "volume": volume,
+        "path": str(folder),
+        "databases": dbs,
+    }
+
+
 def connect_readonly(db_path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(str(db_path))
     connection.row_factory = sqlite3.Row
@@ -242,6 +307,175 @@ def list_history_tracks(database_folder: Path, session_id: int, limit: int) -> d
         "ok": True,
         "sessionId": session_id,
         "tracks": [dict(row) for row in rows],
+    }
+
+
+# ─── Dump für scoring-data Merge (read-only) ────────────────────────────────
+
+
+_BEATPORT_URI_PREFIX = "streaming://Beatport%20LINK/Track/"
+
+
+def _extract_beatport_id(uri: str | None) -> int | None:
+    if not uri or not uri.startswith(_BEATPORT_URI_PREFIX):
+        return None
+    tail = uri[len(_BEATPORT_URI_PREFIX):].split("/", 1)[0].split("?", 1)[0]
+    try:
+        return int(tail)
+    except ValueError:
+        return None
+
+
+def _columns_of(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {row["name"] for row in conn.execute(f"PRAGMA table_info([{table}])").fetchall()}
+
+
+def dump_tracks_with_history(database_folder: Path, limit: int | None = None) -> dict:
+    """Liefert alle Tracks aus m.db inkl. aggregierter Historie aus hm.db.
+
+    Ausschließlich Lesezugriff (PRAGMA query_only = ON). Keine Schreib-Operationen
+    werden angefasst. Gibt eine Liste von Dicts zurück, die direkt mit den
+    Feldern aus scoring-data.json verglichen werden können.
+
+    Jeder Eintrag enthält:
+      - engine_track_id:  Interne Track.id in m.db
+      - beatport_id:      Aus uri extrahiert (int oder null für Nicht-Streaming)
+      - title, artists, album, genre, bpm, key, camelot, year, label,
+        comment, file_path, length_ms, rating, date_added
+      - plays_total:      Anzahl Abspielungen in hm.db
+      - last_played:      Unix-Timestamp der letzten Abspielung
+    """
+    main_db = database_folder / DATABASE_FILES["main"]
+    if not main_db.exists():
+        return {"ok": False, "error": f"m.db nicht gefunden: {main_db}"}
+    history_db = database_folder / DATABASE_FILES["history"]
+
+    tracks: list[dict] = []
+    with connect_readonly(main_db) as conn:
+        track_cols = _columns_of(conn, "Track")
+
+        # Dynamisch SELECT aufbauen, weil Engine-Versionen unterschiedliche Spalten haben
+        def col_or_null(name: str, alias: str | None = None) -> str:
+            alias = alias or name
+            return f"t.{name} AS {alias}" if name in track_cols else f"NULL AS {alias}"
+
+        select_parts = [
+            "t.id AS engine_track_id",
+            col_or_null("title"),
+            col_or_null("artist", "artists"),
+            col_or_null("album"),
+            col_or_null("genre"),
+            col_or_null("bpm"),
+            col_or_null("key"),
+            col_or_null("year"),
+            col_or_null("label"),
+            col_or_null("comment"),
+            col_or_null("path", "file_path_full"),
+            col_or_null("filename", "file_name"),
+            col_or_null("length", "length_raw"),
+            col_or_null("rating", "rating_raw"),
+            col_or_null("dateAdded", "date_added"),
+            col_or_null("timeLastPlayed", "last_played_track"),
+            col_or_null("isPlayed", "is_played"),
+            col_or_null("uri"),
+        ]
+        sql = "SELECT " + ",\n".join(select_parts) + " FROM Track t"
+        if limit:
+            sql += f" LIMIT {int(limit)}"
+
+        for row in conn.execute(sql).fetchall():
+            d = dict(row)
+            d["beatport_id"] = _extract_beatport_id(d.pop("uri", None))
+
+            # length: m.db speichert Sekunden, scoring-data.json nutzt ms
+            length_raw = d.pop("length_raw", None)
+            if length_raw is not None:
+                try:
+                    val = float(length_raw)
+                    d["length_ms"] = int(val * 1000) if val < 10000 else int(val)
+                except (TypeError, ValueError):
+                    d["length_ms"] = None
+            else:
+                d["length_ms"] = None
+
+            # Rating: Engine 0-100 in 20er-Schritten → 0-5 Sterne
+            rating_raw = d.pop("rating_raw", None)
+            if rating_raw is None or rating_raw == 0:
+                d["rating"] = None  # 0 = nicht bewertet, NICHT als 0-Sterne speichern
+            else:
+                try:
+                    stars = round(float(rating_raw) / 20)
+                    d["rating"] = max(0, min(5, int(stars)))
+                except (TypeError, ValueError):
+                    d["rating"] = None
+
+            # file_path: path (komplett) bevorzugt, sonst filename (nur Dateiname)
+            full = d.pop("file_path_full", None)
+            name = d.pop("file_name", None)
+            d["file_path"] = full or name
+
+            # last_played: Track.timeLastPlayed direkt (primär); history-Merge unten als Fallback
+            tlp = d.pop("last_played_track", None)
+            d["_last_played_track"] = int(tlp) if tlp else None
+
+            # camelot wird nicht direkt gespeichert
+            d["camelot"] = None
+            tracks.append(d)
+
+    # History aggregieren aus hm.db (Join per trackId)
+    plays_by_id: dict[int, dict] = {}
+    if history_db.exists():
+        try:
+            with connect_readonly(history_db) as hconn:
+                he_cols = _columns_of(hconn, "HistorylistEntity")
+                if "trackId" in he_cols and "startTime" in he_cols:
+                    for row in hconn.execute(
+                        """
+                        SELECT trackId, COUNT(*) AS plays_total, MAX(startTime) AS last_played
+                        FROM HistorylistEntity
+                        WHERE trackId IS NOT NULL
+                        GROUP BY trackId
+                        """
+                    ).fetchall():
+                        tid = row["trackId"]
+                        if tid is None:
+                            continue
+                        plays_by_id[int(tid)] = {
+                            "plays_total": int(row["plays_total"] or 0),
+                            "last_played": int(row["last_played"] or 0) or None,
+                        }
+        except sqlite3.Error as exc:
+            # History-DB nicht lesbar → weiter ohne
+            plays_by_id = {"_error": str(exc)}  # type: ignore[assignment]
+
+    # History an Tracks mergen
+    history_error = None
+    if isinstance(plays_by_id, dict) and "_error" in plays_by_id:
+        history_error = plays_by_id["_error"]
+        plays_by_id = {}
+
+    for t in tracks:
+        hist = plays_by_id.get(t["engine_track_id"]) if isinstance(plays_by_id, dict) else None
+        t["plays_total"] = hist["plays_total"] if hist else 0
+        # last_played: History hat Priorität (tatsächlich in einer DJ-Session abgespielt),
+        # Fallback ist Track.timeLastPlayed (auch Preview-Plays)
+        hist_last = hist["last_played"] if hist else None
+        track_last = t.pop("_last_played_track", None)
+        t["last_played"] = hist_last or track_last
+
+    rated_count = sum(1 for t in tracks if t.get("rating"))
+    played_count = sum(1 for t in tracks if (t.get("plays_total") or 0) > 0 or t.get("last_played"))
+
+    return {
+        "ok": True,
+        "database_folder": str(database_folder),
+        "track_count": len(tracks),
+        "with_beatport_id": sum(1 for t in tracks if t.get("beatport_id") is not None),
+        "rated_count": rated_count,
+        "played_count": played_count,
+        "history_available": history_db.exists() and history_error is None,
+        "history_error": history_error,
+        "tracks": tracks,
     }
 
 
@@ -615,6 +849,11 @@ def build_parser() -> argparse.ArgumentParser:
     history_tracks.add_argument("--session-id", type=int, required=True)
     history_tracks.add_argument("--limit", type=int, default=500)
 
+    dump_th = sub.add_parser("dump-tracks-with-history")
+    dump_th.add_argument("--limit", type=int, default=0, help="0 = kein Limit")
+
+    sub.add_parser("discover-all-databases")
+
     create_pl = sub.add_parser("create-playlist")
     create_pl.add_argument("--title", required=True, help="Name der neuen Playlist")
     create_pl.add_argument(
@@ -665,6 +904,12 @@ def main() -> int:
         return 0
     if args.command == "history-tracks":
         emit(list_history_tracks(database_folder, args.session_id, args.limit))
+        return 0
+    if args.command == "dump-tracks-with-history":
+        emit(dump_tracks_with_history(database_folder, args.limit or None))
+        return 0
+    if args.command == "discover-all-databases":
+        emit({"ok": True, "databases": discover_all_engine_databases()})
         return 0
     if args.command == "create-playlist":
         track_titles = []

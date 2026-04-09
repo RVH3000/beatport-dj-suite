@@ -75,6 +75,67 @@ const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
   });
 })();
 
+// ─── Workflow-Gruppen (Phase 1: 8 Tabs → 5 Gruppen) ──────────────────────────
+(function initGroups() {
+  const groupBar = document.querySelector(".group-bar");
+  const tabBar = document.querySelector(".tab-bar");
+  if (!groupBar || !tabBar) return;
+
+  function showGroup(groupName) {
+    // Group-Buttons aktualisieren
+    for (const g of groupBar.querySelectorAll(".group")) {
+      const active = g.dataset.group === groupName;
+      g.classList.toggle("active", active);
+      g.setAttribute("aria-selected", active ? "true" : "false");
+    }
+    // Sub-Tabs ein-/ausblenden + ersten der Gruppe aktivieren
+    let firstVisible = null;
+    for (const tab of tabBar.querySelectorAll(".tab")) {
+      const inGroup = tab.dataset.group === groupName;
+      tab.hidden = !inGroup;
+      if (inGroup && !firstVisible) firstVisible = tab;
+    }
+    // Wenn aktuell aktiver Tab nicht in der Gruppe → ersten der Gruppe klicken
+    const activeTab = tabBar.querySelector(".tab.active");
+    if (!activeTab || activeTab.dataset.group !== groupName) {
+      if (firstVisible) firstVisible.click();
+    }
+  }
+
+  groupBar.addEventListener("click", (e) => {
+    const btn = e.target.closest(".group");
+    if (!btn) return;
+    showGroup(btn.dataset.group);
+  });
+
+  // Initial: Library-Gruppe
+  showGroup("library");
+})();
+
+// ─── Library Sub-Tabs (v3.5.2) ───────────────────────────────────────────────
+(function initLibrarySubTabs() {
+  const nav = document.querySelector(".library-subnav");
+  if (!nav) return;
+  const scanner = document.getElementById("tab-scanner");
+  if (!scanner) return;
+
+  function show(name) {
+    for (const btn of nav.querySelectorAll(".sub-tab")) {
+      btn.classList.toggle("active", btn.dataset.libsub === name);
+    }
+    for (const sc of scanner.querySelectorAll(":scope > .sub-content")) {
+      sc.classList.toggle("active", sc.dataset.libsub === name);
+    }
+  }
+
+  nav.addEventListener("click", (e) => {
+    const btn = e.target.closest(".sub-tab");
+    if (btn) show(btn.dataset.libsub);
+  });
+
+  show("scan");
+})();
+
 // ─── Scanner Tab Logic ──────────────────────────────────────────────────────
 const STORAGE_KEYS = [
   "beatport-scanner-ui-config-v3",
@@ -2564,3 +2625,176 @@ bootstrap().catch((error) => {
     "error"
   );
 });
+
+// ─── Engine-Import Sub-Tab (v3.5.4) ──────────────────────────────────────────
+(function initEngineImport() {
+  let currentPreview = null;
+  const resolutions = new Map(); // "trackId|field" → "old"|"new"|"skip"
+
+  function el(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function fmt(n) { return new Intl.NumberFormat("de-DE").format(n || 0); }
+
+  function renderStats(preview) {
+    const s = preview.stats || {};
+    const host = el("engMergeStats");
+    if (!host) return;
+    host.hidden = false;
+    host.innerHTML = `
+      <div class="eng-stat"><span class="n">${fmt(s.scoring_track_count)}</span><span class="l">Scoring-Tracks</span></div>
+      <div class="eng-stat"><span class="n">${fmt(s.engine_track_count)}</span><span class="l">Engine-Tracks</span></div>
+      <div class="eng-stat ok"><span class="n">${fmt(s.matched)}</span><span class="l">Matches (${fmt(s.matched_by_id)} via BP-ID)</span></div>
+      <div class="eng-stat ok"><span class="n">${fmt(s.enrich_actions)}</span><span class="l">Anreicherungen</span></div>
+      <div class="eng-stat warn"><span class="n">${fmt(s.conflicts)}</span><span class="l">echte Konflikte</span></div>
+      <div class="eng-stat muted"><span class="n">${fmt(s.unmatched_with_bp_id)}</span><span class="l">Engine BP-Tracks ohne Scoring-Match</span></div>
+      <div class="eng-stat muted"><span class="n">${fmt(s.local_only)}</span><span class="l">lokale Engine-Tracks (ohne BP-ID)</span></div>
+    `;
+  }
+
+  function renderEnrichments(list) {
+    const host = el("engEnrichList");
+    const det = el("engMergeEnrichments");
+    const cnt = el("engEnrichCount");
+    if (!host || !det || !cnt) return;
+    cnt.textContent = fmt(list.length);
+    det.hidden = list.length === 0;
+    // Nur die ersten 500 darstellen — sonst DOM-Explosion
+    const shown = list.slice(0, 500);
+    host.innerHTML = shown.map((e) => `
+      <div class="eng-row">
+        <span class="eng-field">${esc(e.field)}</span>
+        <span class="eng-title">${esc(e.title)}</span>
+        <span class="eng-val new">${esc(JSON.stringify(e.value))}</span>
+      </div>
+    `).join("") + (list.length > 500 ? `<p class="acc-hint">… ${fmt(list.length - 500)} weitere</p>` : "");
+  }
+
+  function renderConflicts(list) {
+    const host = el("engConflictList");
+    const det = el("engMergeConflicts");
+    const cnt = el("engConflictCount");
+    if (!host || !det || !cnt) return;
+    cnt.textContent = fmt(list.length);
+    det.hidden = list.length === 0;
+    const shown = list.slice(0, 500);
+    host.innerHTML = shown.map((c) => {
+      const key = `${c.track_id}|${c.field}`;
+      const res = resolutions.get(key) || "skip";
+      return `
+        <div class="eng-row conflict" data-key="${esc(key)}">
+          <span class="eng-field">${esc(c.field)}</span>
+          <span class="eng-title">${esc(c.title)}</span>
+          <span class="eng-val old">alt: ${esc(JSON.stringify(c.old))}</span>
+          <span class="eng-val new">neu: ${esc(JSON.stringify(c.new))}</span>
+          <span class="eng-resolve">
+            <label><input type="radio" name="r-${esc(key)}" value="old"  ${res==="old"?"checked":""}> alt</label>
+            <label><input type="radio" name="r-${esc(key)}" value="new"  ${res==="new"?"checked":""}> neu</label>
+            <label><input type="radio" name="r-${esc(key)}" value="skip" ${res==="skip"?"checked":""}> skip</label>
+          </span>
+        </div>
+      `;
+    }).join("") + (list.length > 500 ? `<p class="acc-hint">… ${fmt(list.length - 500)} weitere (nur erste 500 auflösbar im UI, Rest wird übersprungen)</p>` : "");
+  }
+
+  function renderUnmatched(list) {
+    const host = el("engUnmatchedList");
+    const det = el("engMergeUnmatched");
+    const cnt = el("engUnmatchedCount");
+    if (!host || !det || !cnt) return;
+    cnt.textContent = fmt(list.length);
+    det.hidden = list.length === 0;
+    const shown = list.slice(0, 200);
+    host.innerHTML = shown.map((u) => `
+      <div class="eng-row">
+        <span class="eng-field">bp: ${esc(u.beatport_id)}</span>
+        <span class="eng-title">${esc(u.title)} — <em>${esc(u.artists)}</em></span>
+      </div>
+    `).join("") + (list.length > 200 ? `<p class="acc-hint">… ${fmt(list.length - 200)} weitere</p>` : "");
+  }
+
+  async function loadPreview() {
+    const api = window.scoringMergeApi;
+    if (!api) { alert("scoringMergeApi nicht verfügbar"); return; }
+    const status = el("engMergeStatus");
+    status.textContent = "Preview wird erstellt — kann mehrere Sekunden dauern …";
+    el("engMergeApplyBtn").disabled = true;
+    resolutions.clear();
+    try {
+      const summary = await api.preview();
+      if (!summary?.ok) throw new Error(summary?.error || "Preview fehlgeschlagen");
+      const full = await api.readPreview();
+      if (!full?.ok) throw new Error(full?.error || "Preview-Datei kaputt");
+      currentPreview = full;
+      renderStats(full);
+      renderEnrichments(full.enrichments || []);
+      renderConflicts(full.conflicts || []);
+      renderUnmatched(full.new_track_candidates || []);
+      status.textContent = `Preview bereit. ${fmt(full.stats.matched)} Tracks gematcht, ${fmt(full.stats.enrich_actions)} Anreicherungen, ${fmt(full.stats.conflicts)} Konflikte.`;
+      el("engMergeApplyBtn").disabled = false;
+    } catch (err) {
+      status.textContent = `Fehler: ${err.message}`;
+      status.classList.add("error");
+    }
+  }
+
+  async function applyChanges() {
+    if (!currentPreview) return;
+    const ok = confirm(`Änderungen anwenden?\n\n${fmt(currentPreview.stats.enrich_actions)} Anreicherungen werden geschrieben.\nKonflikte: nur die, die du auf "neu" gesetzt hast.\n\nVorher wird ein Backup von scoring-data.json angelegt.`);
+    if (!ok) return;
+
+    // Resolutions aus DOM lesen (falls User geklickt hat)
+    for (const row of document.querySelectorAll("#engConflictList .eng-row.conflict")) {
+      const key = row.dataset.key;
+      const checked = row.querySelector('input[type="radio"]:checked');
+      if (checked) resolutions.set(key, checked.value);
+    }
+
+    const conflictResolutions = {};
+    for (const [k, v] of resolutions.entries()) conflictResolutions[k] = v;
+
+    try {
+      const result = await window.scoringMergeApi.apply({
+        enrichments: true,
+        overwrites: false,
+        conflictResolutions,
+      });
+      const res = el("engMergeResult");
+      res.hidden = false;
+      res.classList.remove("empty", "error");
+      res.innerHTML = `✔ Geschrieben: ${result.applied.enrich} Anreicherungen, ${result.applied.conflict} Konflikte (neu gewählt), ${result.applied.skipped} übersprungen.<br>Backup: <code>${esc(result.backup)}</code><br>Log-Einträge: ${result.log_entries}`;
+      el("engMergeApplyBtn").disabled = true;
+    } catch (err) {
+      const res = el("engMergeResult");
+      res.hidden = false;
+      res.classList.add("error");
+      res.textContent = `Apply fehlgeschlagen: ${err.message}`;
+    }
+  }
+
+  // Conflict-Radio-Tracking
+  document.addEventListener("change", (e) => {
+    if (e.target.matches('#engConflictList input[type="radio"]')) {
+      const row = e.target.closest(".eng-row.conflict");
+      if (row) resolutions.set(row.dataset.key, e.target.value);
+    }
+  });
+
+  // Bulk-Buttons
+  document.addEventListener("click", (e) => {
+    const bulk = { engConflictsAllOld: "old", engConflictsAllNew: "new", engConflictsAllSkip: "skip" }[e.target.id];
+    if (!bulk) return;
+    for (const row of document.querySelectorAll("#engConflictList .eng-row.conflict")) {
+      const key = row.dataset.key;
+      resolutions.set(key, bulk);
+      const radio = row.querySelector(`input[value="${bulk}"]`);
+      if (radio) radio.checked = true;
+    }
+  });
+
+  const previewBtn = document.getElementById("engMergePreviewBtn");
+  const applyBtn = document.getElementById("engMergeApplyBtn");
+  if (previewBtn) previewBtn.addEventListener("click", loadPreview);
+  if (applyBtn) applyBtn.addEventListener("click", applyChanges);
+})();

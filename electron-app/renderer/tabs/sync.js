@@ -148,6 +148,35 @@ function buildSyncTabHtml() {
       </div>
     </section>
 
+    <!-- DJPL.fm Diff-Import — fehlende Beatport-Playlists nach DJPL.fm (Feature 4) -->
+    <section class="panel span-full">
+      <div class="section-head">
+        <h2>Beatport → DJPlaylists.fm (Diff-Import)</h2>
+        <div class="actions compact">
+          <button id="syncDiffLoadBtn" type="button">Diff laden</button>
+          <button id="syncDiffImportBtn" class="primary" type="button" disabled>Fehlende importieren</button>
+        </div>
+      </div>
+      <p class="callout info" style="margin-bottom:0.75rem">
+        Vergleicht deine Beatport-Playlists mit den auf DJPlaylists.fm vorhandenen.
+        Fehlende werden <strong>einzeln, sequenziell</strong> nach DJPL.fm importiert.
+        Danach den Lexicon-Batch unten nutzen um alles nach Lexicon zu übertragen (einziger Weg mit Metadaten).
+      </p>
+      <div id="syncDiffTable" class="table-wrap" style="display:none">
+        <table class="data-table">
+          <thead><tr><th></th><th>Beatport-Playlist</th><th>Tracks</th><th>Auf DJPL.fm?</th><th>Status</th></tr></thead>
+          <tbody id="syncDiffTbody"></tbody>
+        </table>
+      </div>
+      <div id="syncDiffProgress" style="display:none;margin-top:0.75rem">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="syncDiffProgressBar" style="width:0%"></div>
+        </div>
+        <p id="syncDiffProgressMsg" class="detail-summary"></p>
+      </div>
+      <div id="syncDiffResult" class="detail-summary empty"></div>
+    </section>
+
     <!-- DJPlaylists.fm → Lexicon Batch-Automation -->
     <section class="panel span-full">
       <div class="section-head">
@@ -254,6 +283,9 @@ function bindEvents() {
   // DJPlaylists.fm → Lexicon Batch
   document.getElementById("syncDjplScrapeBtn")?.addEventListener("click", scrapeDjplaylists);
   document.getElementById("syncDjplToLexiconBtn")?.addEventListener("click", runDjplToLexiconAll);
+  // Diff-Import (Feature 4)
+  document.getElementById("syncDiffLoadBtn")?.addEventListener("click", loadDiff);
+  document.getElementById("syncDiffImportBtn")?.addEventListener("click", runDiffImport);
 }
 
 // ─── Status-Refresh ───────────────────────────────────────────────────────────
@@ -836,6 +868,123 @@ function setPipelineRunning(running) {
     btn.disabled = running;
     btn.textContent = running ? "Pipeline läuft…" : "Importieren & Sync starten";
   }
+}
+
+// ─── Feature 4: Diff-Import (Beatport → DJPL.fm, nur fehlende) ──────────────
+
+let _diffBeatportPlaylists = [];
+let _diffDjplPlaylists = [];
+let _diffMissing = [];
+let _diffImportRunning = false;
+
+function normalizeName(s) {
+  return (s || "").toLowerCase().trim().replace(/\s*\(\d+\)\s*$/, "").replace(/\s+/g, " ");
+}
+
+async function loadDiff() {
+  const resultEl = document.getElementById("syncDiffResult");
+  const tableWrap = document.getElementById("syncDiffTable");
+  const tbody = document.getElementById("syncDiffTbody");
+  const importBtn = document.getElementById("syncDiffImportBtn");
+  if (resultEl) resultEl.innerHTML = '<span class="status-info">Lade Beatport-Playlists + DJPL.fm-Playlists…</span>';
+  importBtn.disabled = true;
+
+  try {
+    // Parallel: Beatport + DJPL.fm
+    const [bpResult, djplResult] = await Promise.all([
+      window.playlistApi.list(),
+      window.syncApi.scrapeDjplaylists(),
+    ]);
+
+    _diffBeatportPlaylists = Array.isArray(bpResult) ? bpResult : bpResult?.playlists || [];
+    _diffDjplPlaylists = Array.isArray(djplResult?.playlists) ? djplResult.playlists : [];
+
+    if (!_diffBeatportPlaylists.length) {
+      resultEl.innerHTML = '<span class="status-warn">Keine Beatport-Playlists gefunden. Ist die Session aktiv?</span>';
+      return;
+    }
+
+    // Normalisierter Name-Set der DJPL.fm-Playlists
+    const djplNames = new Set(_diffDjplPlaylists.map((p) => normalizeName(p.name || p.title)));
+
+    // Diff berechnen
+    _diffMissing = [];
+    const rows = _diffBeatportPlaylists.map((bp) => {
+      const name = bp.name || bp.title || "";
+      const trackCount = bp.track_count || bp.trackCount || "?";
+      const onDjpl = djplNames.has(normalizeName(name));
+      if (!onDjpl) _diffMissing.push(bp);
+      return { name, trackCount, onDjpl, bp };
+    });
+
+    // Tabelle rendern
+    tbody.innerHTML = rows.map((r, i) => `
+      <tr class="${r.onDjpl ? "" : "diff-missing"}">
+        <td>${i + 1}</td>
+        <td>${esc(r.name)}</td>
+        <td>${r.trackCount}</td>
+        <td>${r.onDjpl ? '<span class="status-ok">✓</span>' : '<span class="status-warn">✗ fehlt</span>'}</td>
+        <td class="diff-status" data-name="${esc(r.name)}">—</td>
+      </tr>
+    `).join("");
+    tableWrap.style.display = "block";
+
+    resultEl.innerHTML = `<span class="status-info">${_diffBeatportPlaylists.length} Beatport · ${_diffDjplPlaylists.length} DJPL.fm · <strong>${_diffMissing.length} fehlen</strong></span>`;
+    importBtn.disabled = _diffMissing.length === 0;
+  } catch (err) {
+    resultEl.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
+  }
+}
+
+async function runDiffImport() {
+  if (_diffImportRunning || !_diffMissing.length) return;
+  _diffImportRunning = true;
+  const importBtn = document.getElementById("syncDiffImportBtn");
+  const loadBtn = document.getElementById("syncDiffLoadBtn");
+  const progressWrap = document.getElementById("syncDiffProgress");
+  const progressBar = document.getElementById("syncDiffProgressBar");
+  const progressMsg = document.getElementById("syncDiffProgressMsg");
+  const resultEl = document.getElementById("syncDiffResult");
+
+  importBtn.disabled = true;
+  loadBtn.disabled = true;
+  progressWrap.style.display = "block";
+
+  let imported = 0;
+  let failed = 0;
+
+  for (let i = 0; i < _diffMissing.length; i++) {
+    const bp = _diffMissing[i];
+    const name = bp.name || bp.title || "";
+    const bpUrl = bp.url || bp.beatport_url || `https://www.beatport.com/playlists/${bp.slug || bp.id}/${bp.id}`;
+    const statusCell = document.querySelector(`.diff-status[data-name="${CSS.escape(name)}"]`);
+
+    progressMsg.textContent = `${i + 1}/${_diffMissing.length}: ${name}…`;
+    progressBar.style.width = `${((i + 1) / _diffMissing.length) * 100}%`;
+    if (statusCell) statusCell.innerHTML = '<span class="status-info">⏳</span>';
+
+    try {
+      await window.syncApi.importToDjplaylists({ beatportUrl: bpUrl });
+      imported++;
+      if (statusCell) statusCell.innerHTML = '<span class="status-ok">✓ importiert</span>';
+    } catch (err) {
+      failed++;
+      if (statusCell) statusCell.innerHTML = `<span class="status-err">✗ ${esc(err.message).slice(0, 40)}</span>`;
+    }
+
+    // Pause zwischen Imports (gleiche Delay-Config wie Lexicon-Batch)
+    const delay = parseInt(document.getElementById("syncDjplDelayMs")?.value || "800", 10);
+    if (i < _diffMissing.length - 1) {
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  _diffImportRunning = false;
+  importBtn.disabled = true; // kein erneuter Import (Diff ist jetzt veraltet)
+  loadBtn.disabled = false;
+
+  resultEl.innerHTML = `<span class="status-ok">✓ Import abgeschlossen: ${imported} importiert, ${failed} fehlgeschlagen.</span>
+    <br><strong>Nächster Schritt:</strong> Unten "DJPlaylists.fm → Lexicon" Button nutzen um alle Playlists nach Lexicon zu übertragen.`;
 }
 
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
