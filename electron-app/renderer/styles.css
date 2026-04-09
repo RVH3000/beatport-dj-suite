@@ -4,13 +4,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Backgrounds ─── v3.6.1: UX-Fixes (Reco oben, Engine erklaerbar, DJPL ehrlich) ── */
-  --bg:             #111520;
-  --bg-subtle:      #161b29;
-  --panel:          #1e2333;
-  --panel-strong:   #252a3c;
-  --panel-hover:    #2c3246;
-  --surface:        #333953;
+  /* ── Backgrounds ─── v3.6.2: Duplikate klickbar, Pool Label, M3U ───────── */
+  --bg:             #121620;
+  --bg-subtle:      #171c2a;
+  --panel:          #1f2434;
+  --panel-strong:   #262b3d;
+  --panel-hover:    #2d3247;
+  --surface:        #343a54;
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --line:           rgba(255, 255, 255, 0.07);
