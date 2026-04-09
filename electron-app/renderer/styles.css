@@ -4,13 +4,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Backgrounds ─── v3.6.0: Wildcard, Recommendations, Groof, DJPL-Diff, Prime 4+ ── */
-  --bg:             #101420;
-  --bg-subtle:      #151a28;
-  --panel:          #1d2232;
-  --panel-strong:   #24293b;
-  --panel-hover:    #2b3145;
-  --surface:        #323852;
+  /* ── Backgrounds ─── v3.6.1: UX-Fixes (Reco oben, Engine erklaerbar, DJPL ehrlich) ── */
+  --bg:             #111520;
+  --bg-subtle:      #161b29;
+  --panel:          #1e2333;
+  --panel-strong:   #252a3c;
+  --panel-hover:    #2c3246;
+  --surface:        #333953;
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --line:           rgba(255, 255, 255, 0.07);
