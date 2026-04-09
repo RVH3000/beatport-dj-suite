@@ -28,33 +28,33 @@ function renderSettings() {
 
     <section class="panel">
       <div class="field-grid">
-        <label class="wide">
+        <label class="wide" title="Verzeichnisse die der Scanner nach Beatport-Browsern durchsucht. Eins pro Zeile.">
           Scan-Roots
           <textarea id="settingsScanRoots" rows="4">${esc(settings.scanRoots)}</textarea>
         </label>
-        <label>
+        <label title="Pfad zur Engine DJ Library. Standard: ~/Music/Engine Library/Database2. Wird für Engine-Import und USB-Detection gebraucht.">
           Engine Database Folder
           <input id="settingsEngineDatabaseFolder" type="text" value="${esc(
             settings.engineDatabaseFolder
           )}" />
         </label>
-        <label>
+        <label title="Pfad zum Python-Interpreter. Muss python3 mit sqlite3-Modul sein. Standard: python3 (aus PATH).">
           Python Command
           <input id="settingsPythonCommand" type="text" value="${esc(
             settings.pythonCommand
           )}" />
         </label>
-        <label>
+        <label title="IP-Adresse des OSC-Empfängers (z.B. Ableton Live, TouchOSC). Standard: 127.0.0.1 (lokal).">
           OSC Host
           <input id="settingsOscHost" type="text" value="${esc(settings.oscHost)}" />
         </label>
-        <label>
+        <label title="OSC-Port. Standard: 9000. Muss mit dem Empfänger-Port übereinstimmen.">
           OSC Port
           <input id="settingsOscPort" type="number" min="1" max="65535" value="${esc(
             settings.oscPort
           )}" />
         </label>
-        <label class="wide">
+        <label class="wide" title="Präfix für alle OSC-Adressen (z.B. /beatport-suite/scan/progress). Standard: /beatport-suite.">
           OSC Address Prefix
           <input id="settingsOscAddressPrefix" type="text" value="${esc(
             settings.oscAddressPrefix

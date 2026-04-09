@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Beatport Database Specialist</p>
-        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.2</span></h1>
+        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.3</span></h1>
       </div>
       <p class="subtitle">
         Scanner, Analyse, Playlist-Management, Automation &amp; Export
@@ -152,13 +152,14 @@ Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</s
           <details class="cockpit-acc">
             <summary>⚙️ Scan-Konfiguration</summary>
             <div class="acc-body">
+              <p class="acc-hint">Diese Einstellungen steuern wie die App mit dem Beatport-Browser kommuniziert. Normalerweise musst du hier nichts ändern — die Defaults funktionieren.</p>
               <div class="field-grid">
-                <label>Host <input id="host" type="text" /></label>
-                <label>Port <input id="port" type="number" min="1" max="65535" /></label>
-                <label>Target-Pattern <input id="targetPattern" type="text" /></label>
-                <label>Timeout (ms) <input id="timeoutMs" type="number" min="1000" step="500" /></label>
-                <label class="wide">Beatport App Pfad <input id="appPath" type="text" /></label>
-                <label>
+                <label title="CDP-Endpunkt: IP-Adresse des Chrome-Browsers mit Beatport-Session (Standard: localhost)">Host <input id="host" type="text" /></label>
+                <label title="Chrome DevTools Protocol Port (Standard: 9222). Die App öffnet eine Debugging-Verbindung auf diesem Port.">Port <input id="port" type="number" min="1" max="65535" /></label>
+                <label title="Regex-Pattern um den Beatport-Tab im Browser zu identifizieren (z.B. 'beatport.com')">Target-Pattern <input id="targetPattern" type="text" /></label>
+                <label title="Maximale Wartezeit pro CDP-Operation in ms. Erhöhen bei langsamer Verbindung.">Timeout (ms) <input id="timeoutMs" type="number" min="1000" step="500" /></label>
+                <label class="wide" title="Pfad zur Beatport-Desktop-App oder zum Chrome-Browser. Wird für 'App starten' gebraucht.">Beatport App Pfad <input id="appPath" type="text" /></label>
+                <label title="Wie Track-Daten von Beatport geholt werden: XHR (schnell, API-basiert), Route (URL-Navigation), DOM (langsam, Fallback für alte Seiten).">
                   Analyse-Methode
                   <select id="analysisMethod">
                     <option value="auto">Auto (XHR bevorzugen, Route, DOM Fallback)</option>
@@ -180,15 +181,16 @@ Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</s
               </div>
               <details>
                 <summary>Erweiterte Pfade & Tuning</summary>
+                <p class="acc-hint">Output-Pfade für Scan-Ergebnisse. Ändern nur nötig wenn du mehrere Instanzen oder custom Ordner verwendest.</p>
                 <div class="field-grid advanced">
-                  <label>Sidebar-Step (px) <input id="sidebarScrollStep" type="number" min="100" step="50" /></label>
-                  <label>Deep-Wait (ms) <input id="deepAnalysisWaitMs" type="number" min="100" step="50" /></label>
-                  <label class="wide">Host Browser App Pfad <input id="hostAppPath" type="text" /></label>
-                  <label class="wide">State-Datei <input id="stateFile" type="text" /></label>
-                  <label class="wide">Duplikat-CSV <input id="csvFile" type="text" /></label>
-                  <label class="wide">Analyse-JSON <input id="analysisJsonFile" type="text" /></label>
-                  <label class="wide">Track-CSV <input id="analysisTrackCsvFile" type="text" /></label>
-                  <label class="wide">Dimensionen-CSV <input id="analysisSummaryCsvFile" type="text" /></label>
+                  <label title="Scroll-Schrittweite in der Beatport-Sidebar (px). Höher = schneller aber riskiert übersprungene Playlists.">Sidebar-Step (px) <input id="sidebarScrollStep" type="number" min="100" step="50" /></label>
+                  <label title="Wartezeit nach Deep-Analysis pro Track (ms). Niedriger = schneller, höher = stabiler bei langsamer Verbindung.">Deep-Wait (ms) <input id="deepAnalysisWaitMs" type="number" min="100" step="50" /></label>
+                  <label class="wide" title="Pfad zum Host-Browser (Chrome/Edge). Wird für CDP-Autorecovery und 'App starten' gebraucht.">Host Browser App Pfad <input id="hostAppPath" type="text" /></label>
+                  <label class="wide" title="JSON-Datei in der der aktuelle Scan-Zustand zwischen Runs gespeichert wird (Pause/Resume).">State-Datei <input id="stateFile" type="text" /></label>
+                  <label class="wide" title="Ausgabe-Pfad für die Duplikat-Erkennung (CSV mit track_id, title, playlist_count).">Duplikat-CSV <input id="csvFile" type="text" /></label>
+                  <label class="wide" title="Ausgabe-Pfad für die Tiefenanalyse (JSON mit BPM/Key/Genre-Statistiken pro Playlist).">Analyse-JSON <input id="analysisJsonFile" type="text" /></label>
+                  <label class="wide" title="Einzelne Track-Daten als CSV (eine Zeile pro Track mit allen Metadaten).">Track-CSV <input id="analysisTrackCsvFile" type="text" /></label>
+                  <label class="wide" title="Zusammenfassende Dimensionen (Genre/BPM/Key-Verteilung aggregiert) als CSV.">Dimensionen-CSV <input id="analysisSummaryCsvFile" type="text" /></label>
                 </div>
               </details>
             </div>

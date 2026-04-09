@@ -151,8 +151,19 @@ function renderAnalysis() {
       <section class="panel span-full placeholder-panel">
         <h2>Keine Analyse-Daten</h2>
         <p class="placeholder-text">
-          Führe zuerst einen Scan mit Tiefenanalyse im Scanner-Tab durch,
-          damit BPM, Key, Genre und Label für deine Tracks vorliegen.
+          Die Analyse braucht Track-Daten aus einem abgeschlossenen Scanner-Run.<br>
+          <strong>So geht's:</strong>
+        </p>
+        <ol style="font-size:13px;color:var(--text-secondary);line-height:1.8;max-width:600px;margin:12px auto">
+          <li>Gehe zu <strong>Library → Scanner</strong></li>
+          <li>Starte <strong>Delta-Sync</strong> (holt alle Playlists von Beatport)</li>
+          <li>Warte bis der Run abgeschlossen ist</li>
+          <li>Wähle den Run im Dropdown und klicke <strong>Auswahl analysieren</strong></li>
+          <li>Komm hierher zurück — die Charts füllen sich automatisch</li>
+        </ol>
+        <p class="placeholder-text" style="margin-top:12px">
+          <strong>Tipp:</strong> Die <em>Suche & Filter</em> im Explore-Tab hat ein eigenes Dashboard
+          (Genre-Bars, BPM-Cluster, Tonarten) das direkt aus der scoring-data.json arbeitet — ohne Scanner-Run.
         </p>
       </section>
     `;

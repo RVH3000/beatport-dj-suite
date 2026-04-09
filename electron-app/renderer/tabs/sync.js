@@ -127,7 +127,7 @@ function buildSyncTabHtml() {
       <div class="section-head">
         <h2>Beatport Playlists importieren</h2>
         <div class="actions compact">
-          <button id="syncImportBtn" class="primary" type="button">Importieren &amp; Sync starten</button>
+          <button id="syncImportBtn" class="primary" type="button" title="Importiert die eingetragenen Beatport-URLs nach DJPlaylists.fm und weiter nach Lexicon">Importieren &amp; Sync starten</button>
         </div>
       </div>
       <p class="callout info" style="margin-bottom:0.75rem">
@@ -254,7 +254,7 @@ function buildSyncTabHtml() {
       <div class="section-head">
         <h2>Engine DJ Export</h2>
         <div class="actions compact">
-          <button id="syncEngineExportBtn" type="button">Jetzt zu Engine DJ exportieren</button>
+          <button id="syncEngineExportBtn" type="button" title="Triggert den Lexicon → Engine DJ Export. Danach USB einstecken fuer Prime 4+.">Jetzt zu Engine DJ exportieren</button>
         </div>
       </div>
       <p class="callout info" style="margin-bottom:0.75rem">
