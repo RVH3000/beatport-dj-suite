@@ -346,28 +346,51 @@ Sicherheit:
           <div id="engMergeStats" class="eng-stats" hidden></div>
 
           <details id="engMergeEnrichments" class="cockpit-acc" hidden>
-            <summary>➕ Anreicherungen (leere Felder füllen) — <span id="engEnrichCount">0</span></summary>
+            <summary>➕ Anreicherungen — <span id="engEnrichCount">0</span> leere Felder werden ergänzt</summary>
             <div class="acc-body">
+              <p class="acc-hint">
+                <strong>Was passiert:</strong> Felder in deiner scoring-data.json, die aktuell leer sind, werden mit Daten aus Engine DJ gefüllt.<br>
+                <strong>Beispiele:</strong> Du hast einen Track in Engine 4 Sterne gegeben → <code>rating: 4</code> wird eingetragen.
+                Ein Track wurde 12× in DJ-Sessions gespielt → <code>plays_total: 12</code>, <code>last_played: 2026-03-15</code>.<br>
+                <strong>Quellen:</strong> Ratings aus <code>Track.rating</code>, Play-Counts aus <code>HistorylistEntity</code>, File-Pfade aus <code>Track.path</code>.<br>
+                <strong>Sicherheit:</strong> Bestehende Werte werden NIE überschrieben — nur leere Felder aufgefüllt.
+              </p>
               <div id="engEnrichList" class="eng-list"></div>
             </div>
           </details>
 
           <details id="engMergeConflicts" class="cockpit-acc" hidden>
-            <summary>⚠️ Echte Konflikte (beide Seiten gesetzt, unterschiedlich) — <span id="engConflictCount">0</span></summary>
+            <summary>⚠️ Konflikte — <span id="engConflictCount">0</span> Felder mit unterschiedlichen Werten</summary>
             <div class="acc-body">
+              <p class="acc-hint">
+                <strong>Was ist ein Konflikt?</strong> Beide Seiten (scoring-data.json UND Engine DJ) haben einen Wert für dasselbe Feld, aber die Werte sind unterschiedlich.<br>
+                <strong>Beispiel:</strong> scoring-data sagt <code>BPM: 128</code>, Engine sagt <code>BPM: 127.5</code>. Welcher Wert soll gelten?<br>
+                <strong>Deine Optionen pro Zeile:</strong>
+                <em>alt</em> = scoring-data-Wert behalten |
+                <em>neu</em> = Engine-Wert übernehmen |
+                <em>skip</em> = nichts ändern, später entscheiden.
+              </p>
               <div class="actions compact">
-                <button id="engConflictsAllOld" type="button">Alle: alt behalten</button>
-                <button id="engConflictsAllNew" type="button">Alle: Engine-Wert übernehmen</button>
-                <button id="engConflictsAllSkip" type="button">Alle: überspringen</button>
+                <button id="engConflictsAllOld" type="button" title="Alle Konflikte: bestehende scoring-data-Werte behalten">Alle: alt behalten</button>
+                <button id="engConflictsAllNew" type="button" title="Alle Konflikte: Engine-Werte übernehmen">Alle: Engine übernehmen</button>
+                <button id="engConflictsAllSkip" type="button" title="Alle Konflikte: jetzt nicht entscheiden">Alle: überspringen</button>
               </div>
               <div id="engConflictList" class="eng-list"></div>
             </div>
           </details>
 
           <details id="engMergeUnmatched" class="cockpit-acc" hidden>
-            <summary>🔍 Engine-Tracks ohne Scoring-Match — <span id="engUnmatchedCount">0</span></summary>
+            <summary>🆕 Engine-Tracks ohne Scoring-Match — <span id="engUnmatchedCount">0</span></summary>
             <div class="acc-body">
-              <p class="acc-hint">Diese Tracks existieren in Engine, aber nicht in scoring-data.json. Werden zunächst <strong>nicht</strong> automatisch importiert.</p>
+              <p class="acc-hint">
+                <strong>Was sind das?</strong> Tracks die in deiner Engine DJ Library existieren (z.B. Beatport-Streaming oder lokale Dateien), aber in scoring-data.json nicht vorkommen.<br>
+                <strong>Warum?</strong> Entweder noch nie gescannt, oder erst nach dem letzten Scan zu Engine hinzugefügt.<br>
+                <strong>Was tun?</strong> Tracks mit Beatport-ID können über einen neuen Scanner-Run erfasst werden. Lokale Tracks (ohne Beatport-ID) sind nur in Engine relevant.
+              </p>
+              <div class="actions compact" style="margin-bottom:10px">
+                <button id="engUnmatchedScanBtn" type="button" title="Öffnet den Scanner-Tab um einen neuen Run zu starten, der diese Tracks erfassen kann">→ Zum Scanner (neuen Run starten)</button>
+                <button id="engUnmatchedExportBtn" type="button" title="Exportiert die Liste als CSV für externe Analyse">CSV exportieren</button>
+              </div>
               <div id="engUnmatchedList" class="eng-list"></div>
             </div>
           </details>

@@ -255,10 +255,12 @@ function buildSearchTabHtml() {
 
     <!-- SUB-TAB: SUCHE & FILTER -->
     <div class="srch-subcontent" id="srch-search">
+      <!-- EMPFEHLUNGEN — oben, prominent, vor den Filtern -->
+      <div id="srchRecoArea" class="srch-reco-top"></div>
+
       <div class="srch-howto">
-        <strong>Suche & Filter:</strong> Volltextsuche + kombinierbare Filter. <strong>BPM Norm</strong> normalisiert halbe/doppelte Tempi.
-        <strong>Fixierung</strong>: Locke eine Sortierung (z.B. BPM &uarr;), dann wähle eine zweite &mdash; die erste bleibt primär.
-        <strong>Pro Seite</strong>: Jede 100er-Seite wird als eigenständige Set-Einheit sortiert.
+        <strong>Suche:</strong> Wildcards <code>*</code> (beliebig) und <code>?</code> (ein Zeichen). <strong>BPM Norm</strong> normalisiert halbe/doppelte Tempi.
+        <strong>Lock-System:</strong> Klick auf Spaltenheader = mehrstufige Sortierung (Zahl = Priorität).
       </div>
       <div class="srch-bar">
         <input type="text" id="srchQ" placeholder="Track, Artist, Label, Release suchen...">
@@ -352,19 +354,14 @@ function buildSearchTabHtml() {
         <div class="srch-tv-row"><div class="srch-tv-label">Key Match</div><div class="srch-tv-bars" id="srchTvKey"></div></div>
         <div class="srch-tv-row"><div class="srch-tv-label">Dramaturgie</div><div class="srch-tv-bars" id="srchTvDrama"></div></div>
       </div>
-      <div class="srch-results-split">
-        <div class="srch-results-main">
-          <div class="table-wrap"><table><thead><tr>
-            <th style="width:30px"><input type="checkbox" id="srchSelAll"></th>
-            <th data-col="title">Title</th><th data-col="artists">Artist</th><th data-col="genre">Genre</th>
-            <th data-col="bpm">BPM</th><th data-col="key">Key</th><th data-col="camelot">Camelot</th>
-            <th data-col="drama">Drama</th><th data-col="year">Jahr</th><th data-col="label">Label</th>
-            <th data-col="count">PLs</th><th></th>
-          </tr></thead><tbody id="srchBody"></tbody></table></div>
-          <div class="srch-pagination" id="srchPagination"></div>
-        </div>
-        <div class="srch-reco-area" id="srchRecoArea"></div>
-      </div>
+      <div class="table-wrap"><table><thead><tr>
+        <th style="width:30px"><input type="checkbox" id="srchSelAll"></th>
+        <th data-col="title">Title</th><th data-col="artists">Artist</th><th data-col="genre">Genre</th>
+        <th data-col="bpm">BPM</th><th data-col="key">Key</th><th data-col="camelot">Camelot</th>
+        <th data-col="drama">Drama</th><th data-col="year">Jahr</th><th data-col="label">Label</th>
+        <th data-col="count">PLs</th><th style="width:36px"></th>
+      </tr></thead><tbody id="srchBody"></tbody></table></div>
+      <div class="srch-pagination" id="srchPagination"></div>
     </div>
 
     <!-- SUB-TAB: DUPLIKATE -->
@@ -1530,7 +1527,7 @@ function renderBpmFlow() {
       panel = document.createElement("div");
       panel.id = "srchRecoPanel";
       panel.className = "srch-reco-panel";
-      const container = document.getElementById("srchRecoArea") || document.getElementById("search-content") || document.getElementById("tab-search");
+      const container = document.getElementById("srchRecoArea");
       if (container) { container.innerHTML = ""; container.appendChild(panel); }
     }
 

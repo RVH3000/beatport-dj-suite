@@ -2797,4 +2797,27 @@ bootstrap().catch((error) => {
   const applyBtn = document.getElementById("engMergeApplyBtn");
   if (previewBtn) previewBtn.addEventListener("click", loadPreview);
   if (applyBtn) applyBtn.addEventListener("click", applyChanges);
+
+  // Unmatched: zum Scanner wechseln
+  document.getElementById("engUnmatchedScanBtn")?.addEventListener("click", () => {
+    document.querySelector('.group-bar .group[data-group="library"]')?.click();
+    setTimeout(() => {
+      document.querySelector('.library-subnav .sub-tab[data-libsub="scan"]')?.click();
+    }, 100);
+  });
+
+  // Unmatched: CSV exportieren
+  document.getElementById("engUnmatchedExportBtn")?.addEventListener("click", () => {
+    if (!currentPreview?.new_track_candidates?.length) return;
+    const header = "beatport_id,title,artists\n";
+    const rows = currentPreview.new_track_candidates.map((u) =>
+      `${u.beatport_id || ""},"${(u.title || "").replace(/"/g, '""')}","${(u.artists || "").replace(/"/g, '""')}"`
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `engine-unmatched-tracks-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 })();

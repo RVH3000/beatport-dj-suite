@@ -1503,7 +1503,9 @@ summary {
 /* ─── Recommendations Panel (Feature 2) ─── */
 .srch-reco-btn{background:none;border:1px solid var(--line-strong);border-radius:4px;cursor:pointer;font-size:14px;padding:2px 6px;transition:all .12s}
 .srch-reco-btn:hover{border-color:var(--primary);background:var(--primary-soft)}
-.srch-reco-panel{background:var(--panel);border:1px solid var(--primary);border-radius:8px;padding:0;max-height:600px;overflow-y:auto;position:sticky;top:12px}
+.srch-reco-top{margin-bottom:14px}
+.srch-reco-top:empty{display:none}
+.srch-reco-panel{background:var(--panel);border:1px solid var(--primary);border-radius:8px;padding:0;max-height:340px;overflow-y:auto}
 .srch-reco-head{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--panel-strong);border-radius:8px 8px 0 0;position:sticky;top:0;z-index:1}
 .srch-reco-close{margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px}
 .srch-reco-close:hover{color:var(--danger)}
@@ -1519,12 +1521,6 @@ summary {
 tr.diff-missing{background:var(--warning-soft)}
 .diff-status{min-width:100px}
 
-/* ─── Search Results Split (Tabelle links, Reco rechts) ─── */
-.srch-results-split{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start}
-.srch-results-main{min-width:0;overflow:hidden}
-.srch-reco-area{min-height:60px}
-.srch-reco-area:empty{display:none}
-.srch-reco-area:empty+.srch-results-main,.srch-results-split:has(.srch-reco-area:empty){grid-template-columns:1fr}
-@media(max-width:1200px){.srch-results-split{grid-template-columns:1fr}.srch-reco-area{max-height:350px;overflow-y:auto}}
+/* Split-Layout entfernt — Reco ist jetzt OBEN (.srch-reco-top) */
 .manual-section p{margin:4px 0 8px;font-size:12px;line-height:1.6;color:var(--text)}
 .manual-section h3{margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--primary)}

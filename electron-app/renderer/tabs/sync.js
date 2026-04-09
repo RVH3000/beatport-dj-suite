@@ -99,17 +99,20 @@ function buildSyncTabHtml() {
     <section class="panel">
       <h2>DJPlaylists.fm Konfiguration</h2>
       <p class="callout info" style="margin-bottom:0.75rem">
-        DJPlaylists.fm ist die Brücke, die Beatport Streaming Playlists in Lexicon-kompatible Playlists konvertiert.
-        Trage hier deinen API-Key ein (Account → API Key auf djplaylists.fm).
+        DJPlaylists.fm ist die Brücke, die Beatport-Playlists in Lexicon-kompatible Playlists konvertiert —
+        <strong>der einzige Weg der alle Metadaten korrekt überträgt.</strong><br>
+        <strong>Hinweis:</strong> DJPlaylists.fm hat <em>keine offizielle öffentliche API</em>.
+        Die Verbindung funktioniert über einen <strong>Session-Cookie</strong>, den du aus deinem Browser kopierst.
+        Alternativ: manche Accounts haben einen API-Key (Account-Seite prüfen).
       </p>
       <div class="field-grid">
-        <label class="wide">
-          API-Key (djplaylists.fm)
-          <input id="syncDjplApiKey" type="password" placeholder="dein-api-key-hier" autocomplete="off" />
+        <label class="wide" title="Falls vorhanden: API-Key von djplaylists.fm (Account → API Key). Nicht alle Accounts haben einen.">
+          API-Key (falls vorhanden)
+          <input id="syncDjplApiKey" type="password" placeholder="nur wenn auf djplaylists.fm sichtbar" autocomplete="off" />
         </label>
-        <label class="wide">
-          Session-Cookie (optional, falls kein API-Key)
-          <input id="syncDjplSessionCookie" type="password" placeholder="_session=..." autocomplete="off" />
+        <label class="wide" title="Browser → djplaylists.fm → F12 → Application → Cookies → '_session'-Wert kopieren. Das ist der empfohlene Weg.">
+          Session-Cookie (empfohlen)
+          <input id="syncDjplSessionCookie" type="password" placeholder="F12 → Application → Cookies → _session=..." autocomplete="off" />
         </label>
       </div>
       <div class="actions compact">
