@@ -1522,5 +1522,15 @@ tr.diff-missing{background:var(--warning-soft)}
 .diff-status{min-width:100px}
 
 /* Split-Layout entfernt — Reco ist jetzt OBEN (.srch-reco-top) */
+
+/* ─── Klickbare Duplikate (Playlist-Liste) ─── */
+.dup-pls-detail{display:inline}
+.dup-pls-detail>summary{cursor:pointer;list-style:none;display:inline}
+.dup-pls-detail>summary::-webkit-details-marker{display:none}
+.dup-pls-detail>summary .srch-badge{cursor:pointer;border:1px dashed var(--primary);transition:all .12s}
+.dup-pls-detail>summary .srch-badge:hover{background:var(--primary-soft)}
+.dup-pls-detail[open]>summary .srch-badge{background:var(--primary-soft);border-style:solid}
+.dup-pls-list{list-style:none;padding:8px 0 4px;margin:0;display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto}
+.dup-pls-list li{font-size:11px;padding:3px 8px;background:var(--panel-hover);border-radius:4px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .manual-section p{margin:4px 0 8px;font-size:12px;line-height:1.6;color:var(--text)}
 .manual-section h3{margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--primary)}

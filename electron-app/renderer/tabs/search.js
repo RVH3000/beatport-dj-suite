@@ -26,6 +26,7 @@ let poolFilter = "";
 let poolCache = [];
 let dupData = [];
 let dupFiltered = [];
+let playlistNameMap = new Map(); // playlist ID → name
 let audioEl = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -393,7 +394,11 @@ function buildSearchTabHtml() {
       <div class="srch-builder-wrap">
         <div class="srch-builder-panel">
           <h3>Track-Pool <span style="font-size:11px;color:var(--muted);font-weight:400" id="srchPoolCount"></span></h3>
-          <input type="text" id="srchPoolSearch" placeholder="Tracks filtern..." style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:12px;margin-bottom:8px">
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <input type="text" id="srchPoolSearch" placeholder="Track, Artist, Label…" style="flex:1;padding:6px 10px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:12px">
+            <select id="srchPoolGenre" title="Genre-Filter im Pool" style="padding:6px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:120px"><option value="">Genre</option></select>
+            <select id="srchPoolLabel" title="Label-Filter im Pool" style="padding:6px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:120px"><option value="">Label</option></select>
+          </div>
           <div class="srch-pool-list" id="srchPoolList"></div>
         </div>
         <div class="srch-builder-panel">
@@ -483,6 +488,15 @@ function bindSearchEvents() {
 
   // Builder
   $("srchPoolSearch")?.addEventListener("input", debounce((e) => { poolFilter = e.target.value; renderPool(); }, 200));
+  $("srchPoolGenre")?.addEventListener("change", () => renderPool());
+  $("srchPoolLabel")?.addEventListener("change", () => renderPool());
+  // Pool-Dropdowns befüllen wenn Daten da
+  if (allTracks) {
+    const genres = new Set(), labels = new Set();
+    allTracks.forEach((t) => { if (t.g) genres.add(t.g); if (t.l) labels.add(t.l); });
+    const pg = $("srchPoolGenre"); if (pg) [...genres].sort().forEach((g) => { const o = document.createElement("option"); o.value = g; o.textContent = g; pg.appendChild(o); });
+    const pl = $("srchPoolLabel"); if (pl) [...labels].sort().slice(0, 300).forEach((l) => { const o = document.createElement("option"); o.value = l; o.textContent = l; pl.appendChild(o); });
+  }
   $("srchSortCamelot")?.addEventListener("click", () => { playlist.sort((a, b) => camelotSortVal(a.c) - camelotSortVal(b.c)); renderPlaylist(); });
   $("srchSortBpm")?.addEventListener("click", () => { playlist.sort((a, b) => (a.b || 0) - (b.b || 0)); renderPlaylist(); });
   $("srchClearPl")?.addEventListener("click", () => { playlist = []; renderPlaylist(); });
@@ -858,6 +872,14 @@ function processLoadedData(data) {
     allTracks = data.all_tracks;
     const n = allTracks.length;
     status.innerHTML = `<span style="color:var(--success)">&check; ${fmt(n)} Tracks geladen!</span>`;
+
+    // Playlist-Name-Map aufbauen (für klickbare Duplikate)
+    playlistNameMap.clear();
+    if (Array.isArray(data.playlists)) {
+      for (const pl of data.playlists) {
+        if (pl.id) playlistNameMap.set(pl.id, pl.name || `Playlist ${pl.id}`);
+      }
+    }
 
     // Build dashboard data from tracks
     buildDashData();
@@ -1353,6 +1375,7 @@ function renderDuplicates() {
   dupData = allTracks.filter((t) => t.p && t.p.length > 1).map((t) => ({
     track_id: t.i, title: t.t, mix: t.m, artists: t.a, genre: t.g,
     bpm: t.b, key: t.k, camelot: t.c, pls: t.p.length,
+    playlistIds: t.p, // Array von Playlist-IDs für klickbare Anzeige
   }));
 
   const total = dupData.length;
@@ -1387,14 +1410,20 @@ function filterDups() {
   });
   $("srchDupCount").textContent = fmt(dupFiltered.length) + " Duplikate";
 
-  $("srchDupBody").innerHTML = dupFiltered.slice(0, 200).map((t, i) =>
-    `<tr><td style="color:var(--muted)">${i + 1}</td>
+  $("srchDupBody").innerHTML = dupFiltered.slice(0, 200).map((t, i) => {
+    const plNames = (t.playlistIds || []).map((id) => playlistNameMap.get(id) || `#${id}`);
+    return `<tr><td style="color:var(--muted)">${i + 1}</td>
     <td><strong>${esc(t.title)}</strong> <span style="color:var(--muted);font-size:11px">${esc(t.mix) || ""}</span></td>
     <td>${esc(t.artists) || "\u2014"}</td><td>${esc(t.genre) || "\u2014"}</td>
     <td style="color:#ff6b35;font-weight:700">${t.bpm || "\u2014"}</td><td>${t.key || "\u2014"}</td>
     <td style="color:#b197fc;font-weight:700">${t.camelot || "\u2014"}</td>
-    <td><span class="srch-badge ${badgeCls(t.pls)}">${t.pls}</span></td></tr>`
-  ).join("");
+    <td>
+      <details class="dup-pls-detail">
+        <summary><span class="srch-badge ${badgeCls(t.pls)}">${t.pls}</span></summary>
+        <ul class="dup-pls-list">${plNames.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+      </details>
+    </td></tr>`;
+  }).join("");
 }
 
 // ─── Playlist Builder ────────────────────────────────────────────────────────
@@ -1402,7 +1431,19 @@ function filterDups() {
 function renderPool() {
   if (!allTracks) return;
   const qf = poolFilter.toLowerCase();
-  const filtered = qf ? allTracks.filter((t) => (t.t || "").toLowerCase().includes(qf) || (t.a || "").toLowerCase().includes(qf)) : allTracks.slice(0, 200);
+  const poolGenre = $("srchPoolGenre")?.value || "";
+  const poolLabel = $("srchPoolLabel")?.value || "";
+  let filtered = allTracks;
+  if (qf || poolGenre || poolLabel) {
+    filtered = allTracks.filter((t) => {
+      if (qf && !((t.t || "").toLowerCase().includes(qf) || (t.a || "").toLowerCase().includes(qf) || (t.l || "").toLowerCase().includes(qf))) return false;
+      if (poolGenre && t.g !== poolGenre) return false;
+      if (poolLabel && t.l !== poolLabel) return false;
+      return true;
+    });
+  } else {
+    filtered = allTracks.slice(0, 200);
+  }
   poolCache = filtered.slice(0, 100);
   $("srchPoolCount").textContent = "(" + fmt(filtered.length) + " gefunden)";
 

@@ -38,6 +38,14 @@ const FORMATS = [
     icon: "⤓",
     defaultName: "beatport-export",
   },
+  {
+    id: "m3u",
+    label: "M3U Playlist",
+    desc: "Universelles Playlist-Format — kompatibel mit VLC, foobar2000, Winamp und den meisten DJ-Apps.",
+    ext: ".m3u8",
+    icon: "🎵",
+    defaultName: "beatport-playlist",
+  },
 ];
 
 let exporting = false;
