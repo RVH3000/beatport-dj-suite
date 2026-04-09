@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Beatport Database Specialist</p>
-        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.3</span></h1>
+        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.4</span></h1>
       </div>
       <p class="subtitle">
         Scanner, Analyse, Playlist-Management, Automation &amp; Export
@@ -341,6 +341,15 @@ Sicherheit:
             Vor jedem Apply wird ein Backup angelegt.
           </p>
 
+          <div class="field-grid" style="margin-bottom:12px">
+            <label title="Engine-DB-Quelle: Lokal (~/Music/Engine Library) oder USB-Volumes. Automatisch erkannt.">
+              DB-Quelle
+              <select id="engDbSource">
+                <option value="auto">Automatisch erkennen</option>
+              </select>
+            </label>
+            <button id="engRefreshDbsBtn" type="button" title="Scannt nach lokalen + USB Engine-Datenbanken" style="align-self:end;padding:8px 14px">↻ DBs erkennen</button>
+          </div>
           <div id="engMergeStatus" class="detail-summary empty">
             Noch keine Preview geladen. Klicke <strong>Preview laden</strong>.
           </div>

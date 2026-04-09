@@ -215,6 +215,19 @@ export function generateJsonl(tracks) {
 
 // ─── Haupt-Export-Funktion ──────────────────────────────────────────────────────
 
+function generateM3u(tracks) {
+  const lines = ["#EXTM3U"];
+  for (const t of tracks) {
+    const duration = Math.round((t.lengthMs || t.length_ms || 0) / 1000);
+    const artist = t.artist || t.artists || "";
+    const title = t.title || "";
+    const filename = t.filename || t.file_path || `${artist} - ${title}.mp3`;
+    lines.push(`#EXTINF:${duration},${artist} - ${title}`);
+    lines.push(filename);
+  }
+  return lines.join("\n") + "\n";
+}
+
 export async function generateExport(tracks, format, outputPath) {
   let content;
   let ext;
@@ -235,6 +248,10 @@ export async function generateExport(tracks, format, outputPath) {
     case "jsonl":
       content = generateJsonl(tracks);
       ext = ".jsonl";
+      break;
+    case "m3u":
+      content = generateM3u(tracks);
+      ext = ".m3u8";
       break;
     default:
       throw new Error(`Unbekanntes Export-Format: ${format}`);

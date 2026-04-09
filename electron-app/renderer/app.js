@@ -2798,6 +2798,28 @@ bootstrap().catch((error) => {
   if (previewBtn) previewBtn.addEventListener("click", loadPreview);
   if (applyBtn) applyBtn.addEventListener("click", applyChanges);
 
+  // DB-Quellen erkennen
+  async function refreshDbSources() {
+    const sel = document.getElementById("engDbSource");
+    if (!sel || !window.engineApi?.discoverAllDatabases) return;
+    try {
+      const result = await window.engineApi.discoverAllDatabases();
+      if (result?.ok && Array.isArray(result.databases)) {
+        sel.innerHTML = '<option value="auto">Automatisch erkennen</option>';
+        for (const db of result.databases) {
+          const label = db.source === "usb" ? `USB: ${db.volume}` : `Lokal (${db.volume})`;
+          const dbs = db.databases.filter((d) => d.exists).map((d) => d.name).join(", ");
+          const opt = document.createElement("option");
+          opt.value = db.path;
+          opt.textContent = `${label} — ${dbs}`;
+          sel.appendChild(opt);
+        }
+      }
+    } catch { /* silent */ }
+  }
+  document.getElementById("engRefreshDbsBtn")?.addEventListener("click", refreshDbSources);
+  refreshDbSources();
+
   // Unmatched: zum Scanner wechseln
   document.getElementById("engUnmatchedScanBtn")?.addEventListener("click", () => {
     document.querySelector('.group-bar .group[data-group="library"]')?.click();

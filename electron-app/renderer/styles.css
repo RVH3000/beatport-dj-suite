@@ -4,13 +4,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Backgrounds ─── v3.6.3: Analyse-Fix, Scanner-Tooltips, Settings-Tooltips ── */
-  --bg:             #111521;
-  --bg-subtle:      #161a28;
-  --panel:          #1e2233;
-  --panel-strong:   #252a3c;
-  --panel-hover:    #2c3146;
-  --surface:        #333953;
+  /* ── Backgrounds ─── v3.6.4: M3U-Backend, USB-Dropdown, Audit-Fixes ──── */
+  --bg:             #121621;
+  --bg-subtle:      #171b29;
+  --panel:          #1f2334;
+  --panel-strong:   #262b3d;
+  --panel-hover:    #2d3247;
+  --surface:        #343a54;
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --line:           rgba(255, 255, 255, 0.07);
