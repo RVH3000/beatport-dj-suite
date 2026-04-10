@@ -68,9 +68,17 @@ Ein "Run" ist ein zeitlich markierter Snapshot deiner Beatport-Library. Delta-Sy
 - **Target-Pattern** — Regex fuer die Beatport-Tab-URL
 - **Timeout** — Maximale Wartezeit pro Operation in Millisekunden
 - **Beatport App Pfad** — Pfad zur Beatport-Desktop-App
-- **Analyse-Methode** — Auto (XHR bevorzugen, Route, DOM Fallback), Nur XHR, Route bevorzugen, Nur DOM
-- **App starten** — Startet die Beatport-App automatisch vor dem Scan
-- **CDP-Autorecovery** — Startet den Host-Browser automatisch neu bei Port-Fehler
+- **Analyse-Methode** — Bestimmt WIE Track-Daten von Beatport geholt werden:
+  - **Auto** (Standard, empfohlen): Versucht zuerst XHR (schnellste Methode), fällt bei Fehlern auf Route und dann auf DOM zurueck.
+  - **Nur XHR**: Nutzt ausschliesslich die Beatport REST-API (`/v4/my/playlists/`). Schnellste Methode, aber braucht gueltige Bearer-Auth.
+  - **Route bevorzugen**: Navigiert den Browser zu jeder Playlist-URL und liest die Daten aus dem geladenen HTML. Langsamer als XHR, aber funktioniert auch bei API-Problemen.
+  - **Nur DOM**: Liest Track-Daten direkt aus dem gerenderten DOM der Beatport-Seite. Langsamste Methode, Fallback fuer alte Seitenversionen.
+- **App starten** — Startet die Beatport-Desktop-App oder Chrome automatisch vor dem Scan (oeffnet `open -na ... --remote-debugging-port`).
+- **CDP-Autorecovery** — Wenn der CDP-Port nicht erreichbar ist (Browser geschlossen oder abgestuerzt), wird der Host-Browser automatisch neu gestartet.
+
+#### Bekannte Einschraenkungen
+
+- **Pause / Resume** — Pause sendet ein Signal an den laufenden Scan, der nach der aktuellen Playlist anhält. **Derzeit nicht zuverlaessig** — der Scan kann unter bestimmten Umstaenden nicht sauber fortgesetzt werden. Workaround: neuen Delta-Sync starten (alte Daten bleiben erhalten).
 
 #### Sicherheit & Session (Accordion)
 

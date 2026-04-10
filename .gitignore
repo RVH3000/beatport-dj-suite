@@ -13,3 +13,5 @@ dist-electron/
 # Lose Skill-Dateien (gehören in ~/.claude/skills, nicht ins Repo)
 *.skill
 terminal-reader-skill/
+config/scoring-backups/
+config/scoring-merge-log.jsonl

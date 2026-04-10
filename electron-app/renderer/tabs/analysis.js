@@ -179,6 +179,11 @@ function renderAnalysis() {
 
   container.innerHTML = `
     <section class="panel span-full">
+      <div class="callout info" style="margin-bottom:14px">
+        <strong>Datenquelle:</strong> Analyse basiert auf dem ausgewählten Scanner-Run (Tiefenanalyse).
+        Zeigt BPM-Verteilung, Tonarten-Kompatibilität (Camelot-Wheel), Genre-Breakdown und Playlist-Überschneidungen.
+        <br><strong>Tipp:</strong> Das Dashboard im Suche-Tab zeigt ähnliche Charts direkt aus der scoring-data.json — ohne Scanner-Run.
+      </div>
       <div class="analysis-stats">
         <div class="stat-card">
           <span class="stat-label">Track-Einträge</span>
@@ -205,16 +210,19 @@ function renderAnalysis() {
 
     <section class="panel">
       <h2>BPM-Verteilung</h2>
+      <p class="detail-summary" style="margin-bottom:8px">Histogramm aller Track-BPM-Werte. Peaks zeigen die häufigsten Tempi in deiner Library.</p>
       <canvas id="chart-bpm" width="600" height="320"></canvas>
     </section>
 
     <section class="panel">
       <h2>Camelot Key-Wheel</h2>
+      <p class="detail-summary" style="margin-bottom:8px">24 Segmente (1A-12B). Je größer ein Segment, desto mehr Tracks in dieser Tonart. Benachbarte Segmente = harmonisch kompatibel.</p>
       <canvas id="chart-key" width="480" height="480"></canvas>
     </section>
 
     <section class="panel span-full">
       <h2>Genre-Breakdown</h2>
+      <p class="detail-summary" style="margin-bottom:8px">Top-Genres nach Track-Anzahl. Klicke auf einen Balken um in die Suche mit diesem Genre zu springen.</p>
       <canvas id="chart-genre" width="900" height="360"></canvas>
     </section>
 

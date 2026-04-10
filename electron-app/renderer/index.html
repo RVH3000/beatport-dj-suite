@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Beatport Database Specialist</p>
-        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.4</span></h1>
+        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.5</span></h1>
       </div>
       <p class="subtitle">
         Scanner, Analyse, Playlist-Management, Automation &amp; Export
@@ -466,12 +466,18 @@ Sicherheit:
     <!-- TAB 3: Playlist WIZ                                                -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <main id="tab-playlist" class="tab-panel" role="tabpanel" hidden>
+      <div class="callout info" style="margin:12px 16px 0">
+        <strong>Build</strong> vereint zwei Workflows:
+        <strong>Playlist WIZ</strong> (Live-CRUD auf Beatport via API) und
+        <strong>Playlist Builder</strong> (lokaler Aufbau aus scoring-data mit Camelot/BPM-Flow, im Explore → Suche-Tab).
+        Der Track-Pool im Builder hat dieselben Filter wie die Suche (Genre, Label, BPM, Key, Jahr, Rating).
+      </div>
       <div class="wiz-layout" id="playlist-wiz-content">
         <section class="panel span-full placeholder-panel">
-          <h2>Playlist WIZ</h2>
+          <h2>Playlist WIZ — Live Beatport</h2>
           <p class="placeholder-text">
-            Wechsle zu diesem Tab, um Playlists live zu verwalten —
-            erstellen, umbenennen, löschen, Tracks hinzufügen &amp; entfernen.
+            Live-Verbindung zur Beatport-API: Playlists anzeigen, erstellen, umbenennen, löschen.
+            Tracks hinzufügen und entfernen. Braucht aktive Beatport-Session (Status-Bar → Reconnect).
           </p>
         </section>
       </div>

@@ -104,6 +104,8 @@ function getSearchSource() {
     camelot: t.c || "", year: t.y, label: t.l || "", release: t.r || "",
     length_ms: t.ms, count: t.p ? t.p.length : 0,
     is_hype: t.h || 0, is_dj_edit: t.dj || 0, sample_url: t.su || "",
+    rating: t.rating || null, plays_total: t.plays_total || 0,
+    file_path: t.file_path || "", comment: t.comment || "",
     drama: dramaScore(t.b, t.c),
   }));
 }
@@ -360,7 +362,7 @@ function buildSearchTabHtml() {
         <th data-col="title">Title</th><th data-col="artists">Artist</th><th data-col="genre">Genre</th>
         <th data-col="bpm">BPM</th><th data-col="key">Key</th><th data-col="camelot">Camelot</th>
         <th data-col="drama">Drama</th><th data-col="year">Jahr</th><th data-col="label">Label</th>
-        <th data-col="count">PLs</th><th style="width:36px"></th>
+        <th data-col="count">PLs</th><th data-col="rating" title="Engine DJ Rating (0-5 Sterne)">★</th><th data-col="plays" title="Abspielungen in Engine DJ Sessions">▶</th><th style="width:36px"></th>
       </tr></thead><tbody id="srchBody"></tbody></table></div>
       <div class="srch-pagination" id="srchPagination"></div>
     </div>
@@ -394,10 +396,19 @@ function buildSearchTabHtml() {
       <div class="srch-builder-wrap">
         <div class="srch-builder-panel">
           <h3>Track-Pool <span style="font-size:11px;color:var(--muted);font-weight:400" id="srchPoolCount"></span></h3>
-          <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="display:flex;gap:6px;margin-bottom:6px">
             <input type="text" id="srchPoolSearch" placeholder="Track, Artist, Label…" style="flex:1;padding:6px 10px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:12px">
-            <select id="srchPoolGenre" title="Genre-Filter im Pool" style="padding:6px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:120px"><option value="">Genre</option></select>
-            <select id="srchPoolLabel" title="Label-Filter im Pool" style="padding:6px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:120px"><option value="">Label</option></select>
+            <select id="srchPoolGenre" title="Genre" style="padding:6px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:110px"><option value="">Genre</option></select>
+            <select id="srchPoolLabel" title="Label" style="padding:6px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:110px"><option value="">Label</option></select>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <input type="number" id="srchPoolBpmMin" placeholder="BPM ≥" title="BPM Minimum" min="60" max="200" style="width:65px;padding:5px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px">
+            <input type="number" id="srchPoolBpmMax" placeholder="BPM ≤" title="BPM Maximum" min="60" max="200" style="width:65px;padding:5px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px">
+            <select id="srchPoolKey" title="Tonart" style="padding:5px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:90px"><option value="">Key</option></select>
+            <input type="number" id="srchPoolYearMin" placeholder="Jahr ≥" title="Jahr Minimum" min="1990" max="2030" style="width:70px;padding:5px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px">
+            <select id="srchPoolRating" title="Mindest-Rating (Engine DJ)" style="padding:5px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:11px;max-width:90px">
+              <option value="">Rating</option><option value="1">★+</option><option value="2">★★+</option><option value="3">★★★+</option><option value="4">★★★★+</option><option value="5">★★★★★</option>
+            </select>
           </div>
           <div class="srch-pool-list" id="srchPoolList"></div>
         </div>
@@ -490,12 +501,19 @@ function bindSearchEvents() {
   $("srchPoolSearch")?.addEventListener("input", debounce((e) => { poolFilter = e.target.value; renderPool(); }, 200));
   $("srchPoolGenre")?.addEventListener("change", () => renderPool());
   $("srchPoolLabel")?.addEventListener("change", () => renderPool());
+  $("srchPoolBpmMin")?.addEventListener("input", debounce(() => renderPool(), 300));
+  $("srchPoolBpmMax")?.addEventListener("input", debounce(() => renderPool(), 300));
+  $("srchPoolKey")?.addEventListener("change", () => renderPool());
+  $("srchPoolYearMin")?.addEventListener("input", debounce(() => renderPool(), 300));
+  $("srchPoolRating")?.addEventListener("change", () => renderPool());
   // Pool-Dropdowns befüllen wenn Daten da
   if (allTracks) {
     const genres = new Set(), labels = new Set();
     allTracks.forEach((t) => { if (t.g) genres.add(t.g); if (t.l) labels.add(t.l); });
     const pg = $("srchPoolGenre"); if (pg) [...genres].sort().forEach((g) => { const o = document.createElement("option"); o.value = g; o.textContent = g; pg.appendChild(o); });
     const pl = $("srchPoolLabel"); if (pl) [...labels].sort().slice(0, 300).forEach((l) => { const o = document.createElement("option"); o.value = l; o.textContent = l; pl.appendChild(o); });
+    const keys = new Set(); allTracks.forEach((t) => { if (t.k) keys.add(t.k); });
+    const pk = $("srchPoolKey"); if (pk) [...keys].sort().forEach((k) => { const o = document.createElement("option"); o.value = k; o.textContent = k; pk.appendChild(o); });
   }
   $("srchSortCamelot")?.addEventListener("click", () => { playlist.sort((a, b) => camelotSortVal(a.c) - camelotSortVal(b.c)); renderPlaylist(); });
   $("srchSortBpm")?.addEventListener("click", () => { playlist.sort((a, b) => (a.b || 0) - (b.b || 0)); renderPlaylist(); });
@@ -1302,6 +1320,8 @@ function renderSearchPage() {
       <td>${t.year || "\u2014"}</td>
       <td style="font-size:11px">${esc(t.label) || "\u2014"}</td>
       <td><span class="srch-badge ${badgeCls(t.count)}">${t.count}</span></td>
+      <td style="color:#fbbf24;font-size:12px">${t.rating ? "★".repeat(t.rating) : "—"}</td>
+      <td style="font-size:11px;color:var(--muted)">${t.plays_total || "—"}</td>
       <td><button class="srch-reco-btn" data-tid="${t.track_id}" title="Empfehlungen laden">&#x1F52E;</button></td>
     </tr>`;
   }).join("");
@@ -1433,12 +1453,23 @@ function renderPool() {
   const qf = poolFilter.toLowerCase();
   const poolGenre = $("srchPoolGenre")?.value || "";
   const poolLabel = $("srchPoolLabel")?.value || "";
+  const poolBpmMin = parseInt($("srchPoolBpmMin")?.value) || 0;
+  const poolBpmMax = parseInt($("srchPoolBpmMax")?.value) || 999;
+  const poolKey = $("srchPoolKey")?.value || "";
+  const poolYearMin = parseInt($("srchPoolYearMin")?.value) || 0;
+  const poolRating = parseInt($("srchPoolRating")?.value) || 0;
+  const hasFilter = qf || poolGenre || poolLabel || poolBpmMin > 0 || poolBpmMax < 999 || poolKey || poolYearMin > 0 || poolRating > 0;
   let filtered = allTracks;
-  if (qf || poolGenre || poolLabel) {
+  if (hasFilter) {
     filtered = allTracks.filter((t) => {
       if (qf && !((t.t || "").toLowerCase().includes(qf) || (t.a || "").toLowerCase().includes(qf) || (t.l || "").toLowerCase().includes(qf))) return false;
       if (poolGenre && t.g !== poolGenre) return false;
       if (poolLabel && t.l !== poolLabel) return false;
+      if (poolBpmMin > 0 && (t.b || 0) < poolBpmMin) return false;
+      if (poolBpmMax < 999 && (t.b || 999) > poolBpmMax) return false;
+      if (poolKey && t.k !== poolKey) return false;
+      if (poolYearMin > 0 && (t.y || 0) < poolYearMin) return false;
+      if (poolRating > 0 && (t.rating || 0) < poolRating) return false;
       return true;
     });
   } else {
