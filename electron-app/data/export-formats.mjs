@@ -239,6 +239,13 @@ export function generateJson(tracks) {
   return JSON.stringify(playlists, null, 2);
 }
 
+// ─── JSONL (JSON Lines — eine Playlist pro Zeile) ───────────────────────────────
+
+export function generateJsonl(tracks) {
+  const playlists = groupByPlaylist(tracks);
+  return playlists.map((pl) => JSON.stringify(pl)).join("\n") + "\n";
+}
+
 // ─── Haupt-Export-Funktion ──────────────────────────────────────────────────────
 
 export async function generateExport(tracks, format, outputPath) {
@@ -261,6 +268,10 @@ export async function generateExport(tracks, format, outputPath) {
     case "json":
       content = generateJson(tracks);
       ext = ".json";
+      break;
+    case "jsonl":
+      content = generateJsonl(tracks);
+      ext = ".jsonl";
       break;
     default:
       throw new Error(`Unbekanntes Export-Format: ${format}`);

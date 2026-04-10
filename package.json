@@ -18,16 +18,24 @@
     "check": "node scripts/check-scanner.mjs",
     "smoke:beatport": "node scripts/smoke-beatport.mjs",
     "beatport:scan": "node tools/bpx.mjs scan",
-    "beatport:delete": "node tools/bpx.mjs delete"
+    "beatport:delete": "node tools/bpx.mjs delete",
+    "lint": "eslint electron-app/ tests/",
+    "lint:fix": "eslint electron-app/ tests/ --fix",
+    "format": "prettier --write \"electron-app/**/*.{mjs,js,css}\" \"tests/**/*.mjs\"",
+    "format:check": "prettier --check \"electron-app/**/*.{mjs,js,css}\" \"tests/**/*.mjs\""
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "electron": "^32.2.0",
     "electron-builder": "^25.1.8",
-    "electron-reload": "^2.0.0-alpha.1"
+    "electron-reload": "^2.0.0-alpha.1",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.2"
   },
   "build": {
     "appId": "com.roberth.beatport.djsuite",

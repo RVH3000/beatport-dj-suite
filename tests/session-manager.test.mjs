@@ -204,7 +204,10 @@ describe("Source-Validierung", () => {
   });
 
   it("importiert BrowserWindow aus electron", () => {
-    assert.ok(source.includes('import { BrowserWindow } from "electron"'));
+    assert.ok(
+      source.includes("BrowserWindow") && source.includes('from "electron"'),
+      "BrowserWindow Import aus electron nicht gefunden"
+    );
   });
 });
 

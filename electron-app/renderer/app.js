@@ -8,6 +8,27 @@ let automationModule = null;
 let settingsModule = null;
 const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
 
+// ─── Globale Error-Boundary ─────────────────────────────────────────────────
+window.onerror = (message, source, lineno, colno, error) => {
+  console.error("[error-boundary]", message, { source, lineno, colno, error });
+  const statusBar = document.getElementById("status");
+  if (statusBar) {
+    statusBar.textContent = `Fehler: ${message}`;
+    statusBar.className = "status-bar error";
+  }
+  return true; // Fehler nicht weiter propagieren
+};
+
+window.addEventListener("unhandledrejection", (event) => {
+  const msg = event.reason?.message || String(event.reason);
+  console.error("[error-boundary] Unhandled Promise:", msg, event.reason);
+  const statusBar = document.getElementById("status");
+  if (statusBar) {
+    statusBar.textContent = `Async-Fehler: ${msg}`;
+    statusBar.className = "status-bar error";
+  }
+});
+
 // ─── Tab-Navigation ─────────────────────────────────────────────────────────
 (function initTabs() {
   const tabBar = document.querySelector(".tab-bar");
