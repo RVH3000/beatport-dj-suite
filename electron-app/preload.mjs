@@ -126,6 +126,9 @@ contextBridge.exposeInMainWorld("syncApi", {
   importToDjplaylists:      (opts)          => ipcRenderer.invoke("sync:import-to-djplaylists", opts),
   importToLexicon:          (opts)          => ipcRenderer.invoke("sync:import-to-lexicon", opts),
   triggerEngineExport:      (opts)          => ipcRenderer.invoke("sync:trigger-engine-export", opts),
+  // DJPlaylists.fm Login + JWT
+  djplOpenLogin:            ()              => ipcRenderer.invoke("sync:djpl-open-login"),
+  djplGetJwt:               ()              => ipcRenderer.invoke("sync:djpl-get-jwt"),
   // DJPlaylists.fm → Lexicon Batch-Automation
   scrapeDjplaylists:        (opts)          => ipcRenderer.invoke("sync:scrape-djplaylists", opts),
   djplaylistsToLexiconAll:  (opts)          => ipcRenderer.invoke("sync:djplaylists-to-lexicon-all", opts),

@@ -131,26 +131,31 @@ function buildSyncTabHtml() {
     <section class="panel">
       <h2>DJPlaylists.fm Konfiguration</h2>
       <p class="callout info" style="margin-bottom:0.75rem">
-        DJPlaylists.fm ist die Brücke, die Beatport-Playlists in Lexicon-kompatible Playlists konvertiert —
-        <strong>der einzige Weg der alle Metadaten korrekt überträgt.</strong><br>
-        <strong>Hinweis:</strong> DJPlaylists.fm hat <em>keine offizielle öffentliche API</em>.
-        Die Verbindung funktioniert über einen <strong>Session-Cookie</strong>, den du aus deinem Browser kopierst.
-        Alternativ: manche Accounts haben einen API-Key (Account-Seite prüfen).
+        DJPlaylists.fm ist die Brücke für Beatport → Lexicon —
+        <strong>einziger Weg mit vollständigen Metadaten.</strong><br>
+        <strong>Login:</strong> Klicke <em>"Bei DJPlaylists.fm einloggen"</em> — ein Fenster öffnet sich,
+        du loggst dich ein (oder bist schon eingeloggt), die App übernimmt die Session automatisch. Kein Cookie-Kopieren nötig.
       </p>
-      <div class="field-grid">
-        <label class="wide" title="Falls vorhanden: API-Key von djplaylists.fm (Account → API Key). Nicht alle Accounts haben einen.">
-          API-Key (falls vorhanden)
-          <input id="syncDjplApiKey" type="password" placeholder="nur wenn auf djplaylists.fm sichtbar" autocomplete="off" />
-        </label>
-        <label class="wide" title="Browser → djplaylists.fm → F12 → Application → Cookies → '_session'-Wert kopieren. Das ist der empfohlene Weg.">
-          Session-Cookie (empfohlen)
-          <input id="syncDjplSessionCookie" type="password" placeholder="F12 → Application → Cookies → _session=..." autocomplete="off" />
-        </label>
-      </div>
-      <div class="actions compact">
+      <div class="actions compact" style="margin-bottom:0.75rem">
+        <button id="syncDjplLoginBtn" class="primary" type="button" title="Öffnet DJPlaylists.fm in einem App-Fenster. Einloggen → Session wird automatisch übernommen.">🔐 Bei DJPlaylists.fm einloggen</button>
+        <button id="syncDjplSyncJwtBtn" type="button" title="Holt den aktuellen Auth-Token aus der DJPL.fm Session (falls bereits eingeloggt)">JWT synchronisieren</button>
         <button id="syncSaveAuthBtn" type="button">Speichern &amp; testen</button>
         <button id="syncExploreApiBtn" type="button">API erkunden</button>
       </div>
+      <div id="syncDjplLoginStatus" class="detail-summary empty"></div>
+      <details style="margin-bottom:0.75rem">
+        <summary style="cursor:pointer;font-size:12px;color:var(--muted)">Erweitert: Manueller API-Key / Session-Cookie</summary>
+        <div class="field-grid" style="margin-top:8px">
+          <label class="wide" title="Falls vorhanden: API-Key oder JWT-Token.">
+            API-Key / JWT
+            <input id="syncDjplApiKey" type="password" placeholder="automatisch oder manuell" autocomplete="off" />
+          </label>
+          <label class="wide" title="Nur als Fallback: Session-Cookie aus F12.">
+            Session-Cookie (Fallback)
+            <input id="syncDjplSessionCookie" type="password" placeholder="nur wenn Login-Button nicht funktioniert" autocomplete="off" />
+          </label>
+        </div>
+      </details>
       <div id="syncAuthResult" class="detail-summary empty"></div>
     </section>
 
@@ -311,6 +316,8 @@ function bindEvents() {
   document.getElementById("syncImportBtn")?.addEventListener("click", runImportPipeline);
   document.getElementById("syncSaveAuthBtn")?.addEventListener("click", saveAndTestAuth);
   document.getElementById("syncExploreApiBtn")?.addEventListener("click", exploreApis);
+  document.getElementById("syncDjplLoginBtn")?.addEventListener("click", openDjplLogin);
+  document.getElementById("syncDjplSyncJwtBtn")?.addEventListener("click", syncDjplJwt);
   document.getElementById("syncClearLogBtn")?.addEventListener("click", clearLog);
   document.getElementById("syncEngineExportBtn")?.addEventListener("click", runEngineExport);
   document.getElementById("syncSavePresetBtn")?.addEventListener("click", saveCurrentAsPreset);
@@ -911,6 +918,43 @@ function setPipelineRunning(running) {
   if (btn) {
     btn.disabled = running;
     btn.textContent = running ? "Pipeline läuft…" : "Importieren & Sync starten";
+  }
+}
+
+// ─── DJPlaylists.fm Login + JWT ──────────────────────────────────────────────
+
+async function openDjplLogin() {
+  const status = document.getElementById("syncDjplLoginStatus");
+  if (status) status.innerHTML = '<span class="status-info">Öffne DJPlaylists.fm Login-Fenster…</span>';
+  try {
+    const result = await window.syncApi.djplOpenLogin();
+    if (result.loggedIn) {
+      if (status) status.innerHTML = `<span class="status-ok">✓ Eingeloggt${result.username ? ` als ${result.username}` : ""}. Session wird automatisch genutzt.</span>`;
+      // JWT synchronisieren
+      await syncDjplJwt();
+    } else {
+      if (status) status.innerHTML = '<span class="status-info">Login-Fenster geöffnet. Bitte dort einloggen, dann "JWT synchronisieren" klicken.</span>';
+    }
+  } catch (err) {
+    if (status) status.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
+  }
+}
+
+async function syncDjplJwt() {
+  const status = document.getElementById("syncDjplLoginStatus");
+  try {
+    const result = await window.syncApi.djplGetJwt();
+    if (result.ok) {
+      syncState.apiKey = "(jwt-auto)";
+      if (status) status.innerHTML = '<span class="status-ok">✓ JWT-Token synchronisiert. Imports werden jetzt authentifiziert.</span>';
+      // API-Key-Feld im UI aktualisieren
+      const apiInput = document.getElementById("syncDjplApiKey");
+      if (apiInput) apiInput.value = "(automatisch via Login)";
+    } else {
+      if (status) status.innerHTML = `<span class="status-warn">JWT nicht gefunden. Bitte zuerst bei DJPlaylists.fm einloggen.</span>`;
+    }
+  } catch (err) {
+    if (status) status.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
   }
 }
 

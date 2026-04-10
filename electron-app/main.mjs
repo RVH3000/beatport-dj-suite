@@ -1283,11 +1283,15 @@ app.whenReady().then(() => {
   /** Singleton Hidden-BrowserWindow für DJPlaylists.fm */
   let _djplWin = null;
 
-  async function getDjplBrowserWindow() {
-    if (_djplWin && !_djplWin.isDestroyed()) return _djplWin;
+  async function getDjplBrowserWindow(options = {}) {
+    const { show = false } = options;
+    if (_djplWin && !_djplWin.isDestroyed()) {
+      if (show && !_djplWin.isVisible()) _djplWin.show();
+      return _djplWin;
+    }
 
     _djplWin = new BrowserWindow({
-      show: false,
+      show,
       width: 1200,
       height: 800,
       webPreferences: {
@@ -1299,6 +1303,10 @@ app.whenReady().then(() => {
 
     _djplWin.on("closed", () => { _djplWin = null; });
 
+    const startUrl = show
+      ? "https://www.djplaylists.fm/login"
+      : "https://www.djplaylists.fm/app/playlist/227";
+
     await new Promise((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error("Timeout: DJPlaylists.fm konnte nicht geladen werden.")),
@@ -1309,13 +1317,45 @@ app.whenReady().then(() => {
         clearTimeout(timer);
         reject(new Error(`Ladefehler: ${desc} (${code})`));
       });
-      _djplWin.loadURL("https://www.djplaylists.fm/app/playlist/227");
+      _djplWin.loadURL(startUrl);
     });
 
     // SPA-Initialisierung abwarten
     await new Promise((r) => setTimeout(r, 2500));
     return _djplWin;
   }
+
+  /** Öffnet das DJPL.fm Login-Fenster sichtbar — User loggt sich ein, Session wird in der Partition gespeichert */
+  ipcMain.handle("sync:djpl-open-login", async () => {
+    try {
+      await getDjplBrowserWindow({ show: true });
+      // Warte kurz, dann prüfe ob eingeloggt
+      await new Promise((r) => setTimeout(r, 1000));
+      const status = await checkDjplLogin();
+      return { ok: true, ...status };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  /** Extrahiert den JWT aus der DJPL.fm Session (für REST-API-Calls) */
+  ipcMain.handle("sync:djpl-get-jwt", async () => {
+    try {
+      const jwt = await runInDjpl(`(() => {
+        const raw = localStorage.getItem('djplaylists-auth');
+        if (!raw) return null;
+        try { const p = JSON.parse(raw); return p.token || p.access_token || p.accessToken || p.jwt || raw; }
+        catch { return raw; }
+      })()`);
+      if (jwt) {
+        // JWT als Auth-Token im DjplaylistsClient setzen
+        DjplaylistsClient.setApiKey(jwt);
+      }
+      return { ok: !!jwt, jwt: jwt ? "(vorhanden)" : null };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
 
   /** Führt JS im DJPlaylists.fm-Fenster aus */
   async function runInDjpl(script) {
