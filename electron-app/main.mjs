@@ -1054,11 +1054,62 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("sync:import-to-djplaylists", async (_event, options = {}) => {
+    const { beatportUrl } = options;
+    if (!beatportUrl) return { ok: false, error: "beatportUrl fehlt" };
+
     try {
-      const result = await DjplaylistsClient.importBeatportPlaylist(options);
+      // Methode 1: Via BrowserWindow (auth aus persist:djplaylists Partition)
+      // Extrahiert JWT aus localStorage und macht den API-Call im Seitenkontext
+      const result = await runInDjpl(`(async () => {
+        const raw = localStorage.getItem('djplaylists-auth');
+        if (!raw) return { ok: false, error: "Nicht eingeloggt bei DJPlaylists.fm" };
+
+        let jwt;
+        try { const p = JSON.parse(raw); jwt = p.token || p.access_token || p.accessToken || p.jwt || raw; }
+        catch { jwt = raw; }
+
+        const endpoints = [
+          "/api/playlists/import",
+          "/api/import/beatport",
+          "/api/v1/playlists/import",
+        ];
+
+        for (const ep of endpoints) {
+          try {
+            const resp = await fetch("https://api.djplaylists.fm" + ep, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + jwt,
+              },
+              body: JSON.stringify({ url: ${JSON.stringify(beatportUrl)}, source: "beatport" }),
+            });
+            if (resp.status === 401 || resp.status === 403) {
+              return { ok: false, error: "Auth abgelaufen — bitte neu einloggen" };
+            }
+            if (resp.ok) {
+              const data = await resp.json().catch(() => ({}));
+              return {
+                ok: true,
+                path: ep,
+                playlistId: data?.id || data?.playlist_id || null,
+                name: data?.name || null,
+                trackCount: data?.track_count || data?.tracks?.length || null,
+              };
+            }
+          } catch { continue; }
+        }
+        return { ok: false, error: "Kein Import-Endpoint hat funktioniert" };
+      })()`);
+
       return result;
     } catch (err) {
-      return { ok: false, error: toErrorMessage(err) };
+      // Fallback: REST-Client (alter Weg)
+      try {
+        return await DjplaylistsClient.importBeatportPlaylist(options);
+      } catch (err2) {
+        return { ok: false, error: toErrorMessage(err2) };
+      }
     }
   });
 

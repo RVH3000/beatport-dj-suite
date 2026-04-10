@@ -1027,7 +1027,14 @@ async function loadDiff() {
     _diffDjplPlaylists = Array.isArray(djplResult?.playlists) ? djplResult.playlists : [];
 
     if (!_diffBeatportPlaylists.length) {
-      resultEl.innerHTML = '<span class="status-warn">Keine Beatport-Playlists gefunden. Ist die Session aktiv?</span>';
+      resultEl.innerHTML = '<span class="status-warn">Keine Beatport-Playlists gefunden. Ist die Beatport-Session aktiv?</span>';
+      return;
+    }
+
+    if (!_diffDjplPlaylists.length) {
+      resultEl.innerHTML = `<span class="status-warn">⚠️ DJPlaylists.fm liefert 0 Playlists — vermutlich nicht eingeloggt.<br>
+        → Klicke oben "Bei DJPlaylists.fm einloggen", dann erneut "Diff laden".<br>
+        ${_diffBeatportPlaylists.length} Beatport-Playlists gefunden, aber ohne DJPL.fm-Vergleich ist der Diff sinnlos.</span>`;
       return;
     }
 
@@ -1181,9 +1188,14 @@ async function runDiffImport() {
     if (statusCell) statusCell.innerHTML = '<span class="status-info">⏳</span>';
 
     try {
-      await window.syncApi.importToDjplaylists({ beatportUrl: bpUrl });
-      imported++;
-      if (statusCell) statusCell.innerHTML = '<span class="status-ok">✓ importiert</span>';
+      const res = await window.syncApi.importToDjplaylists({ beatportUrl: bpUrl });
+      if (res?.ok) {
+        imported++;
+        if (statusCell) statusCell.innerHTML = `<span class="status-ok">✓ importiert${res.playlistId ? ` (#${res.playlistId})` : ""}</span>`;
+      } else {
+        failed++;
+        if (statusCell) statusCell.innerHTML = `<span class="status-err">✗ ${esc(res?.error || "Kein Endpoint hat funktioniert").slice(0, 60)}</span>`;
+      }
     } catch (err) {
       failed++;
       if (statusCell) statusCell.innerHTML = `<span class="status-err">✗ ${esc(err.message).slice(0, 40)}</span>`;
