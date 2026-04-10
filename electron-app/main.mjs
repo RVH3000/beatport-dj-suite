@@ -1054,62 +1054,70 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("sync:import-to-djplaylists", async (_event, options = {}) => {
-    const { beatportUrl } = options;
+    const { beatportUrl, playlistName } = options;
     if (!beatportUrl) return { ok: false, error: "beatportUrl fehlt" };
 
+    // DJPlaylists.fm hat KEINE Import-API. Der Import funktioniert NUR über die Website.
+    // Wir navigieren das BrowserWindow zur DJPL.fm-Seite und lassen die Seite den Import machen.
     try {
-      // Methode 1: Via BrowserWindow (auth aus persist:djplaylists Partition)
-      // Extrahiert JWT aus localStorage und macht den API-Call im Seitenkontext
-      const result = await runInDjpl(`(async () => {
-        const raw = localStorage.getItem('djplaylists-auth');
-        if (!raw) return { ok: false, error: "Nicht eingeloggt bei DJPlaylists.fm" };
-
-        let jwt;
-        try { const p = JSON.parse(raw); jwt = p.token || p.access_token || p.accessToken || p.jwt || raw; }
-        catch { jwt = raw; }
-
-        const endpoints = [
-          "/api/playlists/import",
-          "/api/import/beatport",
-          "/api/v1/playlists/import",
-        ];
-
-        for (const ep of endpoints) {
-          try {
-            const resp = await fetch("https://api.djplaylists.fm" + ep, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + jwt,
-              },
-              body: JSON.stringify({ url: ${JSON.stringify(beatportUrl)}, source: "beatport" }),
-            });
-            if (resp.status === 401 || resp.status === 403) {
-              return { ok: false, error: "Auth abgelaufen — bitte neu einloggen" };
-            }
-            if (resp.ok) {
-              const data = await resp.json().catch(() => ({}));
-              return {
-                ok: true,
-                path: ep,
-                playlistId: data?.id || data?.playlist_id || null,
-                name: data?.name || null,
-                trackCount: data?.track_count || data?.tracks?.length || null,
-              };
-            }
-          } catch { continue; }
-        }
-        return { ok: false, error: "Kein Import-Endpoint hat funktioniert" };
-      })()`);
-
-      return result;
-    } catch (err) {
-      // Fallback: REST-Client (alter Weg)
-      try {
-        return await DjplaylistsClient.importBeatportPlaylist(options);
-      } catch (err2) {
-        return { ok: false, error: toErrorMessage(err2) };
+      const win = await getDjplBrowserWindow({ show: false });
+      const login = await checkDjplLogin();
+      if (!login.loggedIn) {
+        return { ok: false, error: "Nicht bei DJPlaylists.fm eingeloggt. Bitte zuerst einloggen." };
       }
+
+      // Beatport-Playlist-ID aus URL extrahieren
+      const bpIdMatch = beatportUrl.match(/\/(\d+)\/?$/);
+      const bpId = bpIdMatch?.[1];
+
+      // Verschiedene URL-Muster probieren um die Playlist auf DJPL.fm zu öffnen
+      const djplUrls = [
+        bpId ? `https://www.djplaylists.fm/app/playlist/beatport/${bpId}` : null,
+        `https://www.djplaylists.fm/app/import?url=${encodeURIComponent(beatportUrl)}`,
+        `https://www.djplaylists.fm/app/playlist?import=${encodeURIComponent(beatportUrl)}`,
+      ].filter(Boolean);
+
+      for (const targetUrl of djplUrls) {
+        try {
+          await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => resolve(), 15000);
+            win.webContents.once("did-finish-load", () => { clearTimeout(timer); resolve(); });
+            win.webContents.once("did-fail-load", () => { clearTimeout(timer); resolve(); });
+            win.loadURL(targetUrl);
+          });
+          await new Promise((r) => setTimeout(r, 3000));
+
+          // Prüfe ob die Seite die Playlist zeigt (nicht 404 oder Redirect auf Home)
+          const pageInfo = await win.webContents.executeJavaScript(`({
+            url: location.href,
+            title: document.title,
+            hasPlaylist: !!document.querySelector('[class*="playlist"], [class*="track"], [data-playlist]'),
+            bodyText: document.body?.innerText?.slice(0, 500) || "",
+          })`);
+
+          if (pageInfo.hasPlaylist || pageInfo.title.toLowerCase().includes("playlist")) {
+            return {
+              ok: true,
+              method: "browser-navigation",
+              url: targetUrl,
+              pageTitle: pageInfo.title,
+              name: playlistName,
+            };
+          }
+        } catch { continue; }
+      }
+
+      // Fallback: Seite direkt öffnen und User manuell importieren lassen
+      const fallbackUrl = `https://www.djplaylists.fm/app/dashboard`;
+      win.loadURL(fallbackUrl);
+      win.show();
+      return {
+        ok: false,
+        error: `Kein automatischer Import-Pfad gefunden. DJPlaylists.fm-Fenster wurde geöffnet — bitte "${playlistName || beatportUrl}" manuell hinzufügen.`,
+        manualRequired: true,
+      };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
     }
   });
 

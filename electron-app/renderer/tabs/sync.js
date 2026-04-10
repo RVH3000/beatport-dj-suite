@@ -1188,13 +1188,19 @@ async function runDiffImport() {
     if (statusCell) statusCell.innerHTML = '<span class="status-info">⏳</span>';
 
     try {
-      const res = await window.syncApi.importToDjplaylists({ beatportUrl: bpUrl });
+      const res = await window.syncApi.importToDjplaylists({ beatportUrl: bpUrl, playlistName: name });
       if (res?.ok) {
         imported++;
-        if (statusCell) statusCell.innerHTML = `<span class="status-ok">✓ importiert${res.playlistId ? ` (#${res.playlistId})` : ""}</span>`;
+        if (statusCell) statusCell.innerHTML = `<span class="status-ok">✓ ${res.method === "browser-navigation" ? "geöffnet auf DJPL.fm" : "importiert"}</span>`;
+      } else if (res?.manualRequired) {
+        failed++;
+        if (statusCell) statusCell.innerHTML = `<span class="status-warn">⚠ manuell</span>`;
+        // Abbrechen — DJPL.fm-Fenster ist offen für manuellen Import
+        progressMsg.textContent = `Manueller Import nötig für "${name}". DJPL.fm-Fenster wurde geöffnet.`;
+        break;
       } else {
         failed++;
-        if (statusCell) statusCell.innerHTML = `<span class="status-err">✗ ${esc(res?.error || "Kein Endpoint hat funktioniert").slice(0, 60)}</span>`;
+        if (statusCell) statusCell.innerHTML = `<span class="status-err">✗ ${esc(res?.error || "Fehler").slice(0, 60)}</span>`;
       }
     } catch (err) {
       failed++;
