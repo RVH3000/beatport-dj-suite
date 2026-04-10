@@ -283,6 +283,8 @@ function buildSearchTabHtml() {
         <div class="srch-fg"><label title="Release-Zeitraum einschraenken: spaetestes Jahr.">Jahr Max</label><input type="number" id="srchYearMax" min="1990" max="2030" placeholder="2026"></div>
         <div class="srch-fg"><label title="Beatport-Label filtern (Top 500, nach Haeufigkeit sortiert).">Label</label><select id="srchLabel"><option value="">Alle</option></select></div>
         <div class="srch-fg"><label title="Hype-Tracks oder DJ Edits filtern.">Flags</label><select id="srchFlags"><option value="">Alle</option><option value="hype">Nur Hype</option><option value="dj">Nur DJ Edit</option></select></div>
+        <div class="srch-fg"><label title="Mindest-Rating aus Engine DJ (0-5 Sterne). Nur sichtbar nach Engine-Import.">Rating</label><select id="srchRating"><option value="">Alle</option><option value="1">★+</option><option value="2">★★+</option><option value="3">★★★+</option><option value="4">★★★★+</option><option value="5">★★★★★</option><option value="rated">Bewertet</option><option value="unrated">Unbewertet</option></select></div>
+        <div class="srch-fg"><label title="Mindest-Abspielungen in Engine DJ Sessions. Nur sichtbar nach Engine-Import.">Plays</label><input type="number" id="srchPlaysMin" min="0" placeholder="0" title="Mindestens X mal in DJ-Sessions gespielt"></div>
         <div class="srch-fg"><label>Sortierung</label><select id="srchSort">
           <option value="count-desc">PLs absteigend</option><option value="count-asc">PLs aufsteigend</option>
           <option value="bpm-asc">BPM aufsteigend</option><option value="bpm-desc">BPM absteigend</option>
@@ -455,7 +457,7 @@ function bindSearchEvents() {
 
   // Search & Filter
   $("srchQ")?.addEventListener("input", debounce(doSearch, 200));
-  for (const id of ["srchGenre", "srchSubGenre", "srchBpmMin", "srchBpmMax", "srchKey", "srchYearMin", "srchYearMax", "srchSort", "srchFlags", "srchLabel"]) {
+  for (const id of ["srchGenre", "srchSubGenre", "srchBpmMin", "srchBpmMax", "srchKey", "srchYearMin", "srchYearMax", "srchSort", "srchFlags", "srchLabel", "srchRating", "srchPlaysMin"]) {
     $(id)?.addEventListener("change", doSearch);
   }
   $("srchBpmNormToggle")?.addEventListener("change", doSearch);
@@ -1168,6 +1170,8 @@ function clearFilters(triggerSearch = true) {
   $("srchYearMax").value = "";
   $("srchLabel").value = "";
   $("srchFlags").value = "";
+  if ($("srchRating")) $("srchRating").value = "";
+  if ($("srchPlaysMin")) $("srchPlaysMin").value = "";
   $("srchSort").value = "count-desc";
   const norm = $("srchBpmNormToggle");
   if (norm) norm.checked = false;
@@ -1263,6 +1267,8 @@ function doSearch() {
   const yearMax = parseInt($("srchYearMax")?.value) || 9999;
   const label = $("srchLabel")?.value ?? "";
   const flags = $("srchFlags")?.value ?? "";
+  const ratingFilter = $("srchRating")?.value ?? "";
+  const playsMin = parseInt($("srchPlaysMin")?.value) || 0;
   const useNorm = bpmNormActive();
 
   const src = getSearchSource();
@@ -1279,6 +1285,10 @@ function doSearch() {
     if (label && t.label !== label) return false;
     if (flags === "hype" && !t.is_hype) return false;
     if (flags === "dj" && !t.is_dj_edit) return false;
+    if (ratingFilter === "rated" && !t.rating) return false;
+    if (ratingFilter === "unrated" && t.rating) return false;
+    if (ratingFilter && !isNaN(parseInt(ratingFilter)) && (t.rating || 0) < parseInt(ratingFilter)) return false;
+    if (playsMin > 0 && (t.plays_total || 0) < playsMin) return false;
     return true;
   });
 
