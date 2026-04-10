@@ -93,6 +93,11 @@ contextBridge.exposeInMainWorld("scoringMergeApi", {
   apply: (options) => ipcRenderer.invoke("scoring:merge-engine-apply", options),
 });
 
+contextBridge.exposeInMainWorld("labelsApi", {
+  list: (options) => ipcRenderer.invoke("labels:list", options || {}),
+  stats: () => ipcRenderer.invoke("labels:stats"),
+});
+
 contextBridge.exposeInMainWorld("authApi", {
   getStatus: (config) => ipcRenderer.invoke("auth:get-status", config),
   openLoginWindow: (config) => ipcRenderer.invoke("auth:open-login-window", config),

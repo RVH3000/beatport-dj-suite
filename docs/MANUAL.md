@@ -217,6 +217,18 @@ Liest alle Playlists aus dem DJPlaylists.fm-Account via Supabase und speichert s
 
 Lexicon DJ → Engine DJ Export. Danach USB einstecken und in Engine DJ oder Denon Prime 4+ synchronisieren.
 
+#### Lexicon DJ Referenzen
+
+Lexicon DJ ist die zentrale Library-Management-Software in der Pipeline:
+- **API-Dokumentation:** https://www.lexicondj.com/docs/developers/api
+- **Benutzerhandbuch:** https://www.lexicondj.com/manual
+- **Tutorials & Guides:** https://www.lexicondj.com/learn
+
+Die Suite kommuniziert mit Lexicon ueber dessen lokale REST-API auf Port 48624:
+- `GET /v1/playlists` — Playlists auflisten
+- `POST /api/playlist/save` mit `streamingService: "beatport"` — Playlist speichern (selbe Funktion wie der "Save to Lexicon" Button auf DJPlaylists.fm)
+- `POST /v1/sync/engine` oder `/v1/export/engine` — Engine DJ Export triggern
+
 ### Export
 
 Export in verschiedene DJ-Formate:

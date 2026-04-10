@@ -1078,12 +1078,19 @@ const selectedSubGenres = new Set();
 function renderGenreChips() {
   const host = $("srchGenreChips");
   if (!host || !allTracks) return;
-  const map = new Map();
-  allTracks.forEach((t) => { if (t.g) map.set(t.g, (map.get(t.g) || 0) + 1); });
+  const map = new Map();    // genre → total count
+  const scored = new Map(); // genre → count with rating or plays
+  allTracks.forEach((t) => {
+    if (!t.g) return;
+    map.set(t.g, (map.get(t.g) || 0) + 1);
+    if (t.rating || t.plays_total) scored.set(t.g, (scored.get(t.g) || 0) + 1);
+  });
   const entries = [...map.entries()].sort((a, b) => b[1] - a[1]);
   host.innerHTML = entries.map(([g, cnt]) => {
     const on = selectedGenres.has(g) ? "on" : "";
-    return `<button type="button" class="srch-chip ${on}" data-g="${esc(g)}">${esc(g)} <span class="c">${fmt(cnt)}</span></button>`;
+    const sc = scored.get(g) || 0;
+    const indicator = sc > 0 ? ` <span class="chip-scored" title="${sc} Tracks mit Engine-Daten (Rating/Plays)">⚡${sc}</span>` : "";
+    return `<button type="button" class="srch-chip ${on}" data-g="${esc(g)}">${esc(g)} <span class="c">${fmt(cnt)}</span>${indicator}</button>`;
   }).join("");
   const cnt = $("srchGenreCount");
   if (cnt) cnt.textContent = selectedGenres.size ? `(${selectedGenres.size} aktiv)` : "";

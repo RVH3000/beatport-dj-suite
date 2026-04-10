@@ -5,6 +5,71 @@
  * Kommuniziert über window.syncApi (IPC via preload.mjs) mit dem Main-Prozess.
  */
 
+// ─── Pipeline Step Registry (v3.6.7 — modular) ─────────────────────────────
+
+const PIPELINE_STEPS = [
+  {
+    id: "beatport",
+    name: "Beatport",
+    icon: "🎵",
+    sub: "Streaming Playlists",
+    desc: "Quelle: Deine Beatport-Playlists via interne Session + XHR-API.",
+    requires: ["beatport-auth"],
+    next: ["djpl"],
+  },
+  {
+    id: "djpl",
+    name: "DJPlaylists.fm",
+    icon: "🌐",
+    sub: "Brücke & Konvertierung",
+    desc: "Konvertiert Beatport-Playlists in Lexicon-Format. Einziger Weg mit Metadaten. Session-Cookie noetig.",
+    requires: ["djpl-auth"],
+    next: ["lexicon"],
+  },
+  {
+    id: "lexicon",
+    name: "Lexicon DJ",
+    icon: "📚",
+    sub: "Library-Management",
+    desc: "Empfaengt Playlists von DJPL.fm, exportiert nach Engine DJ. Port 48624.",
+    requires: ["lexicon-running"],
+    next: ["engine"],
+  },
+  {
+    id: "engine",
+    name: "Engine DJ",
+    icon: "💿",
+    sub: "Lokale Library",
+    desc: "Ziel-Library: m.db. Tracks + Playlists werden hier gespeichert.",
+    requires: [],
+    next: ["usb"],
+  },
+  {
+    id: "usb",
+    name: "USB / Prime 4+",
+    icon: "🖲",
+    sub: "Denon Hardware",
+    desc: "USB-Stick/SSD mit Engine-DB fuer Denon Prime 4+ Standalone. Auto-Detection unter /Volumes/.",
+    requires: [],
+    next: [],
+  },
+];
+
+// Render pipeline nodes from registry (used in buildSyncTabHtml)
+function buildPipelineNodesHtml() {
+  return PIPELINE_STEPS.map((step, i) => {
+    const node = `
+      <div class="pipeline-node" id="pnode-${step.id}" title="${step.desc}">
+        <div class="pipeline-icon">${step.icon}</div>
+        <div class="pipeline-label">${step.name}</div>
+        <div class="pipeline-sub">${step.sub}</div>
+        <div class="pipeline-badge idle" id="badge-${step.id}">${i === 0 ? "–" : "Prüfen…"}</div>
+      </div>`;
+    const arrow = i < PIPELINE_STEPS.length - 1 ? `<div class="pipeline-arrow" id="parrow-${i + 1}">→</div>` : "";
+    return node + arrow;
+  }).join("");
+}
+
 // ─── State ───────────────────────────────────────────────────────────────────
 
 const syncState = {
@@ -45,40 +110,7 @@ function buildSyncTabHtml() {
     <section class="panel span-full pipeline-section">
       <h2>Sync-Pipeline</h2>
       <div class="pipeline-flow">
-        <div class="pipeline-node" id="pnode-beatport" title="Quelle: Deine Beatport-Streaming-Playlists (via interne Session + XHR-API)">
-          <div class="pipeline-icon">🎵</div>
-          <div class="pipeline-label">Beatport</div>
-          <div class="pipeline-sub">Streaming Playlists</div>
-          <div class="pipeline-badge idle" id="badge-beatport">–</div>
-        </div>
-        <div class="pipeline-arrow" id="parrow-1">→</div>
-        <div class="pipeline-node" id="pnode-djpl" title="Bruecke: Konvertiert Beatport-Playlists in Lexicon-kompatibles Format. Einziger Weg mit vollstaendigen Metadaten.">
-          <div class="pipeline-icon">🌐</div>
-          <div class="pipeline-label">DJPlaylists.fm</div>
-          <div class="pipeline-sub">Brücke & Konvertierung</div>
-          <div class="pipeline-badge idle" id="badge-djpl">Prüfen…</div>
-        </div>
-        <div class="pipeline-arrow" id="parrow-2">→</div>
-        <div class="pipeline-node" id="pnode-lexicon" title="Library-Manager: Empfaengt Playlists von DJPL.fm, exportiert nach Engine DJ. Lokaler Server auf Port 48624.">
-          <div class="pipeline-icon">📚</div>
-          <div class="pipeline-label">Lexicon DJ</div>
-          <div class="pipeline-sub">Library-Management</div>
-          <div class="pipeline-badge idle" id="badge-lexicon">Prüfen…</div>
-        </div>
-        <div class="pipeline-arrow" id="parrow-3">→</div>
-        <div class="pipeline-node" id="pnode-engine" title="Ziel-Library: Engine DJ Datenbank (m.db). Tracks + Playlists werden hier gespeichert.">
-          <div class="pipeline-icon">💿</div>
-          <div class="pipeline-label">Engine DJ</div>
-          <div class="pipeline-sub">Lokale Library</div>
-          <div class="pipeline-badge idle" id="badge-engine">–</div>
-        </div>
-        <div class="pipeline-arrow" id="parrow-4">→</div>
-        <div class="pipeline-node" id="pnode-usb" title="Hardware: USB-Stick oder SSD mit Engine-DB fuer Denon Prime 4+ Standalone-Player. Automatische Detection unter /Volumes/.">
-          <div class="pipeline-icon">🖲</div>
-          <div class="pipeline-label">USB / Prime 4+</div>
-          <div class="pipeline-sub">Denon Hardware</div>
-          <div class="pipeline-badge idle" id="badge-usb">Manuell</div>
-        </div>
+        ${buildPipelineNodesHtml()}
       </div>
     </section>
 

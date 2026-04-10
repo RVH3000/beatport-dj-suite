@@ -99,16 +99,36 @@ export async function loadAnalysisData(config) {
   renderLoadingState();
 
   try {
-    // Sequenziell laden — SQLite sperrt die DB bei parallelen Prozessen
+    // Primaer: Scanner-Run-Daten via analysisApi
     const tracks = await window.analysisApi.getTrackData(config);
     trackData = Array.isArray(tracks) ? tracks : [];
     const overlaps = await window.analysisApi.getOverlapMatrix(config);
     overlapData = Array.isArray(overlaps) ? overlaps : [];
     lastConfigJson = configJson;
   } catch (err) {
-    error = err.message || "Daten konnten nicht geladen werden.";
-    trackData = [];
-    overlapData = [];
+    // Fallback: scoring-data.json aus dem Search-Tab (wenn geladen)
+    try {
+      const scoringPath = "~/Documents/Claude/Projects/Beatport PL WIZ/scoring-data.json";
+      const raw = await window.scannerApi?.readScoringData?.() || null;
+      if (raw?.all_tracks?.length) {
+        trackData = raw.all_tracks.map((t) => ({
+          trackId: t.i, title: t.t, artist: t.a, bpm: t.b,
+          key: t.k, genre: t.g, label: t.l, year: t.y,
+          playlistKey: "scoring-data",
+        }));
+        overlapData = [];
+        lastConfigJson = configJson;
+        error = "";
+      } else {
+        error = err.message || "Daten konnten nicht geladen werden.";
+        trackData = [];
+        overlapData = [];
+      }
+    } catch {
+      error = err.message || "Daten konnten nicht geladen werden.";
+      trackData = [];
+      overlapData = [];
+    }
   } finally {
     loading = false;
   }

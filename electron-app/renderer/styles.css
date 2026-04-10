@@ -4,13 +4,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Backgrounds ─── v3.6.5: Rating in Suche, Pool-Filter, Analyse-Doku, Build-Info ── */
-  --bg:             #111521;
-  --bg-subtle:      #161a28;
-  --panel:          #1e2233;
-  --panel-strong:   #252a3c;
-  --panel-hover:    #2c3146;
-  --surface:        #333953;
+  /* ── Backgrounds ─── v3.6.7: Genre-Indikator, Pipeline-Modular, Lexicon-Refs, WIZ-Merge, Analyse ── */
+  --bg:             #101420;
+  --bg-subtle:      #151928;
+  --panel:          #1d2132;
+  --panel-strong:   #24293b;
+  --panel-hover:    #2b3045;
+  --surface:        #323852;
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --line:           rgba(255, 255, 255, 0.07);
@@ -1459,6 +1459,18 @@ summary {
 .srch-chip .c{font-size:10px;opacity:.7;font-weight:500}
 .srch-chips-empty{padding:8px;font-size:11px;color:var(--muted);font-style:italic}
 .srch-chip-count{font-size:10px;color:var(--primary);font-weight:700;margin-left:4px}
+.chip-scored{font-size:9px;color:var(--warning);margin-left:3px;font-weight:700}
+
+/* ─── Labels-Tab ─── */
+.labels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-top:14px}
+.label-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s,transform .15s}
+.label-card:hover{border-color:var(--primary);transform:translateY(-1px)}
+.label-thumb{width:100%;aspect-ratio:1/1;overflow:hidden;border-radius:6px;background:var(--bg-subtle);display:flex;align-items:center;justify-content:center}
+.label-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.label-thumb-empty{font-size:38px;font-weight:800;color:var(--muted);text-transform:uppercase}
+.label-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.label-name{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.label-count{font-size:10px;color:var(--text-secondary)}
 
 /* ─── Engine-Import (v3.5.4) ─── */
 .eng-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:14px 0 18px}

@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Beatport Database Specialist</p>
-        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.6</span></h1>
+        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.6.7</span></h1>
       </div>
       <p class="subtitle">
         Scanner, Analyse, Playlist-Management, Automation &amp; Export
@@ -31,6 +31,7 @@
     <nav class="tab-bar" role="tablist">
       <button class="tab active" role="tab" data-group="library"  aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-search"     data-tab="search">Suche & Filter</button>
+      <button class="tab"        role="tab" data-group="library"  aria-selected="false" aria-controls="tab-labels"     data-tab="labels" title="Gefolgte Beatport-Labels (511 importiert)">Labels</button>
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
       <button class="tab"        role="tab" data-group="build"    aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
       <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-sync"       data-tab="sync">Sync</button>
@@ -448,6 +449,30 @@ Sicherheit:
     </main>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: Labels (gefolgte Beatport-Labels, read-only)                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-labels" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" style="grid-template-columns:1fr">
+        <section class="panel span-full">
+          <div class="section-head">
+            <h2>Gefolgte Beatport-Labels</h2>
+            <div class="actions compact">
+              <input id="labelsFilter" type="search" placeholder="Filter (Name)…" style="padding:6px 10px;font-size:12px" />
+              <select id="labelsOrder" style="padding:6px 10px;font-size:12px">
+                <option value="count">Nach Releases</option>
+                <option value="name">Alphabetisch</option>
+                <option value="recent">Zuletzt gesehen</option>
+              </select>
+              <button id="labelsRefreshBtn" type="button">↻ Neu laden</button>
+            </div>
+          </div>
+          <div id="labelsStats" class="detail-summary empty">Lade …</div>
+          <div id="labelsGrid" class="labels-grid"></div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- TAB 2: Analyse                                                     -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <main id="tab-analyse" class="tab-panel" role="tabpanel" hidden>
@@ -466,11 +491,9 @@ Sicherheit:
     <!-- TAB 3: Playlist WIZ                                                -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <main id="tab-playlist" class="tab-panel" role="tabpanel" hidden>
-      <div class="callout info" style="margin:12px 16px 0">
-        <strong>Build</strong> vereint zwei Workflows:
-        <strong>Playlist WIZ</strong> (Live-CRUD auf Beatport via API) und
-        <strong>Playlist Builder</strong> (lokaler Aufbau aus scoring-data mit Camelot/BPM-Flow, im Explore → Suche-Tab).
-        Der Track-Pool im Builder hat dieselben Filter wie die Suche (Genre, Label, BPM, Key, Jahr, Rating).
+      <div style="padding:12px 16px 0;display:flex;gap:8px">
+        <button class="sub-tab active" id="buildSubWiz" title="Live-Beatport CRUD: Playlists anzeigen, erstellen, Tracks verwalten">Playlist WIZ (Live)</button>
+        <button class="sub-tab" id="buildSubBuilder" title="Öffnet den Playlist Builder im Explore-Tab (Track Pool + Drag&Drop + Camelot + BPM-Flow)">→ Playlist Builder</button>
       </div>
       <div class="wiz-layout" id="playlist-wiz-content">
         <section class="panel span-full placeholder-panel">
@@ -478,6 +501,11 @@ Sicherheit:
           <p class="placeholder-text">
             Live-Verbindung zur Beatport-API: Playlists anzeigen, erstellen, umbenennen, löschen.
             Tracks hinzufügen und entfernen. Braucht aktive Beatport-Session (Status-Bar → Reconnect).
+          </p>
+          <p class="placeholder-text" style="margin-top:12px">
+            <strong>Track-Pool + Builder</strong> (Camelot-Kompatibilität, BPM-Flow, Drag&Drop):
+            Klicke oben auf <em>"→ Playlist Builder"</em> — öffnet den Builder im Explore-Tab mit allen Filtern
+            (Genre, Label, BPM, Key, Jahr, Rating).
           </p>
         </section>
       </div>

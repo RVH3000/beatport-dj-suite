@@ -525,6 +525,25 @@ app.whenReady().then(() => {
     );
   });
 
+  // ── Labels (bp_labels in data/suite.db, read-only) ───────────────────────
+  const labelsDbPath = resolveBundledPath("data/suite.db");
+
+  ipcMain.handle("labels:list", async (_event, options = {}) => {
+    const order = options.order || "count";
+    const limit = Math.min(Number(options.limit) || 2000, 5000);
+    return runPythonJson(
+      "scripts/query_beatport_labels.py",
+      ["--db", labelsDbPath, "list", "--order", order, "--limit", String(limit)],
+    );
+  });
+
+  ipcMain.handle("labels:stats", async () => {
+    return runPythonJson(
+      "scripts/query_beatport_labels.py",
+      ["--db", labelsDbPath, "stats"],
+    );
+  });
+
   // ── Scoring-Data ↔ Engine DB Merge (non-destruktiv, Preview → Apply) ───────
   const scoringMergeRulesPath = resolveBundledPath("config/scoring-merge-rules.json");
   const scoringMergePreviewPath = resolveBundledPath("config/scoring-merge-preview.json");

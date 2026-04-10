@@ -6,6 +6,7 @@ let syncModule = null;
 let searchModule = null;
 let automationModule = null;
 let settingsModule = null;
+let labelsModule = null;
 const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
 
 // ─── Tab-Navigation ─────────────────────────────────────────────────────────
@@ -52,6 +53,8 @@ const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
       loadSearchTab();
     } else if (targetId === "tab-automation") {
       loadAutomationTab();
+    } else if (targetId === "tab-labels") {
+      loadLabelsTab();
     } else if (targetId === "tab-settings") {
       loadSettingsTab();
     }
@@ -110,6 +113,17 @@ const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
 
   // Initial: Library-Gruppe
   showGroup("library");
+
+  // Build → Builder: navigiert zu Explore → Suche → Builder Sub-Tab
+  document.getElementById("buildSubBuilder")?.addEventListener("click", () => {
+    showGroup("explore");
+    setTimeout(() => {
+      document.querySelector('.tab-bar .tab[data-tab="search"]')?.click();
+      setTimeout(() => {
+        document.querySelector('.srch-subtab[data-stab="srch-builder"]')?.click();
+      }, 300);
+    }, 100);
+  });
 })();
 
 // ─── Library Sub-Tabs (v3.5.2) ───────────────────────────────────────────────
@@ -2615,6 +2629,17 @@ async function loadSettingsTab() {
     await settingsModule.initSettingsTab();
   } catch (err) {
     console.error("[settings] Laden fehlgeschlagen:", err);
+  }
+}
+
+async function loadLabelsTab() {
+  try {
+    if (!labelsModule) {
+      labelsModule = await import("./tabs/labels.js");
+    }
+    await labelsModule.initLabelsTab();
+  } catch (err) {
+    console.error("[labels] Laden fehlgeschlagen:", err);
   }
 }
 
