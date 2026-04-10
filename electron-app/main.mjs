@@ -1057,8 +1057,9 @@ app.whenReady().then(() => {
     const { beatportUrl, playlistName } = options;
     if (!beatportUrl) return { ok: false, error: "beatportUrl fehlt" };
 
-    // DJPlaylists.fm hat KEINE Import-API. Der Import funktioniert NUR über die Website.
-    // Wir navigieren das BrowserWindow zur DJPL.fm-Seite und lassen die Seite den Import machen.
+    // DJPlaylists.fm hat KEINE Import-API.
+    // Import funktioniert über "Submit Playlist" auf der Website.
+    // Wir automatisieren das: Seite laden → "Submit Playlist" finden → URL eingeben → absenden.
     try {
       const win = await getDjplBrowserWindow({ show: false });
       const login = await checkDjplLogin();
@@ -1066,55 +1067,80 @@ app.whenReady().then(() => {
         return { ok: false, error: "Nicht bei DJPlaylists.fm eingeloggt. Bitte zuerst einloggen." };
       }
 
-      // Beatport-Playlist-ID aus URL extrahieren
-      const bpIdMatch = beatportUrl.match(/\/(\d+)\/?$/);
-      const bpId = bpIdMatch?.[1];
+      // Schritt 1: Submit-Seite finden und Formular automatisch ausfüllen
+      const result = await win.webContents.executeJavaScript(`(async () => {
+        const url = ${JSON.stringify(beatportUrl)};
 
-      // Verschiedene URL-Muster probieren um die Playlist auf DJPL.fm zu öffnen
-      const djplUrls = [
-        bpId ? `https://www.djplaylists.fm/app/playlist/beatport/${bpId}` : null,
-        `https://www.djplaylists.fm/app/import?url=${encodeURIComponent(beatportUrl)}`,
-        `https://www.djplaylists.fm/app/playlist?import=${encodeURIComponent(beatportUrl)}`,
-      ].filter(Boolean);
+        // Suche nach Submit/Import-Mechanismus in der aktuellen Seite
+        // Methode A: Suche nach einem "Submit Playlist" Button oder Link
+        const submitBtn = [...document.querySelectorAll('button, a')]
+          .find(el => /submit.*playlist|import.*playlist|add.*playlist|neue.*playlist/i.test(el.textContent));
 
-      for (const targetUrl of djplUrls) {
-        try {
-          await new Promise((resolve, reject) => {
-            const timer = setTimeout(() => resolve(), 15000);
-            win.webContents.once("did-finish-load", () => { clearTimeout(timer); resolve(); });
-            win.webContents.once("did-fail-load", () => { clearTimeout(timer); resolve(); });
-            win.loadURL(targetUrl);
-          });
-          await new Promise((r) => setTimeout(r, 3000));
+        if (submitBtn) {
+          submitBtn.click();
+          await new Promise(r => setTimeout(r, 2000));
+        }
 
-          // Prüfe ob die Seite die Playlist zeigt (nicht 404 oder Redirect auf Home)
-          const pageInfo = await win.webContents.executeJavaScript(`({
-            url: location.href,
-            title: document.title,
-            hasPlaylist: !!document.querySelector('[class*="playlist"], [class*="track"], [data-playlist]'),
-            bodyText: document.body?.innerText?.slice(0, 500) || "",
-          })`);
+        // Methode B: Suche nach einem URL-Eingabefeld
+        const urlInput = document.querySelector(
+          'input[placeholder*="url" i], input[placeholder*="link" i], ' +
+          'input[placeholder*="beatport" i], input[placeholder*="playlist" i], ' +
+          'input[name*="url" i], input[type="url"], textarea[placeholder*="url" i]'
+        );
 
-          if (pageInfo.hasPlaylist || pageInfo.title.toLowerCase().includes("playlist")) {
-            return {
-              ok: true,
-              method: "browser-navigation",
-              url: targetUrl,
-              pageTitle: pageInfo.title,
-              name: playlistName,
-            };
+        if (urlInput) {
+          // URL einfügen
+          urlInput.focus();
+          urlInput.value = url;
+          urlInput.dispatchEvent(new Event('input', { bubbles: true }));
+          urlInput.dispatchEvent(new Event('change', { bubbles: true }));
+          await new Promise(r => setTimeout(r, 500));
+
+          // Submit-Button finden und klicken
+          const form = urlInput.closest('form');
+          const submitBtnInner = form
+            ? form.querySelector('button[type="submit"], button:not([type="button"])')
+            : document.querySelector('button[type="submit"]');
+
+          if (submitBtnInner) {
+            submitBtnInner.click();
+            await new Promise(r => setTimeout(r, 3000));
+            return { ok: true, method: "form-submit", url: location.href };
           }
-        } catch { continue; }
+
+          // Kein Submit-Button → Enter drücken
+          urlInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+          await new Promise(r => setTimeout(r, 3000));
+          return { ok: true, method: "enter-key", url: location.href };
+        }
+
+        // Methode C: Kein Formular gefunden — Seiten-Info für Debugging zurückgeben
+        return {
+          ok: false,
+          method: "no-form-found",
+          url: location.href,
+          buttons: [...document.querySelectorAll('button, a[href]')]
+            .slice(0, 20)
+            .map(el => ({ text: (el.textContent || "").trim().slice(0, 50), href: el.href || "" })),
+          inputs: [...document.querySelectorAll('input, textarea')]
+            .map(el => ({ type: el.type, placeholder: el.placeholder, name: el.name })),
+        };
+      })()`);
+
+      if (result?.ok) {
+        return { ok: true, method: result.method, name: playlistName };
       }
 
-      // Fallback: Seite direkt öffnen und User manuell importieren lassen
-      const fallbackUrl = `https://www.djplaylists.fm/app/dashboard`;
-      win.loadURL(fallbackUrl);
+      // Fallback: Fenster sichtbar machen für manuellen Import
       win.show();
+      // URL in die Zwischenablage kopieren für einfaches Einfügen
+      const { clipboard } = await import("electron");
+      clipboard.writeText(beatportUrl);
       return {
         ok: false,
-        error: `Kein automatischer Import-Pfad gefunden. DJPlaylists.fm-Fenster wurde geöffnet — bitte "${playlistName || beatportUrl}" manuell hinzufügen.`,
+        error: `Kein Import-Formular gefunden. DJPL.fm-Fenster geöffnet, Beatport-URL in Zwischenablage kopiert (⌘V zum Einfügen).`,
         manualRequired: true,
+        debug: result,
       };
     } catch (err) {
       return { ok: false, error: toErrorMessage(err) };
