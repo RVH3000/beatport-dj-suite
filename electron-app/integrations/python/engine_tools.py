@@ -68,7 +68,7 @@ def discover_all_engine_databases() -> list[dict]:
     """
     results: list[dict] = []
 
-    # 1. Lokale Kandidaten
+    # 1. Lokale Kandidaten (inkl. "Engine Library Backup", "Engine Library Kopie" etc.)
     home = Path.home()
     local_candidates = [
         home / "Music" / "Engine Library" / "Database2",
@@ -77,10 +77,19 @@ def discover_all_engine_databases() -> list[dict]:
         home / "Documents" / "Engine Library",
         home / "Engine Library" / "Database2",
     ]
+    # Zusätzlich: alle Ordner die mit "Engine Library" beginnen in ~/Music/
+    music_dir = home / "Music"
+    if music_dir.is_dir():
+        for entry in sorted(music_dir.iterdir()):
+            if entry.is_dir() and entry.name.startswith("Engine Library") and entry.name != "Engine Library":
+                local_candidates.append(entry / "Database2")
+                local_candidates.append(entry)
+
     for candidate in local_candidates:
         folder = _resolve_candidate(candidate)
         if folder and not any(r["path"] == str(folder) for r in results):
-            results.append(_describe_db(folder, "local", "Lokal"))
+            volume_name = folder.parent.name if folder.name == "Database2" else folder.name
+            results.append(_describe_db(folder, "local", volume_name))
 
     # 2. USB/externe Volumes unter /Volumes/
     volumes_root = Path("/Volumes")

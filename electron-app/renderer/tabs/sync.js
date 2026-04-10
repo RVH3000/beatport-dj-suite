@@ -587,6 +587,15 @@ async function _runEngineExport(playlistIds = [], exportAll = false) {
 async function loadPresets() {
   try {
     syncState.presets = await window.syncApi.getPresets();
+    // Auth-State aus gespeicherten Presets synchronisieren
+    const cfg = syncState.presets?.config || {};
+    if (cfg.djplaylistsApiKey) syncState.apiKey = cfg.djplaylistsApiKey;
+    if (cfg.djplaylistsSessionCookie) syncState.sessionCookie = cfg.djplaylistsSessionCookie;
+    // UI-Felder befüllen falls leer
+    const apiInput = document.getElementById("syncDjplApiKey");
+    const cookieInput = document.getElementById("syncDjplSessionCookie");
+    if (apiInput && !apiInput.value && cfg.djplaylistsApiKey) apiInput.value = cfg.djplaylistsApiKey;
+    if (cookieInput && !cookieInput.value && cfg.djplaylistsSessionCookie) cookieInput.value = cfg.djplaylistsSessionCookie;
   } catch {
     syncState.presets = { playlists: [], config: {} };
   }
@@ -974,8 +983,21 @@ async function loadDiff() {
 async function runDiffImport() {
   if (_diffImportRunning || !_diffMissing.length) return;
 
-  // Auth-Check: ohne Session-Cookie/API-Key werden Imports NICHT gespeichert
-  const hasAuth = syncState.apiKey || syncState.sessionCookie;
+  // Auth-Check: sowohl lokaler State als auch gespeicherte Presets prüfen
+  // (Presets werden beim App-Start geladen und setzen den Client im Main-Process,
+  //  aber syncState im Renderer wird nur bei manuellem "Speichern" gesetzt)
+  let hasAuth = syncState.apiKey || syncState.sessionCookie;
+  if (!hasAuth) {
+    try {
+      const presets = await window.syncApi.getPresets();
+      hasAuth = presets?.config?.djplaylistsApiKey || presets?.config?.djplaylistsSessionCookie;
+      if (hasAuth) {
+        // State synchronisieren damit der Check nicht jedes Mal Presets laden muss
+        syncState.apiKey = presets.config.djplaylistsApiKey || "";
+        syncState.sessionCookie = presets.config.djplaylistsSessionCookie || "";
+      }
+    } catch { /* ignore */ }
+  }
   if (!hasAuth) {
     const resultEl = document.getElementById("syncDiffResult");
     resultEl.innerHTML = `<span class="status-err">⚠️ <strong>Nicht authentifiziert!</strong> Ohne Session-Cookie oder API-Key werden Imports zwar gesendet, aber NICHT auf DJPlaylists.fm gespeichert.<br>
