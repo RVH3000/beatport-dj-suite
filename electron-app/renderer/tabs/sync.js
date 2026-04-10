@@ -194,7 +194,10 @@ function buildSyncTabHtml() {
         <h2>Beatport → DJPlaylists.fm (Diff-Import)</h2>
         <div class="actions compact">
           <button id="syncDiffLoadBtn" type="button" title="Vergleicht alle Beatport-Playlists mit DJPL.fm und zeigt welche fehlen">Diff laden</button>
-          <button id="syncDiffImportBtn" class="primary" type="button" disabled title="Importiert fehlende Playlists einzeln, sequenziell nach DJPlaylists.fm (mit Delay + Fortschritt)">Fehlende importieren</button>
+          <button id="syncDiffImportBtn" class="primary" type="button" disabled title="Importiert ausgewählte Playlists einzeln nach DJPlaylists.fm">Ausgewählte importieren</button>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)" title="Maximal X Playlists pro Durchlauf importieren (0 = alle)">
+            Max: <input id="syncDiffBatchLimit" type="number" value="10" min="0" max="100" style="width:50px;padding:4px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:12px">
+          </label>
         </div>
       </div>
       <p class="callout info" style="margin-bottom:0.75rem">
@@ -203,8 +206,13 @@ function buildSyncTabHtml() {
         Danach den Lexicon-Batch unten nutzen um alles nach Lexicon zu übertragen (einziger Weg mit Metadaten).
       </p>
       <div id="syncDiffTable" class="table-wrap" style="display:none">
+        <div class="actions compact" style="margin-bottom:6px">
+          <button id="syncDiffSelAll" type="button" style="font-size:11px;padding:3px 8px">Alle fehlenden wählen</button>
+          <button id="syncDiffSelNone" type="button" style="font-size:11px;padding:3px 8px">Keine</button>
+          <span id="syncDiffSelCount" style="font-size:11px;color:var(--muted)"></span>
+        </div>
         <table class="data-table">
-          <thead><tr><th></th><th>Beatport-Playlist</th><th>Tracks</th><th>Auf DJPL.fm?</th><th>Status</th></tr></thead>
+          <thead><tr><th style="width:30px"><input type="checkbox" id="syncDiffSelAllCb" title="Alle fehlenden wählen"></th><th>Beatport-Playlist</th><th>Tracks</th><th>Auf DJPL.fm?</th><th>Status</th></tr></thead>
           <tbody id="syncDiffTbody"></tbody>
         </table>
       </div>
@@ -328,6 +336,34 @@ function bindEvents() {
   // Diff-Import (Feature 4)
   document.getElementById("syncDiffLoadBtn")?.addEventListener("click", loadDiff);
   document.getElementById("syncDiffImportBtn")?.addEventListener("click", runDiffImport);
+
+  // Diff-Checkboxen
+  document.addEventListener("change", (e) => {
+    if (e.target.matches(".diff-sel-cb")) {
+      const mi = parseInt(e.target.dataset.mi);
+      if (e.target.checked) _diffSelected.add(mi); else _diffSelected.delete(mi);
+      updateDiffSelCount();
+    }
+    if (e.target.id === "syncDiffSelAllCb") {
+      const cbs = document.querySelectorAll(".diff-sel-cb");
+      cbs.forEach((cb) => { cb.checked = e.target.checked; const mi = parseInt(cb.dataset.mi); if (e.target.checked) _diffSelected.add(mi); else _diffSelected.delete(mi); });
+      updateDiffSelCount();
+    }
+  });
+  document.getElementById("syncDiffSelAll")?.addEventListener("click", () => {
+    document.querySelectorAll(".diff-sel-cb").forEach((cb) => { cb.checked = true; _diffSelected.add(parseInt(cb.dataset.mi)); });
+    const allCb = document.getElementById("syncDiffSelAllCb"); if (allCb) allCb.checked = true;
+    updateDiffSelCount();
+  });
+  document.getElementById("syncDiffSelNone")?.addEventListener("click", () => {
+    document.querySelectorAll(".diff-sel-cb").forEach((cb) => { cb.checked = false; });
+    _diffSelected.clear();
+    const allCb = document.getElementById("syncDiffSelAllCb"); if (allCb) allCb.checked = false;
+    updateDiffSelCount();
+  });
+
+  // Cache aus vorheriger Session laden
+  loadDiffFromCache();
 }
 
 // ─── Status-Refresh ───────────────────────────────────────────────────────────
@@ -964,6 +1000,8 @@ let _diffBeatportPlaylists = [];
 let _diffDjplPlaylists = [];
 let _diffMissing = [];
 let _diffImportRunning = false;
+const _diffSelected = new Set(); // Indices der ausgewählten fehlenden Playlists
+const DIFF_CACHE_KEY = "beatport-suite:djpl-diff-cache";
 
 function normalizeName(s) {
   return (s || "").toLowerCase().trim().replace(/\s*\(\d+\)\s*$/, "").replace(/\s+/g, " ");
@@ -976,6 +1014,7 @@ async function loadDiff() {
   const importBtn = document.getElementById("syncDiffImportBtn");
   if (resultEl) resultEl.innerHTML = '<span class="status-info">Lade Beatport-Playlists + DJPL.fm-Playlists…</span>';
   importBtn.disabled = true;
+  _diffSelected.clear();
 
   try {
     // Parallel: Beatport + DJPL.fm
@@ -1005,23 +1044,73 @@ async function loadDiff() {
       return { name, trackCount, onDjpl, bp };
     });
 
-    // Tabelle rendern
-    tbody.innerHTML = rows.map((r, i) => `
-      <tr class="${r.onDjpl ? "" : "diff-missing"}">
-        <td>${i + 1}</td>
-        <td>${esc(r.name)}</td>
-        <td>${r.trackCount}</td>
-        <td>${r.onDjpl ? '<span class="status-ok">✓</span>' : '<span class="status-warn">✗ fehlt</span>'}</td>
-        <td class="diff-status" data-name="${esc(r.name)}">—</td>
-      </tr>
-    `).join("");
-    tableWrap.style.display = "block";
+    // Cache speichern für nächste Session
+    try {
+      localStorage.setItem(DIFF_CACHE_KEY, JSON.stringify({
+        ts: new Date().toISOString(),
+        beatport: _diffBeatportPlaylists.length,
+        djpl: _diffDjplPlaylists.length,
+        missing: _diffMissing.map((bp) => ({
+          id: bp.id, name: bp.name || bp.title, track_count: bp.track_count || bp.trackCount,
+          url: bp.url || bp.beatport_url, slug: bp.slug,
+        })),
+        rows: rows.map((r) => ({ name: r.name, trackCount: r.trackCount, onDjpl: r.onDjpl })),
+      }));
+    } catch { /* localStorage voll oder blocked */ }
 
-    resultEl.innerHTML = `<span class="status-info">${_diffBeatportPlaylists.length} Beatport · ${_diffDjplPlaylists.length} DJPL.fm · <strong>${_diffMissing.length} fehlen</strong></span>`;
-    importBtn.disabled = _diffMissing.length === 0;
+    renderDiffTable(rows);
+
+    resultEl.innerHTML = `<span class="status-info">${_diffBeatportPlaylists.length} Beatport · ${_diffDjplPlaylists.length} DJPL.fm · <strong>${_diffMissing.length} fehlen</strong> (Cache gespeichert)</span>`;
+    updateDiffImportBtn();
   } catch (err) {
     resultEl.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
   }
+}
+
+// Beim Tab-Load: Cache aus vorheriger Session laden
+function loadDiffFromCache() {
+  try {
+    const raw = localStorage.getItem(DIFF_CACHE_KEY);
+    if (!raw) return;
+    const cache = JSON.parse(raw);
+    if (!cache.rows || !cache.missing) return;
+    _diffMissing = cache.missing;
+    const resultEl = document.getElementById("syncDiffResult");
+    if (resultEl) resultEl.innerHTML = `<span class="status-info">Cache vom ${cache.ts?.slice(0, 16).replace("T", " ")}: ${cache.beatport} Beatport · ${cache.djpl} DJPL.fm · <strong>${cache.missing.length} fehlen</strong> (Klicke "Diff laden" für Live-Update)</span>`;
+    renderDiffTable(cache.rows.map((r) => ({ ...r, bp: _diffMissing.find((m) => normalizeName(m.name) === normalizeName(r.name)) })));
+    updateDiffImportBtn();
+  } catch { /* cache kaputt */ }
+}
+
+function renderDiffTable(rows) {
+  const tableWrap = document.getElementById("syncDiffTable");
+  const tbody = document.getElementById("syncDiffTbody");
+  if (!tableWrap || !tbody) return;
+
+  let missingIdx = 0;
+  tbody.innerHTML = rows.map((r, i) => {
+    const isMissing = !r.onDjpl;
+    const mi = isMissing ? missingIdx++ : -1;
+    return `<tr class="${isMissing ? "diff-missing" : ""}">
+      <td>${isMissing ? `<input type="checkbox" class="diff-sel-cb" data-mi="${mi}" ${_diffSelected.has(mi) ? "checked" : ""}>` : ""}</td>
+      <td>${esc(r.name)}</td>
+      <td>${r.trackCount}</td>
+      <td>${r.onDjpl ? '<span class="status-ok">✓</span>' : '<span class="status-warn">✗ fehlt</span>'}</td>
+      <td class="diff-status" data-name="${esc(r.name)}">—</td>
+    </tr>`;
+  }).join("");
+  tableWrap.style.display = "block";
+  updateDiffSelCount();
+}
+
+function updateDiffSelCount() {
+  const cnt = document.getElementById("syncDiffSelCount");
+  if (cnt) cnt.textContent = `${_diffSelected.size} von ${_diffMissing.length} ausgewählt`;
+}
+
+function updateDiffImportBtn() {
+  const btn = document.getElementById("syncDiffImportBtn");
+  if (btn) btn.disabled = _diffMissing.length === 0;
 }
 
 async function runDiffImport() {
@@ -1050,6 +1139,22 @@ async function runDiffImport() {
     return;
   }
 
+  // Welche Playlists importieren? Ausgewählte oder alle fehlenden
+  let toImport = [];
+  if (_diffSelected.size > 0) {
+    toImport = [..._diffSelected].sort().map((i) => _diffMissing[i]).filter(Boolean);
+  } else {
+    toImport = [..._diffMissing];
+  }
+
+  // Batch-Limit anwenden
+  const batchLimit = parseInt(document.getElementById("syncDiffBatchLimit")?.value || "10", 10);
+  if (batchLimit > 0 && toImport.length > batchLimit) {
+    toImport = toImport.slice(0, batchLimit);
+  }
+
+  if (!toImport.length) return;
+
   _diffImportRunning = true;
   const importBtn = document.getElementById("syncDiffImportBtn");
   const loadBtn = document.getElementById("syncDiffLoadBtn");
@@ -1065,14 +1170,14 @@ async function runDiffImport() {
   let imported = 0;
   let failed = 0;
 
-  for (let i = 0; i < _diffMissing.length; i++) {
-    const bp = _diffMissing[i];
+  for (let i = 0; i < toImport.length; i++) {
+    const bp = toImport[i];
     const name = bp.name || bp.title || "";
     const bpUrl = bp.url || bp.beatport_url || `https://www.beatport.com/playlists/${bp.slug || bp.id}/${bp.id}`;
     const statusCell = document.querySelector(`.diff-status[data-name="${CSS.escape(name)}"]`);
 
-    progressMsg.textContent = `${i + 1}/${_diffMissing.length}: ${name}…`;
-    progressBar.style.width = `${((i + 1) / _diffMissing.length) * 100}%`;
+    progressMsg.textContent = `${i + 1}/${toImport.length}: ${name}…`;
+    progressBar.style.width = `${((i + 1) / toImport.length) * 100}%`;
     if (statusCell) statusCell.innerHTML = '<span class="status-info">⏳</span>';
 
     try {
@@ -1084,19 +1189,20 @@ async function runDiffImport() {
       if (statusCell) statusCell.innerHTML = `<span class="status-err">✗ ${esc(err.message).slice(0, 40)}</span>`;
     }
 
-    // Pause zwischen Imports (gleiche Delay-Config wie Lexicon-Batch)
     const delay = parseInt(document.getElementById("syncDjplDelayMs")?.value || "800", 10);
-    if (i < _diffMissing.length - 1) {
+    if (i < toImport.length - 1) {
       await new Promise((r) => setTimeout(r, delay));
     }
   }
 
   _diffImportRunning = false;
-  importBtn.disabled = true; // kein erneuter Import (Diff ist jetzt veraltet)
+  importBtn.disabled = false;
   loadBtn.disabled = false;
 
-  resultEl.innerHTML = `<span class="status-ok">✓ Import abgeschlossen: ${imported} importiert, ${failed} fehlgeschlagen.</span>
-    <br><strong>Nächster Schritt:</strong> Unten "DJPlaylists.fm → Lexicon" Button nutzen um alle Playlists nach Lexicon zu übertragen.`;
+  const remaining = _diffMissing.length - imported;
+  resultEl.innerHTML = `<span class="status-ok">✓ ${imported} importiert, ${failed} fehlgeschlagen.</span>
+    ${remaining > 0 ? `<br><span class="status-info">${remaining} weitere fehlen noch. Klicke erneut "Diff laden" → "Ausgewählte importieren" für die nächste Batch.</span>` : ""}
+    <br><strong>Nächster Schritt:</strong> Unten "DJPlaylists.fm → Lexicon" Button für die Übertragung nach Lexicon.`;
 }
 
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────

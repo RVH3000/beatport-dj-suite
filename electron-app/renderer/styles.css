@@ -4,13 +4,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Backgrounds ─── v3.6.7: Genre-Indikator, Pipeline-Modular, Lexicon-Refs, WIZ-Merge, Analyse ── */
-  --bg:             #101420;
-  --bg-subtle:      #151928;
-  --panel:          #1d2132;
-  --panel-strong:   #24293b;
-  --panel-hover:    #2b3045;
-  --surface:        #323852;
+  /* ── Backgrounds ─── v3.8.0: Diff-Cache, Batch-Import, DJPL-Login ────────── */
+  --bg:             #0f1320;
+  --bg-subtle:      #141827;
+  --panel:          #1c2031;
+  --panel-strong:   #23283a;
+  --panel-hover:    #2a2f44;
+  --surface:        #313751;
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --line:           rgba(255, 255, 255, 0.07);
