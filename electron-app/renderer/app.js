@@ -2743,11 +2743,12 @@ bootstrap().catch((error) => {
     const api = window.scoringMergeApi;
     if (!api) { alert("scoringMergeApi nicht verfügbar"); return; }
     const status = el("engMergeStatus");
-    status.textContent = "Preview wird erstellt — kann mehrere Sekunden dauern …";
+    const dbSource = document.getElementById("engDbSource")?.value || "auto";
+    status.textContent = `Preview wird erstellt (DB: ${dbSource === "auto" ? "Auto-Detect" : dbSource}) — kann mehrere Sekunden dauern …`;
     el("engMergeApplyBtn").disabled = true;
     resolutions.clear();
     try {
-      const summary = await api.preview();
+      const summary = await api.preview(dbSource !== "auto" ? dbSource : undefined);
       if (!summary?.ok) throw new Error(summary?.error || "Preview fehlgeschlagen");
       const full = await api.readPreview();
       if (!full?.ok) throw new Error(full?.error || "Preview-Datei kaputt");

@@ -88,7 +88,7 @@ contextBridge.exposeInMainWorld("engineApi", {
 });
 
 contextBridge.exposeInMainWorld("scoringMergeApi", {
-  preview: () => ipcRenderer.invoke("scoring:merge-engine-preview"),
+  preview: (dbFolder) => ipcRenderer.invoke("scoring:merge-engine-preview", dbFolder),
   readPreview: () => ipcRenderer.invoke("scoring:merge-engine-read-preview"),
   apply: (options) => ipcRenderer.invoke("scoring:merge-engine-apply", options),
 });

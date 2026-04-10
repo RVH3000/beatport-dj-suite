@@ -95,10 +95,14 @@ def apply_rule(field: str, source_val, target_val, rule: str) -> tuple[str, dict
     }
 
 
-def run_engine_dump(engine_tools_path: Path) -> dict:
+def run_engine_dump(engine_tools_path: Path, database_folder: str | None = None) -> dict:
     """Ruft engine_tools.py dump-tracks-with-history und parst Output."""
+    cmd = [sys.executable, str(engine_tools_path)]
+    if database_folder:
+        cmd.extend(["--database-folder", database_folder])
+    cmd.append("dump-tracks-with-history")
     proc = subprocess.run(
-        [sys.executable, str(engine_tools_path), "dump-tracks-with-history"],
+        cmd,
         capture_output=True,
         text=True,
     )
@@ -158,9 +162,11 @@ def preview_merge(config: dict, repo_root: Path) -> dict:
     scoring = json.loads(scoring_path.read_text("utf8"))
     all_tracks = scoring.get("all_tracks", []) if isinstance(scoring, dict) else []
 
-    # Engine-Dump holen
+    # Engine-Dump holen (mit optionalem explizitem DB-Pfad)
     engine_tools = repo_root / "electron-app" / "integrations" / "python" / "engine_tools.py"
-    engine = run_engine_dump(engine_tools)
+    engine_db_folder = config.get("sources", {}).get("engine_database_folder")
+    engine_db_folder = str(Path(engine_db_folder).expanduser()) if engine_db_folder else None
+    engine = run_engine_dump(engine_tools, database_folder=engine_db_folder)
     if not engine.get("ok"):
         return {"ok": False, "error": engine.get("error", "Engine-Dump fehlgeschlagen")}
     engine_tracks = engine.get("tracks", [])
@@ -300,6 +306,7 @@ def main() -> int:
     parser.add_argument("--config", required=True, help="Pfad zu scoring-merge-rules.json")
     parser.add_argument("--out", required=True, help="Wohin die Preview geschrieben wird")
     parser.add_argument("--repo-root", required=True, help="Worktree-Root (für engine_tools.py)")
+    parser.add_argument("--engine-db", default="", help="Expliziter Engine-DB-Pfad (statt Auto-Detect)")
     args = parser.parse_args()
 
     config_path = Path(args.config).expanduser()
@@ -309,6 +316,10 @@ def main() -> int:
 
     config = json.loads(config_path.read_text("utf8"))
     repo_root = Path(args.repo_root).expanduser()
+
+    # Wenn ein expliziter DB-Pfad angegeben wurde, in der Config überschreiben
+    if args.engine_db:
+        config.setdefault("sources", {})["engine_database_folder"] = args.engine_db
 
     preview = preview_merge(config, repo_root)
     out_path = Path(args.out).expanduser()

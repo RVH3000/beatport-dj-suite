@@ -402,7 +402,7 @@ function renderConnectionDetails() {
       <dt>DJPlaylists.fm</dt>
       <dd class="${djplOk ? "status-ok" : "status-err"}">
         ${djplOk
-          ? `✓ Erreichbar — ${djplAuth ? `Eingeloggt${djpl.username ? ` als ${djpl.username}` : ""}` : "Nicht authentifiziert (API-Key unter Konfiguration eingeben)"}`
+          ? `✓ Erreichbar — ${djplAuth ? `Eingeloggt${djpl.username ? ` als ${djpl.username}` : ""}` : "⚠️ Nicht authentifiziert — Session-Cookie eingeben (oben unter Konfiguration, F12 → Application → Cookies → _session)"}`
           : `✗ ${djpl?.error ?? "Nicht erreichbar"}`}
       </dd>
       <dt>Engine DJ</dt>
@@ -973,6 +973,17 @@ async function loadDiff() {
 
 async function runDiffImport() {
   if (_diffImportRunning || !_diffMissing.length) return;
+
+  // Auth-Check: ohne Session-Cookie/API-Key werden Imports NICHT gespeichert
+  const hasAuth = syncState.apiKey || syncState.sessionCookie;
+  if (!hasAuth) {
+    const resultEl = document.getElementById("syncDiffResult");
+    resultEl.innerHTML = `<span class="status-err">⚠️ <strong>Nicht authentifiziert!</strong> Ohne Session-Cookie oder API-Key werden Imports zwar gesendet, aber NICHT auf DJPlaylists.fm gespeichert.<br>
+      → Scrolle hoch zur <em>DJPlaylists.fm Konfiguration</em> und trage den Session-Cookie ein (F12 → Application → Cookies → <code>_session</code>).<br>
+      → Dann erneut "Fehlende importieren" klicken.</span>`;
+    return;
+  }
+
   _diffImportRunning = true;
   const importBtn = document.getElementById("syncDiffImportBtn");
   const loadBtn = document.getElementById("syncDiffLoadBtn");

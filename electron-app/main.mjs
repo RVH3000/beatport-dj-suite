@@ -550,15 +550,23 @@ app.whenReady().then(() => {
   const scoringMergeLogPath = resolveBundledPath("config/scoring-merge-log.jsonl");
   const scoringMergeBackupDir = resolveBundledPath("config/scoring-backups");
 
-  ipcMain.handle("scoring:merge-engine-preview", async () => {
+  ipcMain.handle("scoring:merge-engine-preview", async (_event, dbFolder) => {
     const repoRoot = path.dirname(resolveBundledPath("package.json"));
+    const args = [
+      "--config",   scoringMergeRulesPath,
+      "--out",      scoringMergePreviewPath,
+      "--repo-root", repoRoot,
+    ];
+    // Wenn ein spezifischer DB-Pfad gewählt wurde, an engine_tools.py durchreichen
+    if (dbFolder) {
+      // merge_engine_scoring.py ruft engine_tools.py intern auf — wir müssen den Pfad
+      // in die config schreiben oder als env-Variable übergeben. Einfacher: temporär
+      // die config modifizieren. Noch einfacher: merge_engine_scoring.py akzeptiert --engine-db
+      args.push("--engine-db", dbFolder);
+    }
     return runPythonJson(
       "electron-app/integrations/python/merge_engine_scoring.py",
-      [
-        "--config",   scoringMergeRulesPath,
-        "--out",      scoringMergePreviewPath,
-        "--repo-root", repoRoot,
-      ],
+      args,
     );
   });
 
