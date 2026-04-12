@@ -213,6 +213,18 @@ Vergleicht deine Beatport-Playlists mit den auf DJPlaylists.fm vorhandenen. Fehl
 
 Liest alle Playlists aus dem DJPlaylists.fm-Account via Supabase und speichert sie sequenziell in Lexicon DJ. Konfigurierbare Pause zwischen Saves (Standard: 800ms).
 
+#### Soundiiz (optional)
+
+Soundiiz ist ein optionaler Monitoring-/Trigger-Layer im Sync-Tab.
+Du kannst bestehende Soundiiz-Syncs laden, ihren Status sehen und einzelne Syncs manuell triggern.
+
+- Benoetigt wird ein persoenlicher Soundiiz API-Key.
+- Ohne API-Key bleibt der Bereich deaktiviert, der restliche Sync-Tab funktioniert normal weiter.
+- Bei 401/403 wird eine klare Auth-Meldung angezeigt, ohne den Workflow zu blockieren.
+
+Wichtig: Der Kern-Metadatenpfad bleibt unveraendert:
+`Beatport → DJPlaylists.fm → Lexicon → Engine DJ`.
+
 #### Engine DJ Export
 
 Lexicon DJ → Engine DJ Export. Danach USB einstecken und in Engine DJ oder Denon Prime 4+ synchronisieren.

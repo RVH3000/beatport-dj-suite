@@ -52,6 +52,7 @@ import {
 import { SessionManager } from "./auth/session-manager.mjs";
 import * as LexiconClient from "./api/lexicon-client.mjs";
 import * as DjplaylistsClient from "./api/djplaylists-client.mjs";
+import * as SoundiizClient from "./api/soundiiz-client.mjs";
 import {
   buildUnifiedComponentMap,
   discoverProjectParts,
@@ -969,6 +970,9 @@ app.whenReady().then(() => {
     }
   }
 
+  // Laufzeit-Auth-Status fuer optionale Soundiiz-Integration
+  let soundiizApiKey = "";
+
   ipcMain.handle("sync:check-lexicon", async () => {
     try {
       return await LexiconClient.checkConnection();
@@ -982,6 +986,62 @@ app.whenReady().then(() => {
       return await DjplaylistsClient.checkConnection();
     } catch (err) {
       return { reachable: false, authenticated: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:check-soundiiz", async () => {
+    try {
+      if (!soundiizApiKey) {
+        return { ok: false, error: "Soundiiz API-Key nicht konfiguriert." };
+      }
+      return await SoundiizClient.checkConnection();
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:list-soundiiz-syncs", async (_event, options = {}) => {
+    try {
+      if (!soundiizApiKey) {
+        return { ok: false, error: "Soundiiz API-Key nicht konfiguriert." };
+      }
+      return await SoundiizClient.listSyncs(options || {});
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:trigger-soundiiz-sync", async (_event, id) => {
+    try {
+      if (!soundiizApiKey) {
+        return { ok: false, error: "Soundiiz API-Key nicht konfiguriert." };
+      }
+      return await SoundiizClient.triggerSync(id);
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
+    }
+  });
+
+  ipcMain.handle("sync:save-soundiiz-auth", async (_event, auth = {}) => {
+    try {
+      soundiizApiKey = String(auth.apiKey ?? "").trim();
+      SoundiizClient.setApiKey(soundiizApiKey);
+
+      // In Presets persistieren
+      const presetsPath = getSyncPresetsPath();
+      let presets;
+      try {
+        presets = JSON.parse(await fs.readFile(presetsPath, "utf8"));
+      } catch {
+        presets = await loadDefaultPresets();
+      }
+      presets.config = presets.config ?? {};
+      presets.config.soundiizApiKey = soundiizApiKey;
+      await fs.writeFile(presetsPath, JSON.stringify(presets, null, 2), "utf8");
+
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
     }
   });
 
@@ -1174,9 +1234,14 @@ app.whenReady().then(() => {
       // Auth in Laufzeit wiederherstellen
       if (presets.config?.djplaylistsApiKey) DjplaylistsClient.setApiKey(presets.config.djplaylistsApiKey);
       if (presets.config?.djplaylistsSessionCookie) DjplaylistsClient.setSessionCookie(presets.config.djplaylistsSessionCookie);
+      soundiizApiKey = String(presets.config?.soundiizApiKey ?? "").trim();
+      SoundiizClient.setApiKey(soundiizApiKey);
       return presets;
     } catch {
-      return await loadDefaultPresets();
+      const defaults = await loadDefaultPresets();
+      soundiizApiKey = String(defaults.config?.soundiizApiKey ?? "").trim();
+      SoundiizClient.setApiKey(soundiizApiKey);
+      return defaults;
     }
   });
 

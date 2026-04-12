@@ -75,11 +75,14 @@ function buildPipelineNodesHtml() {
 const syncState = {
   lexiconStatus: null,      // { connected, endpoint, version }
   djplStatus: null,         // { reachable, authenticated, username }
+  soundiizStatus: null,     // { ok, status, account } | { ok: false, status?, error }
+  soundiizSyncs: [],
   presets: null,            // { playlists: [...], config: {...} }
   pipelineRunning: false,
   pipelineLog: [],
   apiKey: "",
   sessionCookie: "",
+  soundiizApiKey: "",
 };
 
 // ─── Haupteinstieg ───────────────────────────────────────────────────────────
@@ -157,6 +160,44 @@ function buildSyncTabHtml() {
         </div>
       </details>
       <div id="syncAuthResult" class="detail-summary empty"></div>
+    </section>
+
+    <!-- Soundiiz (optional) -->
+    <section class="panel span-full">
+      <div class="section-head">
+        <h2>Soundiiz (optional)</h2>
+        <div class="actions compact">
+          <button id="syncSoundiizSaveBtn" type="button">Speichern &amp; testen</button>
+          <button id="syncSoundiizLoadBtn" type="button">Syncs laden</button>
+        </div>
+      </div>
+      <p class="callout info" style="margin-bottom:0.75rem">
+        Optionaler Monitoring-/Trigger-Layer fuer bestehende Soundiiz-Syncs.
+        Der Kernpfad <strong>Beatport → DJPlaylists.fm → Lexicon → Engine</strong> bleibt unveraendert.
+      </p>
+      <div class="field-grid">
+        <label class="wide">
+          Soundiiz API-Key (persoenlich)
+          <input id="syncSoundiizApiKey" type="password" placeholder="API-Key eingeben" autocomplete="off" />
+        </label>
+      </div>
+      <div id="syncSoundiizStatus" class="detail-summary empty"></div>
+      <div id="syncSoundiizTableWrap" class="table-wrap" style="display:none;margin-top:0.75rem">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Titel</th>
+              <th>Quelle</th>
+              <th>Ziel</th>
+              <th>Status</th>
+              <th>Naechste Ausfuehrung</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="syncSoundiizTbody"></tbody>
+        </table>
+      </div>
     </section>
 
     <!-- Beatport URL Import -->
@@ -323,6 +364,8 @@ function bindEvents() {
   document.getElementById("syncRefreshStatusBtn")?.addEventListener("click", refreshStatuses);
   document.getElementById("syncImportBtn")?.addEventListener("click", runImportPipeline);
   document.getElementById("syncSaveAuthBtn")?.addEventListener("click", saveAndTestAuth);
+  document.getElementById("syncSoundiizSaveBtn")?.addEventListener("click", saveAndTestSoundiizAuth);
+  document.getElementById("syncSoundiizLoadBtn")?.addEventListener("click", loadSoundiizSyncs);
   document.getElementById("syncExploreApiBtn")?.addEventListener("click", exploreApis);
   document.getElementById("syncDjplLoginBtn")?.addEventListener("click", openDjplLogin);
   document.getElementById("syncDjplSyncJwtBtn")?.addEventListener("click", syncDjplJwt);
@@ -336,6 +379,12 @@ function bindEvents() {
   // Diff-Import (Feature 4)
   document.getElementById("syncDiffLoadBtn")?.addEventListener("click", loadDiff);
   document.getElementById("syncDiffImportBtn")?.addEventListener("click", runDiffImport);
+  document.getElementById("syncSoundiizTbody")?.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-action='trigger-soundiiz']");
+    if (!btn) return;
+    const syncId = btn.dataset.syncId;
+    await triggerSoundiizSyncById(syncId, btn);
+  });
 
   // Diff-Checkboxen
   document.addEventListener("change", (e) => {
@@ -375,9 +424,10 @@ async function refreshStatuses() {
   setPipelineBadge("lexicon", "idle", "Prüfen…");
   setPipelineBadge("djpl", "idle", "Prüfen…");
 
-  const [lexResult, djplResult, sampleResult] = await Promise.allSettled([
+  const [lexResult, djplResult, soundiizResult, sampleResult] = await Promise.allSettled([
     window.syncApi.checkLexicon(),
     window.syncApi.checkDjplaylists(),
+    window.syncApi.checkSoundiiz(),
     window.syncApi.getLexiconTracksSample(5),
   ]);
 
@@ -389,19 +439,31 @@ async function refreshStatuses() {
     ? djplResult.value
     : { reachable: false, error: String(djplResult.reason) };
 
+  syncState.soundiizStatus = soundiizResult.status === "fulfilled"
+    ? soundiizResult.value
+    : { ok: false, error: String(soundiizResult.reason) };
+
   syncState.lexiconSample = sampleResult.status === "fulfilled" ? sampleResult.value : null;
 
   renderConnectionDetails();
 }
 
 function renderConnectionDetails() {
-  const { lexiconStatus: lex, djplStatus: djpl, lexiconSample: sample } = syncState;
+  const {
+    lexiconStatus: lex,
+    djplStatus: djpl,
+    soundiizStatus: soundiiz,
+    lexiconSample: sample,
+  } = syncState;
   const details = document.getElementById("sync-connection-details");
   if (!details) return;
 
   const lexOk = lex?.connected;
   const djplOk = djpl?.reachable;
   const djplAuth = djpl?.authenticated;
+  const soundiizConfigured = !isSoundiizNotConfigured(soundiiz);
+  const soundiizAuthError = soundiiz?.status === 401 || soundiiz?.status === 403;
+  const soundiizOk = soundiiz?.ok === true;
 
   // Pipeline-Badges aktualisieren
   if (lexOk) {
@@ -448,6 +510,23 @@ function renderConnectionDetails() {
           ? `✓ Erreichbar — ${djplAuth ? `Eingeloggt${djpl.username ? ` als ${djpl.username}` : ""}` : "⚠️ Nicht authentifiziert — Session-Cookie eingeben (oben unter Konfiguration, F12 → Application → Cookies → _session)"}`
           : `✗ ${djpl?.error ?? "Nicht erreichbar"}`}
       </dd>
+      <dt>Soundiiz (optional)</dt>
+      <dd class="${
+        soundiizOk ? "status-ok"
+        : !soundiizConfigured ? "status-info"
+        : soundiizAuthError ? "status-warn"
+        : "status-err"
+      }">
+        ${
+          soundiizOk
+            ? "✓ Verbunden"
+            : !soundiizConfigured
+              ? "Nicht konfiguriert (optional)"
+              : soundiizAuthError
+                ? "⚠ Auth fehlgeschlagen (API-Key pruefen)"
+                : `✗ ${soundiiz?.error ?? "Nicht erreichbar"}`
+        }
+      </dd>
       <dt>Engine DJ</dt>
       <dd class="status-info">Wird über Lexicon /v1/sync-Endpoints angesteuert</dd>
       <dt>USB / Denon Prime 4+</dt>
@@ -478,6 +557,193 @@ async function saveAndTestAuth() {
     await refreshStatuses();
   } catch (err) {
     if (resultEl) resultEl.innerHTML = `<span class="status-err">✗ ${err.message}</span>`;
+  }
+}
+
+// ─── Soundiiz (optional) ─────────────────────────────────────────────────────
+
+async function saveAndTestSoundiizAuth() {
+  const keyInput = document.getElementById("syncSoundiizApiKey");
+  const statusEl = document.getElementById("syncSoundiizStatus");
+  const tableWrap = document.getElementById("syncSoundiizTableWrap");
+  const apiKey = keyInput?.value.trim() ?? "";
+
+  syncState.soundiizApiKey = apiKey;
+
+  if (statusEl) statusEl.innerHTML = '<span class="status-info">Speichere Soundiiz-Key…</span>';
+
+  try {
+    const saveResult = await window.syncApi.saveSoundiizAuth({ apiKey });
+    if (!saveResult?.ok) {
+      if (statusEl) statusEl.innerHTML = `<span class="status-err">✗ ${esc(saveResult?.error ?? "Speichern fehlgeschlagen")}</span>`;
+      addLog("error", `Soundiiz-Key konnte nicht gespeichert werden: ${saveResult?.error ?? "Unbekannter Fehler"}`);
+      return;
+    }
+
+    if (!apiKey) {
+      syncState.soundiizStatus = { ok: false, error: "Soundiiz API-Key nicht konfiguriert." };
+      syncState.soundiizSyncs = [];
+      if (statusEl) statusEl.innerHTML = '<span class="status-info">Soundiiz-Key entfernt. Optionales Modul ist deaktiviert.</span>';
+      if (tableWrap) tableWrap.style.display = "none";
+      addLog("info", "Soundiiz-Key entfernt (optionaler Layer deaktiviert).");
+      renderConnectionDetails();
+      return;
+    }
+
+    if (statusEl) statusEl.innerHTML = '<span class="status-info">Teste Soundiiz-Verbindung…</span>';
+    const check = await window.syncApi.checkSoundiiz();
+    syncState.soundiizStatus = check;
+    renderConnectionDetails();
+
+    if (check?.ok) {
+      if (statusEl) statusEl.innerHTML = '<span class="status-ok">✓ Soundiiz verbunden.</span>';
+      addLog("info", "Soundiiz-Verbindung erfolgreich getestet.");
+      return;
+    }
+
+    if (check?.status === 401 || check?.status === 403) {
+      if (statusEl) statusEl.innerHTML = '<span class="status-warn">⚠ API-Key nicht akzeptiert (401/403).</span>';
+      addLog("warn", "Soundiiz-Auth fehlgeschlagen (401/403). Bitte API-Key pruefen.");
+      return;
+    }
+
+    if (statusEl) statusEl.innerHTML = `<span class="status-err">✗ ${esc(check?.error ?? "Verbindung fehlgeschlagen")}</span>`;
+    addLog("error", `Soundiiz-Verbindung fehlgeschlagen: ${check?.error ?? "Unbekannter Fehler"}`);
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
+    addLog("error", `Soundiiz-Fehler: ${err.message}`);
+  }
+}
+
+async function loadSoundiizSyncs() {
+  const statusEl = document.getElementById("syncSoundiizStatus");
+  const tableWrap = document.getElementById("syncSoundiizTableWrap");
+
+  if (statusEl) statusEl.innerHTML = '<span class="status-info">Lade Soundiiz-Syncs…</span>';
+
+  try {
+    const result = await window.syncApi.listSoundiizSyncs({ offset: 0, limit: 50 });
+    if (!result?.ok) {
+      syncState.soundiizStatus = result;
+      renderConnectionDetails();
+
+      if (isSoundiizNotConfigured(result)) {
+        syncState.soundiizSyncs = [];
+        if (statusEl) statusEl.innerHTML = '<span class="status-info">Soundiiz ist nicht konfiguriert (optional).</span>';
+        if (tableWrap) tableWrap.style.display = "none";
+        addLog("info", "Soundiiz-Syncs nicht geladen: kein API-Key konfiguriert.");
+        return;
+      }
+
+      if (result.status === 401 || result.status === 403) {
+        if (statusEl) statusEl.innerHTML = '<span class="status-warn">⚠ Auth fehlgeschlagen (401/403). API-Key pruefen.</span>';
+        addLog("warn", "Soundiiz-Syncs konnten wegen Auth-Fehler nicht geladen werden (401/403).");
+        return;
+      }
+
+      if (statusEl) statusEl.innerHTML = `<span class="status-err">✗ ${esc(result.error ?? "Laden fehlgeschlagen")}</span>`;
+      addLog("error", `Soundiiz-Syncs konnten nicht geladen werden: ${result.error ?? "Unbekannter Fehler"}`);
+      return;
+    }
+
+    syncState.soundiizStatus = { ok: true, status: result.status };
+    syncState.soundiizSyncs = Array.isArray(result.syncs) ? result.syncs : [];
+    renderConnectionDetails();
+    renderSoundiizSyncs(syncState.soundiizSyncs);
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="status-ok">✓ ${syncState.soundiizSyncs.length} Sync(s) geladen.</span>`;
+    }
+    addLog("info", `Soundiiz-Syncs geladen: ${syncState.soundiizSyncs.length}`);
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
+    addLog("error", `Soundiiz-Syncs laden fehlgeschlagen: ${err.message}`);
+  }
+}
+
+function renderSoundiizSyncs(syncs) {
+  const wrap = document.getElementById("syncSoundiizTableWrap");
+  const tbody = document.getElementById("syncSoundiizTbody");
+  if (!wrap || !tbody) return;
+
+  if (!syncs?.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="status-info">Keine Soundiiz-Syncs gefunden.</td></tr>';
+    wrap.style.display = "";
+    return;
+  }
+
+  tbody.innerHTML = syncs.map((sync) => {
+    const syncId = String(sync.id ?? "");
+    return `
+      <tr>
+        <td style="font-family:monospace;font-size:0.74rem">${esc(syncId || "–")}</td>
+        <td>${esc(sync.title ?? "–")}</td>
+        <td>${esc(sync.source || "–")}</td>
+        <td>${esc(sync.destination || "–")}</td>
+        <td>${esc(sync.status || "unknown")}</td>
+        <td>${formatDisplayDate(sync.nextExecutionDate)}</td>
+        <td>
+          <button
+            class="btn-sm"
+            data-action="trigger-soundiiz"
+            data-sync-id="${esc(syncId)}"
+            ${syncId ? "" : "disabled"}
+          >Jetzt triggern</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  wrap.style.display = "";
+}
+
+async function triggerSoundiizSyncById(syncId, buttonEl) {
+  if (!syncId) return;
+  const statusEl = document.getElementById("syncSoundiizStatus");
+
+  if (buttonEl) {
+    buttonEl.disabled = true;
+    buttonEl.textContent = "Triggere…";
+  }
+
+  addLog("info", `Soundiiz-Trigger gestartet fuer Sync ${syncId}.`);
+
+  try {
+    const result = await window.syncApi.triggerSoundiizSync(syncId);
+
+    if (result?.ok) {
+      if (result.status === 202) {
+        if (statusEl) statusEl.innerHTML = `<span class="status-ok">✓ Sync ${esc(syncId)} akzeptiert (202).</span>`;
+        addLog("info", `Soundiiz Sync ${syncId} wurde akzeptiert (202 Accepted).`);
+      } else {
+        if (statusEl) statusEl.innerHTML = `<span class="status-ok">✓ Sync ${esc(syncId)} getriggert.</span>`;
+        addLog("info", `Soundiiz Sync ${syncId} erfolgreich getriggert (${result.status ?? "ok"}).`);
+      }
+      return;
+    }
+
+    if (result?.status === 409) {
+      if (statusEl) statusEl.innerHTML = `<span class="status-warn">⚠ Sync ${esc(syncId)} laeuft bereits (409).</span>`;
+      addLog("warn", `Soundiiz Sync ${syncId} laeuft bereits (409).`);
+      return;
+    }
+
+    if (result?.status === 401 || result?.status === 403) {
+      if (statusEl) statusEl.innerHTML = '<span class="status-warn">⚠ Auth fehlgeschlagen (401/403). API-Key pruefen.</span>';
+      addLog("warn", `Soundiiz Trigger fuer ${syncId} abgewiesen (401/403).`);
+      return;
+    }
+
+    if (statusEl) statusEl.innerHTML = `<span class="status-err">✗ ${esc(result?.error ?? "Trigger fehlgeschlagen")}</span>`;
+    addLog("error", `Soundiiz Trigger fehlgeschlagen (${syncId}): ${result?.error ?? "Unbekannter Fehler"}`);
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = `<span class="status-err">✗ ${esc(err.message)}</span>`;
+    addLog("error", `Soundiiz Trigger-Fehler (${syncId}): ${err.message}`);
+  } finally {
+    if (buttonEl) {
+      buttonEl.disabled = false;
+      buttonEl.textContent = "Jetzt triggern";
+    }
   }
 }
 
@@ -634,11 +900,14 @@ async function loadPresets() {
     const cfg = syncState.presets?.config || {};
     if (cfg.djplaylistsApiKey) syncState.apiKey = cfg.djplaylistsApiKey;
     if (cfg.djplaylistsSessionCookie) syncState.sessionCookie = cfg.djplaylistsSessionCookie;
+    if (cfg.soundiizApiKey) syncState.soundiizApiKey = cfg.soundiizApiKey;
     // UI-Felder befüllen falls leer
     const apiInput = document.getElementById("syncDjplApiKey");
     const cookieInput = document.getElementById("syncDjplSessionCookie");
+    const soundiizInput = document.getElementById("syncSoundiizApiKey");
     if (apiInput && !apiInput.value && cfg.djplaylistsApiKey) apiInput.value = cfg.djplaylistsApiKey;
     if (cookieInput && !cookieInput.value && cfg.djplaylistsSessionCookie) cookieInput.value = cfg.djplaylistsSessionCookie;
+    if (soundiizInput && !soundiizInput.value && cfg.soundiizApiKey) soundiizInput.value = cfg.soundiizApiKey;
   } catch {
     syncState.presets = { playlists: [], config: {} };
   }
@@ -1224,6 +1493,17 @@ async function runDiffImport() {
 }
 
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
+
+function isSoundiizNotConfigured(result) {
+  return String(result?.error ?? "").toLowerCase().includes("nicht konfiguriert");
+}
+
+function formatDisplayDate(value) {
+  if (!value) return "–";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return esc(String(value));
+  return date.toLocaleString("de-DE");
+}
 
 function esc(str) {
   return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

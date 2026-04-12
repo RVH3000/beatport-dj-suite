@@ -2,12 +2,11 @@
 /**
  * API-Clients Tests
  *
- * Testet die reinen (pure) Funktionen aus:
+ * Testet:
  * - djplaylists-client.mjs: parsePlaylistsFromHtml, buildLexiconImportUrl,
  *   extractPlaylistId, setApiKey, setSessionCookie
+ * - soundiiz-client.mjs: Auth-Header, checkConnection, listSyncs, triggerSync
  * - lexicon-client.mjs: Source-Analyse der internen Hilfsfunktionen
- *
- * Netzwerk-abhängige Funktionen werden NICHT getestet (kein HTTP-Mock nötig).
  */
 
 import { describe, it } from "node:test";
@@ -33,6 +32,17 @@ const {
   setSessionCookie,
 } = djpl;
 
+const soundiiz = await import(
+  path.join(ROOT, "electron-app", "api", "soundiiz-client.mjs")
+);
+
+const {
+  setApiKey: setSoundiizApiKey,
+  checkConnection: checkSoundiizConnection,
+  listSyncs: listSoundiizSyncs,
+  triggerSync: triggerSoundiizSync,
+} = soundiiz;
+
 // ── lexicon-client Source lesen (für Analyse-Tests) ───────────────────────────
 
 const lexiconSource = await fs.readFile(
@@ -44,6 +54,28 @@ const djplSource = await fs.readFile(
   path.join(ROOT, "electron-app", "api", "djplaylists-client.mjs"),
   "utf-8"
 );
+
+const soundiizSource = await fs.readFile(
+  path.join(ROOT, "electron-app", "api", "soundiiz-client.mjs"),
+  "utf-8"
+);
+
+function createJsonResponse(status, data) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+async function withMockFetch(mockImpl, run) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = mockImpl;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DJPlaylists.fm Client — Pure Functions
@@ -310,6 +342,184 @@ describe("DJPlaylists.fm Client — Source-Analyse", () => {
     assert.ok(
       djplSource.includes("15000"),
       "DEFAULT_TIMEOUT_MS fehlt oder falsch"
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Soundiiz Client — API-Verhalten + Source-Analyse
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("Soundiiz Client", () => {
+  it("setzt Authorization Bearer Header", async () => {
+    let authHeader = "";
+    setSoundiizApiKey("soundiiz-test-key");
+
+    await withMockFetch(async (_url, options) => {
+      authHeader = options?.headers?.Authorization ?? "";
+      return createJsonResponse(200, { syncs: [] });
+    }, async () => {
+      const result = await listSoundiizSyncs({ offset: 0, limit: 5 });
+      assert.equal(result.ok, true);
+    });
+
+    assert.equal(authHeader, "Bearer soundiiz-test-key");
+  });
+
+  it("checkConnection liefert ok=true bei 200", async () => {
+    setSoundiizApiKey("soundiiz-test-key");
+    await withMockFetch(async () => {
+      return createJsonResponse(200, { id: "me-1", email: "dj@example.com" });
+    }, async () => {
+      const result = await checkSoundiizConnection();
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(result.account?.id, "me-1");
+    });
+  });
+
+  it("checkConnection liefert Fehlerformat bei 401", async () => {
+    setSoundiizApiKey("invalid-key");
+    await withMockFetch(async () => {
+      return createJsonResponse(401, { message: "Unauthorized" });
+    }, async () => {
+      const result = await checkSoundiizConnection();
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 401);
+      assert.ok(result.error.includes("Unauthorized"));
+    });
+  });
+
+  it("listSyncs uebergibt offset/limit in Query und normalisiert Antwort", async () => {
+    let calledUrl = "";
+    setSoundiizApiKey("soundiiz-test-key");
+    await withMockFetch(async (url) => {
+      calledUrl = String(url);
+      return createJsonResponse(200, {
+        syncs: [
+          {
+            id: 123,
+            title: "BP -> Lexicon",
+            source: { name: "Beatport" },
+            destination: { name: "Lexicon" },
+            status: "active",
+            nextExecutionDate: "2026-04-13T10:15:00Z",
+          },
+        ],
+      });
+    }, async () => {
+      const result = await listSoundiizSyncs({ offset: 25, limit: 10 });
+      assert.equal(result.ok, true);
+      assert.equal(result.offset, 25);
+      assert.equal(result.limit, 10);
+      assert.equal(result.count, 1);
+      assert.equal(result.syncs[0].id, "123");
+      assert.equal(result.syncs[0].source, "Beatport");
+      assert.equal(result.syncs[0].destination, "Lexicon");
+    });
+
+    assert.ok(calledUrl.includes("/v1/me/syncs?"), "Syncs-Endpoint wurde nicht aufgerufen");
+    assert.ok(calledUrl.includes("offset=25"), "offset fehlt in Query");
+    assert.ok(calledUrl.includes("limit=10"), "limit fehlt in Query");
+  });
+
+  it("triggerSync behandelt 202 Accepted", async () => {
+    setSoundiizApiKey("soundiiz-test-key");
+    await withMockFetch(async () => {
+      return createJsonResponse(202, { jobId: "job-202" });
+    }, async () => {
+      const result = await triggerSoundiizSync("sync-1");
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 202);
+      assert.equal(result.accepted, true);
+    });
+  });
+
+  it("triggerSync behandelt 200 OK", async () => {
+    setSoundiizApiKey("soundiiz-test-key");
+    await withMockFetch(async () => {
+      return createJsonResponse(200, { success: true });
+    }, async () => {
+      const result = await triggerSoundiizSync("sync-2");
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(result.accepted, false);
+    });
+  });
+
+  it("triggerSync behandelt 409 Conflict", async () => {
+    setSoundiizApiKey("soundiiz-test-key");
+    await withMockFetch(async () => {
+      return createJsonResponse(409, { message: "Sync already running" });
+    }, async () => {
+      const result = await triggerSoundiizSync("sync-3");
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 409);
+      assert.ok(result.error.toLowerCase().includes("running"));
+    });
+  });
+
+  it("triggerSync behandelt 401 und 403", async () => {
+    setSoundiizApiKey("invalid-key");
+
+    await withMockFetch(async () => {
+      return createJsonResponse(401, { message: "Unauthorized" });
+    }, async () => {
+      const result = await triggerSoundiizSync("sync-4");
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 401);
+    });
+
+    await withMockFetch(async () => {
+      return createJsonResponse(403, { message: "Forbidden" });
+    }, async () => {
+      const result = await triggerSoundiizSync("sync-4");
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 403);
+    });
+  });
+});
+
+describe("Soundiiz Client — Source-Analyse", () => {
+  it("Definiert korrekte Base-URL", () => {
+    assert.ok(
+      soundiizSource.includes("https://api.soundiiz.com"),
+      "SOUNDIIZ_BASE fehlt oder ist falsch"
+    );
+  });
+
+  it("Exportiert die erwarteten Funktionen", () => {
+    const expectedExports = [
+      "setApiKey",
+      "checkConnection",
+      "listSyncs",
+      "getSync",
+      "triggerSync",
+    ];
+    for (const name of expectedExports) {
+      assert.ok(
+        soundiizSource.includes(`export function ${name}`) ||
+        soundiizSource.includes(`export async function ${name}`),
+        `Export '${name}' fehlt`
+      );
+    }
+  });
+
+  it("Verwendet AbortController fuer Timeouts", () => {
+    assert.ok(
+      soundiizSource.includes("AbortController"),
+      "AbortController nicht gefunden"
+    );
+  });
+
+  it("Nutzt ein einheitliches Fehlerformat", () => {
+    assert.ok(
+      soundiizSource.includes("ok: false"),
+      "Fehlerformat { ok: false, ... } fehlt"
+    );
+    assert.ok(
+      soundiizSource.includes("status"),
+      "Status-Feld fuer Fehler fehlt"
     );
   });
 });

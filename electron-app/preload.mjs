@@ -114,6 +114,10 @@ contextBridge.exposeInMainWorld("syncApi", {
   // Verbindungsstatus
   checkLexicon:             ()              => ipcRenderer.invoke("sync:check-lexicon"),
   checkDjplaylists:         ()              => ipcRenderer.invoke("sync:check-djplaylists"),
+  checkSoundiiz:            ()              => ipcRenderer.invoke("sync:check-soundiiz"),
+  listSoundiizSyncs:        (opts)          => ipcRenderer.invoke("sync:list-soundiiz-syncs", opts),
+  triggerSoundiizSync:      (id)            => ipcRenderer.invoke("sync:trigger-soundiiz-sync", id),
+  saveSoundiizAuth:         (auth)          => ipcRenderer.invoke("sync:save-soundiiz-auth", auth),
   exploreApis:              ()              => ipcRenderer.invoke("sync:explore-apis"),
   // Lexicon-Library-Zugriff (Port 48624, /v1/)
   getLexiconPlaylists:      ()              => ipcRenderer.invoke("sync:get-lexicon-playlists"),

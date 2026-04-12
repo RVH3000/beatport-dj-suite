@@ -249,6 +249,10 @@ describe("Preload API-Struktur", () => {
     const methods = [
       "checkLexicon",
       "checkDjplaylists",
+      "checkSoundiiz",
+      "listSoundiizSyncs",
+      "triggerSoundiizSync",
+      "saveSoundiizAuth",
       "importToDjplaylists",
       "importToLexicon",
       "triggerEngineExport",
@@ -259,6 +263,26 @@ describe("Preload API-Struktur", () => {
       assert.ok(
         preloadSource.includes(`${method}:`),
         `syncApi.${method} fehlt in preload.mjs`
+      );
+    }
+  });
+
+  it("Soundiiz IPC-Channels sind in Preload und Main konsistent vorhanden", () => {
+    const channels = [
+      "sync:check-soundiiz",
+      "sync:list-soundiiz-syncs",
+      "sync:trigger-soundiiz-sync",
+      "sync:save-soundiiz-auth",
+    ];
+
+    for (const channel of channels) {
+      assert.ok(
+        preloadSource.includes(channel),
+        `Preload referenziert ${channel} nicht`
+      );
+      assert.ok(
+        mainSource.includes(channel),
+        `Main registriert ${channel} nicht`
       );
     }
   });
