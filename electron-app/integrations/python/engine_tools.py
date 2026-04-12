@@ -324,9 +324,14 @@ def build_summary(database_folder: Path) -> dict:
 def list_playlists(database_folder: Path, limit: int) -> dict:
     db_path = database_folder / DATABASE_FILES["main"]
     with connect_readonly(db_path) as connection:
+        # isPersisted: ob die Playlist auf dem Gerät materialisiert ist
+        pl_cols = _columns_of(connection, "Playlist")
+        persisted_col = "p.isPersisted" if "isPersisted" in pl_cols else "1 AS isPersisted"
+
         rows = connection.execute(
-            """
-            SELECT p.id, p.title, p.parentListId, COUNT(pe.id) AS trackCount
+            f"""
+            SELECT p.id, p.title, p.parentListId, {persisted_col},
+                   COUNT(pe.id) AS trackCount
             FROM Playlist p
             LEFT JOIN PlaylistEntity pe ON p.id = pe.listId
             GROUP BY p.id, p.title, p.parentListId
@@ -336,9 +341,22 @@ def list_playlists(database_folder: Path, limit: int) -> dict:
             (limit,),
         ).fetchall()
 
+        # Smartlists als eigene Kategorie
+        smartlists = []
+        tables = {r["name"] for r in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()}
+        if "Smartlist" in tables:
+            smartlists = [
+                dict(row) for row in connection.execute(
+                    "SELECT id, title FROM Smartlist ORDER BY title COLLATE NOCASE"
+                ).fetchall()
+            ]
+
     return {
         "ok": True,
         "playlists": [dict(row) for row in rows],
+        "smartlists": smartlists,
     }
 
 

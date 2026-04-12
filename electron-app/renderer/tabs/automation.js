@@ -95,7 +95,7 @@ function renderEngineSelectors() {
                 <option value="${playlist.id}" ${
                   String(playlist.id) === String(state.selectedPlaylistId) ? "selected" : ""
                 }>
-                  ${esc(playlist.title)} (${playlist.trackCount ?? 0})
+                  ${playlist.isPersisted === 0 ? "\u{1F6AB} " : ""}${esc(playlist.title)} (${playlist.trackCount ?? 0})
                 </option>
               `
             )
