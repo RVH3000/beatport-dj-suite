@@ -19,16 +19,36 @@ DATABASE_FILES = {
     "rekordbox": "rbm.db",
 }
 
+# Leere/unwichtige DBs — in Summary als optional markiert
+OPTIONAL_DATABASES = {"statistics", "settings"}
 
-def _sanitize_for_json(obj):
-    """Wandelt nicht-serialisierbare Typen (bytes/memoryview) in lesbare Strings um."""
+
+def _sanitize_for_json(obj, _key: str | None = None):
+    """Wandelt nicht-serialisierbare Typen in JSON-kompatible Werte um.
+
+    BLOBs werden nach Möglichkeit dekodiert (trackData, quickCues, loops).
+    Unbekannte BLOBs erhalten ein kompaktes Zusammenfassungs-Dict.
+    """
     if isinstance(obj, dict):
-        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+        return {k: _sanitize_for_json(v, _key=k) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [_sanitize_for_json(v) for v in obj]
     if isinstance(obj, (bytes, bytearray, memoryview)):
         raw = bytes(obj) if isinstance(obj, memoryview) else obj
-        return f"<BLOB {len(raw)} bytes>"
+        # Versuche bekannte PerformanceData-BLOBs zu dekodieren
+        if _key == "trackData":
+            decoded = parse_trackdata_blob(raw)
+            if decoded:
+                return decoded
+        elif _key == "quickCues":
+            decoded = parse_quickcues_blob(raw)
+            if decoded is not None:
+                return decoded
+        elif _key == "loops":
+            decoded = parse_loops_blob(raw)
+            if decoded is not None:
+                return decoded
+        return {"_blob_bytes": len(raw)}
     return obj
 
 
@@ -265,6 +285,7 @@ def build_summary(database_folder: Path) -> dict:
           "id": key,
           "name": file_name,
           "path": str(db_path),
+          "optional": key in OPTIONAL_DATABASES,
           "exists": db_path.exists(),
       }
       if not db_path.exists():
