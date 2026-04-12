@@ -246,7 +246,15 @@ function renderAutomationTab() {
       <div class="detail-summary">
         Datenbankordner: ${esc(engineSummary.databaseFolder || "noch nicht aufgelöst")} |
         Playlists: ${engineSummary.playlistCount ?? 0} |
-        History-Sessions: ${engineSummary.historySessionCount ?? 0}
+        History-Sessions: ${engineSummary.historySessionCount ?? 0} |
+        Rekordbox-Tracks: ${engineSummary.rekordboxTrackCount ?? 0}${
+          (() => {
+            const mainDb = (engineSummary.databases || []).find(d => d.id === "main");
+            return mainDb?.withCues != null
+              ? ` | Tracks mit Cues: ${mainDb.withCues} | Tracks mit TrackData: ${mainDb.withTrackdata ?? 0}`
+              : "";
+          })()
+        }
       </div>
       ${renderEngineSelectors()}
     </section>

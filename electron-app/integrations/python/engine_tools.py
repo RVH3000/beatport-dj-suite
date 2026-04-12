@@ -5,7 +5,9 @@ import argparse
 import json
 import shutil
 import sqlite3
+import struct
 import sys
+import zlib
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +16,7 @@ DATABASE_FILES = {
     "history": "hm.db",
     "statistics": "stm.db",
     "settings": "sm.db",
+    "rekordbox": "rbm.db",
 }
 
 
@@ -27,6 +30,89 @@ def _sanitize_for_json(obj):
         raw = bytes(obj) if isinstance(obj, memoryview) else obj
         return f"<BLOB {len(raw)} bytes>"
     return obj
+
+
+def parse_trackdata_blob(blob: bytes) -> dict | None:
+    """Dekodiert den TrackData-BLOB aus PerformanceData (sample_rate, total_samples, duration)."""
+    try:
+        payload = zlib.decompress(blob[4:])
+        if len(payload) < 28:
+            return None
+        sample_rate = struct.unpack_from(">d", payload, 0)[0]
+        total_samples = struct.unpack_from(">q", payload, 8)[0]
+        if sample_rate <= 0:
+            return None
+        return {
+            "sample_rate": sample_rate,
+            "total_samples": total_samples,
+            "duration_sec": round(total_samples / sample_rate, 3),
+        }
+    except Exception:
+        return None
+
+
+def parse_quickcues_blob(blob: bytes) -> list[dict] | None:
+    """Dekodiert den QuickCues-BLOB aus PerformanceData."""
+    try:
+        payload = zlib.decompress(blob[4:])
+        offset = 4  # 4 bytes unknown
+        max_cues = struct.unpack_from(">I", payload, offset)[0]
+        offset += 4
+        cues: list[dict] = []
+        for _ in range(max_cues):
+            name_len = payload[offset]
+            offset += 1
+            name = payload[offset:offset + name_len].decode("ascii", errors="replace")
+            offset += name_len
+            position = struct.unpack_from(">d", payload, offset)[0]
+            offset += 8
+            a, r, g, b = struct.unpack_from("BBBB", payload, offset)
+            offset += 4
+            if position == -1.0:
+                continue
+            cues.append({
+                "name": name,
+                "position_samples": position,
+                "position_seconds": round(position / 44100, 3),
+                "color_hex": f"#{r:02x}{g:02x}{b:02x}",
+            })
+        return cues
+    except Exception:
+        return None
+
+
+def parse_loops_blob(blob: bytes) -> list[dict] | None:
+    """Dekodiert den Loops-BLOB aus PerformanceData."""
+    try:
+        payload = zlib.decompress(blob[4:])
+        offset = 4  # 4 bytes unknown
+        max_loops = struct.unpack_from(">I", payload, offset)[0]
+        offset += 4
+        loops: list[dict] = []
+        for _ in range(max_loops):
+            name_len = payload[offset]
+            offset += 1
+            name = payload[offset:offset + name_len].decode("ascii", errors="replace")
+            offset += name_len
+            start_pos = struct.unpack_from(">d", payload, offset)[0]
+            offset += 8
+            a, r, g, b = struct.unpack_from("BBBB", payload, offset)
+            offset += 4
+            end_pos = struct.unpack_from(">d", payload, offset)[0]
+            offset += 8
+            if start_pos == -1.0:
+                continue
+            loops.append({
+                "name": name,
+                "start_samples": start_pos,
+                "start_seconds": round(start_pos / 44100, 3),
+                "end_samples": end_pos,
+                "end_seconds": round(end_pos / 44100, 3),
+                "color_hex": f"#{r:02x}{g:02x}{b:02x}",
+            })
+        return loops
+    except Exception:
+        return None
 
 
 def emit(payload: dict) -> None:
@@ -171,6 +257,7 @@ def build_summary(database_folder: Path) -> dict:
     databases = []
     playlist_count = 0
     history_count = 0
+    rekordbox_track_count = 0
 
     for key, file_name in DATABASE_FILES.items():
       db_path = database_folder / file_name
@@ -199,11 +286,28 @@ def build_summary(database_folder: Path) -> dict:
                   "SELECT COUNT(*) FROM Playlist"
               ).fetchone()[0]
               entry["playlistCount"] = playlist_count
+              # PerformanceData-Stats (Cues, TrackData)
+              try:
+                  track_count_main = connection.execute("SELECT COUNT(*) FROM Track").fetchone()[0]
+                  perf_total = connection.execute("SELECT COUNT(*) FROM PerformanceData WHERE trackData IS NOT NULL").fetchone()[0]
+                  cue_total = connection.execute(
+                      "SELECT COUNT(*) FROM PerformanceData WHERE quickCues IS NOT NULL AND length(quickCues) > 20"
+                  ).fetchone()[0]
+                  entry["trackCount"] = track_count_main
+                  entry["withTrackdata"] = perf_total
+                  entry["withCues"] = cue_total
+              except sqlite3.Error:
+                  pass
           if key == "history":
               history_count = connection.execute(
                   "SELECT COUNT(*) FROM Historylist WHERE isDeleted = 0"
               ).fetchone()[0]
               entry["historySessionCount"] = history_count
+          if key == "rekordbox":
+              rekordbox_track_count = connection.execute(
+                  "SELECT COUNT(*) FROM Track"
+              ).fetchone()[0]
+              entry["rekordboxTrackCount"] = rekordbox_track_count
 
       databases.append(entry)
 
@@ -212,6 +316,7 @@ def build_summary(database_folder: Path) -> dict:
         "databaseFolder": str(database_folder),
         "playlistCount": playlist_count,
         "historySessionCount": history_count,
+        "rekordboxTrackCount": rekordbox_track_count,
         "databases": databases,
     }
 
@@ -431,6 +536,37 @@ def dump_tracks_with_history(database_folder: Path, limit: int | None = None) ->
             d["camelot"] = None
             tracks.append(d)
 
+    # PerformanceData pro Track lesen (Cues, TrackData)
+    perf_by_track: dict[int, dict] = {}
+    try:
+        with connect_readonly(main_db) as conn:
+            for row in conn.execute(
+                "SELECT trackId, trackData, quickCues, loops FROM PerformanceData"
+            ).fetchall():
+                tid = row["trackId"]
+                td = parse_trackdata_blob(row["trackData"]) if row["trackData"] else None
+                cues = parse_quickcues_blob(row["quickCues"]) if row["quickCues"] else None
+                lps = parse_loops_blob(row["loops"]) if row["loops"] else None
+                perf_by_track[tid] = {
+                    "has_trackdata": td is not None,
+                    "trackdata": td,
+                    "has_cues": cues is not None and len(cues) > 0,
+                    "cue_count": len(cues) if cues else 0,
+                    "cues": cues or [],
+                    "has_loops": lps is not None and len(lps) > 0,
+                    "loop_count": len(lps) if lps else 0,
+                    "loops": lps or [],
+                }
+    except sqlite3.Error:
+        pass
+
+    for t in tracks:
+        t["performance"] = perf_by_track.get(t["engine_track_id"], {
+            "has_trackdata": False, "trackdata": None,
+            "has_cues": False, "cue_count": 0, "cues": [],
+            "has_loops": False, "loop_count": 0, "loops": [],
+        })
+
     # History aggregieren aus hm.db (Join per trackId)
     plays_by_id: dict[int, dict] = {}
     if history_db.exists():
@@ -482,6 +618,9 @@ def dump_tracks_with_history(database_folder: Path, limit: int | None = None) ->
         "with_beatport_id": sum(1 for t in tracks if t.get("beatport_id") is not None),
         "rated_count": rated_count,
         "played_count": played_count,
+        "with_trackdata": sum(1 for t in tracks if t.get("performance", {}).get("has_trackdata")),
+        "with_cues": sum(1 for t in tracks if t.get("performance", {}).get("has_cues")),
+        "with_loops": sum(1 for t in tracks if t.get("performance", {}).get("has_loops")),
         "history_available": history_db.exists() and history_error is None,
         "history_error": history_error,
         "tracks": tracks,
