@@ -993,6 +993,197 @@ def create_playlist(
     }
 
 
+def diff_databases(db_folder_a: Path, db_folder_b: Path) -> dict:
+    """Vergleicht Tracks aus zwei Engine DJ Datenbank-Ordnern.
+
+    Matching-Logik:
+    - Streaming-Tracks: Match über uri
+    - Lokale Tracks: Match über filename (case-insensitive)
+    """
+    try:
+        db_a = db_folder_a / DATABASE_FILES["main"]
+        db_b = db_folder_b / DATABASE_FILES["main"]
+        if not db_a.exists():
+            return {"ok": False, "error": f"m.db nicht gefunden in A: {db_a}"}
+        if not db_b.exists():
+            return {"ok": False, "error": f"m.db nicht gefunden in B: {db_b}"}
+
+        def load_tracks(db_path: Path) -> list[dict]:
+            with connect_readonly(db_path) as conn:
+                cols = _columns_of(conn, "Track")
+                sel = []
+                for c in ("id", "title", "artist", "bpm", "filename", "uri"):
+                    sel.append(f"t.{c}" if c in cols else f"NULL AS {c}")
+                rows = conn.execute(
+                    "SELECT " + ", ".join(sel) + " FROM Track t"
+                ).fetchall()
+                return [dict(r) for r in rows]
+
+        tracks_a = load_tracks(db_a)
+        tracks_b = load_tracks(db_b)
+
+        def make_key(track: dict) -> str:
+            uri = track.get("uri")
+            if uri and str(uri).strip():
+                return str(uri)
+            fn = track.get("filename") or ""
+            return fn.lower()
+
+        index_a: dict[str, dict] = {}
+        for t in tracks_a:
+            k = make_key(t)
+            if k:
+                index_a[k] = t
+
+        index_b: dict[str, dict] = {}
+        for t in tracks_b:
+            k = make_key(t)
+            if k:
+                index_b[k] = t
+
+        keys_a = set(index_a.keys())
+        keys_b = set(index_b.keys())
+
+        only_a_keys = keys_a - keys_b
+        only_b_keys = keys_b - keys_a
+        both_keys = keys_a & keys_b
+
+        only_in_a = [
+            {"id": index_a[k]["id"], "title": index_a[k].get("title"), "artist": index_a[k].get("artist")}
+            for k in sorted(only_a_keys)
+        ][:50]
+
+        only_in_b = [
+            {"id": index_b[k]["id"], "title": index_b[k].get("title"), "artist": index_b[k].get("artist")}
+            for k in sorted(only_b_keys)
+        ][:50]
+
+        metadata_differs = []
+        for k in sorted(both_keys):
+            ta = index_a[k]
+            tb = index_b[k]
+            diff = {}
+            if ta.get("bpm") != tb.get("bpm"):
+                diff["bpm"] = [ta.get("bpm"), tb.get("bpm")]
+            if ta.get("artist") != tb.get("artist"):
+                diff["artist"] = [ta.get("artist"), tb.get("artist")]
+            if diff:
+                metadata_differs.append({
+                    "title": ta.get("title"),
+                    "key": k,
+                    "diff": diff,
+                })
+                if len(metadata_differs) >= 50:
+                    break
+
+        return {
+            "ok": True,
+            "db_a": str(db_folder_a),
+            "db_b": str(db_folder_b),
+            "total_a": len(tracks_a),
+            "total_b": len(tracks_b),
+            "only_in_a": only_in_a,
+            "only_in_b": only_in_b,
+            "in_both_count": len(both_keys),
+            "metadata_differs": metadata_differs,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": f"Diff fehlgeschlagen: {exc}"}
+
+
+def unify_history(source_folders: list[Path]) -> dict:
+    """Merged History-Sessions aus mehreren hm.db Quellen.
+
+    Session-Matching ueber startTime + originDriveName (wenn vorhanden).
+    Deduplizierung: gleiche Session (gleicher startTime) wird nur einmal gezaehlt.
+    Output: chronologische Timeline aller Sessions mit aggregierten Plays.
+    """
+    # key -> merged session info
+    merged: dict[tuple, dict] = {}
+    total_plays = 0
+    duplicates_merged = 0
+
+    for folder in source_folders:
+        db_path = folder / DATABASE_FILES["history"]
+        if not db_path.exists():
+            continue
+
+        try:
+            conn = connect_readonly(db_path)
+        except Exception:
+            continue
+
+        try:
+            cols = _columns_of(conn, "Historylist")
+            has_origin = "originDriveName" in cols
+
+            if has_origin:
+                sessions = conn.execute(
+                    "SELECT id, title, startTime, originDriveName "
+                    "FROM Historylist WHERE isDeleted = 0"
+                ).fetchall()
+            else:
+                sessions = conn.execute(
+                    "SELECT id, title, startTime "
+                    "FROM Historylist WHERE isDeleted = 0"
+                ).fetchall()
+
+            for sess in sessions:
+                sess_dict = dict(sess)
+                origin = sess_dict.get("originDriveName")
+                start_time = sess_dict["startTime"]
+                title = sess_dict["title"]
+
+                if has_origin and origin:
+                    match_key = (start_time, origin)
+                else:
+                    match_key = (start_time, title)
+
+                # Count plays for this session
+                plays = conn.execute(
+                    "SELECT COUNT(*) AS cnt FROM HistorylistEntity WHERE listId = ?",
+                    (sess_dict["id"],),
+                ).fetchone()
+                play_count = plays["cnt"] if plays else 0
+                total_plays += play_count
+
+                if match_key in merged:
+                    existing = merged[match_key]
+                    if str(folder) not in existing["source_folders"]:
+                        existing["source_folders"].append(str(folder))
+                        duplicates_merged += 1
+                    # Keep the higher play count (may differ across sources)
+                    if play_count > existing["play_count"]:
+                        existing["play_count"] = play_count
+                else:
+                    merged[match_key] = {
+                        "title": title,
+                        "startTime": start_time,
+                        "originDriveName": origin if has_origin else None,
+                        "play_count": play_count,
+                        "source_folders": [str(folder)],
+                    }
+        except Exception as exc:
+            # Skip broken databases gracefully
+            continue
+        finally:
+            conn.close()
+
+    # Sort chronologically by startTime
+    sorted_sessions = sorted(merged.values(), key=lambda s: s["startTime"])
+
+    return {
+        "ok": True,
+        "sources": [str(f) for f in source_folders],
+        "source_count": len(source_folders),
+        "total_sessions": sum(len(s["source_folders"]) for s in sorted_sessions),
+        "total_plays": total_plays,
+        "unique_sessions": len(sorted_sessions),
+        "duplicates_merged": duplicates_merged,
+        "sessions": sorted_sessions[:200],
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Engine DJ / Denon History Helpers")
     parser.add_argument("--database-folder", default="", help="Pfad zu Engine Library oder Database2")
@@ -1042,12 +1233,31 @@ def build_parser() -> argparse.ArgumentParser:
     )
     import_st.add_argument("--parent-list-id", type=int, default=0)
 
+    diff_cmd = sub.add_parser("diff")
+    diff_cmd.add_argument("--db-a", required=True, help="Pfad zu Database2 Ordner A")
+    diff_cmd.add_argument("--db-b", required=True, help="Pfad zu Database2 Ordner B")
+
+    unify_hist = sub.add_parser("unify-history")
+    unify_hist.add_argument("--sources", nargs="+", required=True, help="Pfade zu Database2 Ordnern")
+
     return parser
 
 
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "unify-history":
+        folders = []
+        for src in args.sources:
+            f = resolve_database_folder(src)
+            if not f:
+                emit({"ok": False, "error": f"Ordner nicht gefunden: {src}"})
+                return 1
+            folders.append(f)
+        emit(unify_history(folders))
+        return 0
+
     database_folder = resolve_database_folder(args.database_folder)
     if not database_folder:
         emit({"ok": False, "error": "Engine Database2 Ordner wurde nicht gefunden."})
@@ -1093,6 +1303,18 @@ def main() -> int:
                 parent_list_id=args.parent_list_id,
             )
         )
+        return 0
+
+    if args.command == "diff":
+        folder_a = resolve_database_folder(args.db_a)
+        folder_b = resolve_database_folder(args.db_b)
+        if not folder_a:
+            emit({"ok": False, "error": f"DB-Ordner A nicht gefunden: {args.db_a}"})
+            return 1
+        if not folder_b:
+            emit({"ok": False, "error": f"DB-Ordner B nicht gefunden: {args.db_b}"})
+            return 1
+        emit(diff_databases(folder_a, folder_b))
         return 0
 
     if args.command == "import-streaming":

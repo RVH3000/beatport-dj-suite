@@ -73,6 +73,8 @@ contextBridge.exposeInMainWorld("unifiedApi", {
   exportM3u: (options) => ipcRenderer.invoke("unified:export-m3u", options),
   classifyCache: (config) => ipcRenderer.invoke("unified:classify-cache", config),
   sendOscSnapshot: (options) => ipcRenderer.invoke("unified:send-osc-snapshot", options),
+  engineDiff: (options) => ipcRenderer.invoke("unified:engine-diff", options),
+  engineUnifyHistory: (options) => ipcRenderer.invoke("unified:engine-unify-history", options),
 });
 
 contextBridge.exposeInMainWorld("analysisApi", {

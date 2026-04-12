@@ -1417,6 +1417,41 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle("unified:engine-unify-history", async (_event, options = {}) => {
+    try {
+      const sources = (options.sources || []).map(String);
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "unify-history",
+          "--sources",
+          ...sources,
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("unified:engine-diff", async (_event, options = {}) => {
+    try {
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "diff",
+          "--db-a",
+          String(options.dbFolderA || ""),
+          "--db-b",
+          String(options.dbFolderB || ""),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
   // ── DJPlaylists.fm → Lexicon Batch-Automation ─────────────────────────────
   //
   // Entdeckte Endpoints (2026-03-27, via Browser-Interception):

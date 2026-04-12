@@ -14,6 +14,8 @@ const state = {
   classifier: null,
   lastM3uResult: null,
   lastOscResult: null,
+  diffResult: null,
+  unifiedHistory: null,
   message: "",
   tone: "info",
 };
@@ -227,6 +229,8 @@ function renderAutomationTab() {
           <button id="autoEnginePlaylistsBtn" type="button">Playlists laden</button>
           <button id="autoEngineHistoryBtn" type="button">History laden</button>
           <button id="autoExportM3uBtn" type="button">M3U8 exportieren</button>
+          <button id="autoDiffBtn" type="button">DB Diff</button>
+          <button id="autoUnifyHistoryBtn" type="button">History Merge</button>
         </div>
       </div>
       <div class="field-grid">
@@ -257,6 +261,16 @@ function renderAutomationTab() {
         }
       </div>
       ${renderEngineSelectors()}
+      ${
+        state.diffResult
+          ? `<div class="detail-summary">Diff: ${state.diffResult.total_a} vs ${state.diffResult.total_b} Tracks | Nur A: ${state.diffResult.only_in_a?.length ?? 0} | Nur B: ${state.diffResult.only_in_b?.length ?? 0} | Gemeinsam: ${state.diffResult.in_both_count ?? 0}</div>`
+          : ""
+      }
+      ${
+        state.unifiedHistory
+          ? `<div class="detail-summary">History Merge: ${state.unifiedHistory.unique_sessions} Sessions, ${state.unifiedHistory.total_plays} Plays aus ${state.unifiedHistory.source_count} Quellen</div>`
+          : ""
+      }
     </section>
 
     <section class="panel span-full">
@@ -322,6 +336,8 @@ function bindAutomationEvents() {
   document
     .getElementById("autoSendOscBtn")
     ?.addEventListener("click", sendOscSnapshot);
+  document.getElementById("autoDiffBtn")?.addEventListener("click", runDiff);
+  document.getElementById("autoUnifyHistoryBtn")?.addEventListener("click", runUnifyHistory);
 
   document.getElementById("autoEnginePlaylistSelect")?.addEventListener("change", (event) => {
     state.selectedPlaylistId = event.target.value;
@@ -450,6 +466,62 @@ async function sendOscSnapshot() {
     tracks: state.classifier.topTracks,
   });
   setMessage("OSC-Snapshot an Max/MSP / VJ gesendet.", "success");
+  renderAutomationTab();
+}
+
+async function runDiff() {
+  try {
+    const settings = readSettingsFromDom();
+    const dbFolder = settings.engineDatabaseFolder;
+    if (!dbFolder) {
+      setMessage("Bitte zuerst einen Engine Database Folder angeben.", "warning");
+      renderAutomationTab();
+      return;
+    }
+    setMessage("DB Diff wird berechnet...", "info");
+    renderAutomationTab();
+    state.diffResult = await window.unifiedApi.engineDiff({
+      dbFolderA: dbFolder,
+      dbFolderB: dbFolder,
+      pythonCommand: settings.pythonCommand,
+    });
+    if (state.diffResult?.ok) {
+      setMessage("DB Diff berechnet.", "success");
+    } else {
+      setMessage(state.diffResult?.error || "Diff fehlgeschlagen.", "warning");
+    }
+  } catch (error) {
+    setMessage(String(error.message || error), "warning");
+  }
+  renderAutomationTab();
+}
+
+async function runUnifyHistory() {
+  try {
+    const settings = readSettingsFromDom();
+    const dbFolder = settings.engineDatabaseFolder;
+    if (!dbFolder) {
+      setMessage("Bitte zuerst einen Engine Database Folder angeben.", "warning");
+      renderAutomationTab();
+      return;
+    }
+    setMessage("History Merge wird berechnet...", "info");
+    renderAutomationTab();
+    state.unifiedHistory = await window.unifiedApi.engineUnifyHistory({
+      sources: [dbFolder],
+      pythonCommand: settings.pythonCommand,
+    });
+    if (state.unifiedHistory?.ok) {
+      setMessage(
+        `History Merge: ${state.unifiedHistory.unique_sessions} Sessions, ${state.unifiedHistory.total_plays} Plays aus ${state.unifiedHistory.source_count} Quellen`,
+        "success"
+      );
+    } else {
+      setMessage(state.unifiedHistory?.error || "History Merge fehlgeschlagen.", "warning");
+    }
+  } catch (error) {
+    setMessage(String(error.message || error), "warning");
+  }
   renderAutomationTab();
 }
 
