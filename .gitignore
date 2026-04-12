@@ -15,3 +15,7 @@ dist-electron/
 terminal-reader-skill/
 config/scoring-backups/
 config/scoring-merge-log.jsonl
+
+# Python
+__pycache__/
+*.pyc
