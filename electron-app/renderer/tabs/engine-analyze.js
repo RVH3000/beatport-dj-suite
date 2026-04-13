@@ -304,8 +304,10 @@ function bindEvents() {
   document.getElementById("eaLoadInSearchBtn")?.addEventListener("click", loadInSearch);
   document.getElementById("eaExportCsvBtn")?.addEventListener("click", exportCsv);
 
-  document.getElementById("eaDatabaseFolder")?.addEventListener("change", (e) => {
+  document.getElementById("eaDatabaseFolder")?.addEventListener("input", (e) => {
     state.databaseFolder = e.target.value;
+    const btn = document.getElementById("eaLoadDataBtn");
+    if (btn) btn.disabled = !e.target.value;
   });
   document.getElementById("eaDbSelect")?.addEventListener("change", (e) => {
     state.databaseFolder = e.target.value;
