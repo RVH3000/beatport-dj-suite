@@ -1568,3 +1568,8 @@ tr.diff-missing{background:var(--warning-soft)}
 .dup-pls-list li{font-size:11px;padding:3px 8px;background:var(--panel-hover);border-radius:4px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .manual-section p{margin:4px 0 8px;font-size:12px;line-height:1.6;color:var(--text)}
 .manual-section h3{margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--primary)}
+
+/* Developer-Modus */
+body[data-edition="dj"] [data-dev="true"] {
+  display: none !important;
+}

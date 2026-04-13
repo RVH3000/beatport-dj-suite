@@ -160,7 +160,7 @@ function resolveConfig(config = {}) {
     const requested = normalizePathInput(config.outputDir);
     if (requested) {
       // "/" ist auf modernen macOS-Systemen nicht verlässlich beschreibbar.
-      if (process.platform === "darwin" && path.resolve(requested) === "/") {
+      if (path.resolve(requested) === "/") {
         return defaultExportDir;
       }
       return requested;

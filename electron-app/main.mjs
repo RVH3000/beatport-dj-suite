@@ -511,6 +511,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("engine:discover-all-databases", async () => {
+    const caps1 = getCapabilities();
+    if (!caps1.developerUnlocked) return { ok: false, error: "Nur Developer-Edition." };
+
     return runPythonJson(
       "electron-app/integrations/python/engine_tools.py",
       ["discover-all-databases"],
@@ -518,6 +521,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("engine:inspect-schema", async (_event, databaseFolder) => {
+    const caps2 = getCapabilities();
+    if (!caps2.developerUnlocked) return { ok: false, error: "Nur Developer-Edition." };
+
     const args = ["inspect-schema"];
     if (databaseFolder) args.unshift("--database-folder", databaseFolder);
     return runPythonJson(

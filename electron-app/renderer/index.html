@@ -54,12 +54,12 @@ Pipeline: Beatport → DJPL.fm → Lexicon → Engine DJ → USB / Prime 4+
     <nav class="tab-bar" role="tablist">
       <button class="tab active" role="tab" data-group="library"  aria-selected="true"  aria-controls="tab-scanner"    data-tab="scanner">Scanner</button>
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-search"     data-tab="search">Suche & Filter</button>
-      <button class="tab"        role="tab" data-group="library"  aria-selected="false" aria-controls="tab-labels"     data-tab="labels" title="Gefolgte Beatport-Labels (511 importiert)">Labels</button>
-      <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
+      <button class="tab"        role="tab" data-group="library"  aria-selected="false" aria-controls="tab-labels"     data-dev="true" data-tab="labels" title="Gefolgte Beatport-Labels (511 importiert)">Labels</button>
+      <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-analyse"    data-dev="true" data-tab="analyse">Analyse</button>
       <button class="tab"        role="tab" data-group="build"    aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
       <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-sync"       data-tab="sync">Sync</button>
       <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-export"     data-tab="export">Export</button>
-      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-automation" data-tab="automation">Automation</button>
+      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-automation" data-dev="true" data-tab="automation">Automation</button>
       <button class="tab"        role="tab" data-group="settings" aria-selected="false" aria-controls="tab-settings"   data-tab="settings">Einstellungen</button>
     </nav>
 
@@ -72,7 +72,7 @@ Pipeline: Beatport → DJPL.fm → Lexicon → Engine DJ → USB / Prime 4+
         <button class="sub-tab active" data-libsub="scan"    title="Cockpit: Delta-Sync starten, Runs verwalten, Sicherheit & Session-Kontrolle, erweiterte Scan-Konfiguration">Scanner</button>
         <button class="sub-tab"        data-libsub="working" title="Aktueller Playlist-Arbeitsbestand: Auswahl für Tiefenanalyse, Duplikate/offene Playlists filtern">Arbeitsbestand</button>
         <button class="sub-tab"        data-libsub="results" title="Scan-Ergebnisse: Duplikate, Tiefenanalyse pro Playlist, Track-Inhalt einzelner Playlists">Ergebnis</button>
-        <button class="sub-tab"        data-libsub="engine"  title="Engine DJ DB → scoring-data.json Merge: History, Ratings, Play-Counts importieren (read-only, mit Backup)">Engine-Import</button>
+        <button class="sub-tab"        data-dev="true" data-libsub="engine"  title="Engine DJ DB → scoring-data.json Merge: History, Ratings, Play-Counts importieren (read-only, mit Backup)">Engine-Import</button>
         <button class="sub-tab"        data-libsub="delete"  title="Gefahrenzone: Batch-Löschung bestätigter Duplikate im aktiven Run">Löschen</button>
       </nav>
 

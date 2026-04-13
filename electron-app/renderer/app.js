@@ -1,3 +1,30 @@
+
+let currentCapabilities = { edition: "dj", developerUnlocked: false };
+async function initGuard() {
+  if (window.licenseApi) {
+    const caps = await window.licenseApi.getCapabilities();
+    currentCapabilities = caps;
+    document.body.setAttribute('data-edition', caps.edition);
+  }
+}
+window.addEventListener("DOMContentLoaded", initGuard);
+
+window.addEventListener("license:updated", (e) => {
+    currentCapabilities = e.detail;
+    document.body.setAttribute('data-edition', currentCapabilities.edition);
+
+    if (currentCapabilities.edition === "dj") {
+        const activeTab = document.querySelector(".tab.active");
+        if (activeTab && activeTab.getAttribute("data-dev") === "true") {
+             document.querySelector('[data-tab="settings"]').click();
+        }
+        const activeSub = document.querySelector(".sub-tab.active");
+        if (activeSub && activeSub.getAttribute("data-dev") === "true") {
+             document.querySelector('[data-libsub="scan"]').click();
+        }
+    }
+});
+
 // ─── Tab-Module (lazy-loaded) ────────────────────────────────────────────────
 let analysisModule = null;
 let exportModule = null;
