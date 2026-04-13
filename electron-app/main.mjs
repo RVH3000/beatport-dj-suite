@@ -1569,7 +1569,7 @@ app.whenReady().then(() => {
         matchStats,
         classifierSummary,
         totalTracks: allTracks.length,
-        databaseFolder: enrichedResult.database_folder,
+        databaseFolder: String(options.databaseFolder || ""),
       };
     } catch (error) {
       throw new Error(toErrorMessage(error));
