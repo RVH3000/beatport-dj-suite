@@ -16,6 +16,7 @@ const state = {
   selectedPlaylistIds: new Set(),
   selectedSessionIds: new Set(),
   sourceMode: "playlists", // "playlists" | "history"
+  historySort: "desc",     // "asc" (alt→neu) | "desc" (neu→alt)
   analysisResults: [],     // Verlauf: [{source, sourceMode, result, timestamp}]
   analysisResult: null,    // aktive Anzeige
   sortKey: "title",
@@ -64,6 +65,21 @@ function esc(value) {
 function setMessage(text, tone = "info") {
   state.message = text;
   state.tone = tone;
+}
+
+function formatTimestamp(val) {
+  if (!val) return "";
+  // Unix-Timestamp (Sekunden oder Millisekunden)
+  let ts = Number(val);
+  if (isNaN(ts)) {
+    // Schon ein Datums-String (z.B. "2025-10-31 17:21:57")
+    return String(val);
+  }
+  if (ts > 1e12) ts = ts / 1000; // ms → s
+  if (ts < 1e8) return String(val); // zu klein, kein Timestamp
+  const d = new Date(ts * 1000);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // ─── Key → Camelot Mapping ──────────────────────────────────────────────────
@@ -147,7 +163,7 @@ function renderTrackCell(t, colKey) {
     case "genre": return esc(t.genre || "");
     case "rating": return t.rating ? "\u2605".repeat(t.rating) : "";
     case "plays_total": return t.plays_total || 0;
-    case "startTime": return esc(t.startTime || t.last_played || "");
+    case "startTime": return esc(formatTimestamp(t.startTime || t.last_played));
     case "matchType": return `<span class="match-badge match-${t.matchType || "none"}">${t.matchType || "\u2014"}</span>`;
     default: return esc(t[colKey] ?? "");
   }
@@ -275,15 +291,26 @@ function renderEngineAnalyzeTab() {
         </div>
         <div class="table-wrap" style="max-height:320px">
           <table class="data-table ea-pick-table">
-            <thead><tr><th style="width:32px"></th><th>Session</th><th>Datum</th></tr></thead>
+            <thead><tr>
+              <th style="width:32px"></th>
+              <th>Session</th>
+              <th id="eaHistSortBtn" style="cursor:pointer;user-select:none" title="Klick zum Sortieren">
+                Datum ${state.historySort === "asc" ? "\u25B2" : "\u25BC"}
+              </th>
+            </tr></thead>
             <tbody>
-              ${state.historySessions.map(s => {
+              ${[...state.historySessions]
+                .sort((a, b) => state.historySort === "asc"
+                  ? String(a.startTime).localeCompare(String(b.startTime))
+                  : String(b.startTime).localeCompare(String(a.startTime))
+                )
+                .map(s => {
                 const sel = state.selectedSessionIds.has(String(s.id));
                 return `
                 <tr class="ea-pick-row table-row-clickable${sel ? " is-selected" : ""}" data-id="${s.id}" data-type="session">
                   <td><input type="checkbox" value="${s.id}" data-type="session" ${sel ? "checked" : ""} /></td>
                   <td>${esc(s.title || `Session #${s.id}`)}</td>
-                  <td style="color:var(--muted)">${esc(s.startTime)}</td>
+                  <td style="color:var(--muted)">${esc(formatTimestamp(s.startTime))}</td>
                 </tr>`;
               }).join("")}
             </tbody>
@@ -415,6 +442,10 @@ function bindEvents() {
   });
   document.getElementById("eaModeHistoryBtn")?.addEventListener("click", () => {
     state.sourceMode = "history";
+    renderEngineAnalyzeTab();
+  });
+  document.getElementById("eaHistSortBtn")?.addEventListener("click", () => {
+    state.historySort = state.historySort === "asc" ? "desc" : "asc";
     renderEngineAnalyzeTab();
   });
   document.getElementById("eaLoadInSearchBtn")?.addEventListener("click", loadInSearch);
