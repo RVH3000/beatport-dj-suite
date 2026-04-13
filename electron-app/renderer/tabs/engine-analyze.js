@@ -17,6 +17,8 @@ const state = {
   selectedSessionIds: new Set(),
   sourceMode: "playlists", // "playlists" | "history"
   analysisResult: null,
+  sortKey: "title",
+  sortAsc: true,
   loading: false,
   message: "",
   tone: "info",
@@ -61,6 +63,35 @@ function esc(value) {
 function setMessage(text, tone = "info") {
   state.message = text;
   state.tone = tone;
+}
+
+const RESULT_COLUMNS = [
+  { key: "title",       label: "Title" },
+  { key: "artists",     label: "Artist" },
+  { key: "bpm",         label: "BPM",    numeric: true },
+  { key: "key",         label: "Key" },
+  { key: "genre",       label: "Genre" },
+  { key: "rating",      label: "Rating", numeric: true },
+  { key: "plays_total", label: "Plays",  numeric: true },
+  { key: "matchType",   label: "Match" },
+];
+
+function sortArrow(key) {
+  if (state.sortKey !== key) return "";
+  return state.sortAsc ? " \u25B2" : " \u25BC";
+}
+
+function getSortedTracks() {
+  const tracks = state.analysisResult?.tracks || [];
+  if (!tracks.length) return tracks;
+  const col = RESULT_COLUMNS.find(c => c.key === state.sortKey);
+  const sorted = [...tracks].sort((a, b) => {
+    const va = a[state.sortKey] ?? "";
+    const vb = b[state.sortKey] ?? "";
+    if (col?.numeric) return (Number(va) || 0) - (Number(vb) || 0);
+    return String(va).localeCompare(String(vb), "de", { sensitivity: "base" });
+  });
+  return state.sortAsc ? sorted : sorted.reverse();
 }
 
 // ─── Render ─────────────────────────────────────────────────────────────────
@@ -162,14 +193,15 @@ function renderEngineAnalyzeTab() {
           <table class="data-table ea-pick-table">
             <thead><tr><th style="width:32px"></th><th>Playlist</th><th style="text-align:right">Tracks</th></tr></thead>
             <tbody>
-              ${state.playlists.map(pl => `
-                <tr class="ea-pick-row" data-id="${pl.id}">
-                  <td><input type="checkbox" value="${pl.id}"
-                       ${state.selectedPlaylistIds.has(String(pl.id)) ? "checked" : ""} /></td>
+              ${state.playlists.map(pl => {
+                const sel = state.selectedPlaylistIds.has(String(pl.id));
+                return `
+                <tr class="ea-pick-row table-row-clickable${sel ? " is-selected" : ""}" data-id="${pl.id}">
+                  <td><input type="checkbox" value="${pl.id}" ${sel ? "checked" : ""} /></td>
                   <td>${pl.isPersisted === 0 ? "\uD83D\uDEAB " : ""}${esc(pl.title)}</td>
                   <td style="text-align:right;color:var(--muted)">${pl.trackCount ?? 0}</td>
-                </tr>
-              `).join("")}
+                </tr>`;
+              }).join("")}
             </tbody>
           </table>
         </div>
@@ -186,14 +218,15 @@ function renderEngineAnalyzeTab() {
           <table class="data-table ea-pick-table">
             <thead><tr><th style="width:32px"></th><th>Session</th><th>Datum</th></tr></thead>
             <tbody>
-              ${state.historySessions.map(s => `
-                <tr class="ea-pick-row" data-id="${s.id}" data-type="session">
-                  <td><input type="checkbox" value="${s.id}" data-type="session"
-                       ${state.selectedSessionIds.has(String(s.id)) ? "checked" : ""} /></td>
+              ${state.historySessions.map(s => {
+                const sel = state.selectedSessionIds.has(String(s.id));
+                return `
+                <tr class="ea-pick-row table-row-clickable${sel ? " is-selected" : ""}" data-id="${s.id}" data-type="session">
+                  <td><input type="checkbox" value="${s.id}" data-type="session" ${sel ? "checked" : ""} /></td>
                   <td>${esc(s.title || `Session #${s.id}`)}</td>
                   <td style="color:var(--muted)">${esc(s.startTime)}</td>
-                </tr>
-              `).join("")}
+                </tr>`;
+              }).join("")}
             </tbody>
           </table>
         </div>
@@ -254,13 +287,15 @@ function renderEngineAnalyzeTab() {
       <div class="table-wrap" style="max-height:500px">
         <table class="data-table">
           <thead>
-            <tr><th>Title</th><th>Artist</th><th>BPM</th><th>Key</th><th>Genre</th><th>Rating</th><th>Plays</th><th>Match</th></tr>
+            <tr>${RESULT_COLUMNS.map(c =>
+              `<th class="ea-sortable" data-sort="${c.key}" style="cursor:pointer;user-select:none">${c.label}${sortArrow(c.key)}</th>`
+            ).join("")}</tr>
           </thead>
           <tbody>
-            ${(state.analysisResult.tracks || []).slice(0, 200).map(t => `
+            ${getSortedTracks().slice(0, 200).map(t => `
               <tr>
-                <td>${esc(t.title)}</td>
-                <td>${esc(t.artists)}</td>
+                <td class="wrap-cell">${esc(t.title)}</td>
+                <td class="wrap-cell">${esc(t.artists)}</td>
                 <td>${t.bpm ?? ""}</td>
                 <td>${t.key ?? ""}</td>
                 <td>${esc(t.genre || "")}</td>
@@ -313,6 +348,16 @@ function bindEvents() {
   });
   document.getElementById("eaLoadInSearchBtn")?.addEventListener("click", loadInSearch);
   document.getElementById("eaExportCsvBtn")?.addEventListener("click", exportCsv);
+
+  // Sortierbare Spalten-Header
+  document.querySelectorAll(".ea-sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sort;
+      if (state.sortKey === key) { state.sortAsc = !state.sortAsc; }
+      else { state.sortKey = key; state.sortAsc = true; }
+      renderEngineAnalyzeTab();
+    });
+  });
 
   document.getElementById("eaDatabaseFolder")?.addEventListener("input", (e) => {
     state.databaseFolder = e.target.value;
