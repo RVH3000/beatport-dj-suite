@@ -1482,27 +1482,58 @@ app.whenReady().then(() => {
 
   ipcMain.handle("engine-analyze:load-playlist-tracks", async (_event, options = {}) => {
     try {
-      // 1. Enriched Tracks aus Python laden
-      const enrichedResult = await runPythonJson(
-        "electron-app/integrations/python/engine_tools.py",
-        [
-          "--database-folder",
-          String(options.databaseFolder || ""),
-          "playlist-tracks-enriched",
-          "--playlist-ids",
-          String(options.playlistIds || ""),
-          "--limit",
-          String(options.limit || 5000),
-        ],
-        { pythonCommand: options.pythonCommand }
-      );
+      let allTracks = [];
 
-      if (!enrichedResult?.ok) {
-        return enrichedResult;
+      if (options.sourceMode === "history") {
+        // History: pro Session die Tracks laden
+        const sessionIds = String(options.sessionIds || "").split(",").filter(Boolean);
+        for (const sid of sessionIds) {
+          const histResult = await runPythonJson(
+            "electron-app/integrations/python/engine_tools.py",
+            [
+              "--database-folder",
+              String(options.databaseFolder || ""),
+              "history-tracks",
+              "--session-id",
+              sid,
+              "--limit",
+              String(options.limit || 5000),
+            ],
+            { pythonCommand: options.pythonCommand }
+          );
+          if (histResult?.ok && Array.isArray(histResult.tracks)) {
+            // Track-Felder normalisieren (history-tracks hat artist statt artists)
+            for (const t of histResult.tracks) {
+              t.artists = t.artists || t.artist || "";
+              t.engine_track_id = t.engine_track_id || t.trackId || t.id;
+              t.plays_total = t.plays_total || 0;
+              t._sessionId = Number(sid);
+            }
+            allTracks.push(...histResult.tracks);
+          }
+        }
+      } else {
+        // Playlists: enriched Tracks laden
+        const enrichedResult = await runPythonJson(
+          "electron-app/integrations/python/engine_tools.py",
+          [
+            "--database-folder",
+            String(options.databaseFolder || ""),
+            "playlist-tracks-enriched",
+            "--playlist-ids",
+            String(options.playlistIds || ""),
+            "--limit",
+            String(options.limit || 5000),
+          ],
+          { pythonCommand: options.pythonCommand }
+        );
+
+        if (!enrichedResult?.ok) {
+          return enrichedResult;
+        }
+
+        allTracks = (enrichedResult.playlists || []).flatMap(p => p.tracks || []);
       }
-
-      // 2. Alle Tracks flach sammeln
-      const allTracks = (enrichedResult.playlists || []).flatMap(p => p.tracks || []);
 
       // 3. Scoring-Data laden (gleiche Logik wie sync:load-scoring-data)
       let matchStats = null;

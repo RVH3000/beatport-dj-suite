@@ -574,7 +574,9 @@ async function runAnalysis() {
   try {
     const result = await window.engineAnalyzeApi.loadPlaylistTracks({
       databaseFolder: state.databaseFolder,
-      playlistIds: Array.from(state.selectedPlaylistIds).join(","),
+      sourceMode: state.sourceMode,
+      playlistIds: state.sourceMode === "playlists" ? Array.from(state.selectedPlaylistIds).join(",") : "",
+      sessionIds: state.sourceMode === "history" ? Array.from(state.selectedSessionIds).join(",") : "",
       scoringDataPath: "",
     });
 
