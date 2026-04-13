@@ -158,15 +158,20 @@ function renderEngineAnalyzeTab() {
             \u{1F4CB} ${state.smartlists.length} Smartlists vorhanden (werden nicht aufgel\u00f6st)
           </p>
         ` : ""}
-        <div class="ea-playlist-list" style="max-height:300px;overflow-y:auto">
-          ${state.playlists.map(pl => `
-            <label class="ea-playlist-item">
-              <input type="checkbox" value="${pl.id}"
-                     ${state.selectedPlaylistIds.has(String(pl.id)) ? "checked" : ""} />
-              <span>${pl.isPersisted === 0 ? "\uD83D\uDEAB " : ""}${esc(pl.title)}</span>
-              <span class="ea-track-count">${pl.trackCount ?? 0} Tracks</span>
-            </label>
-          `).join("")}
+        <div class="table-wrap" style="max-height:320px">
+          <table class="data-table ea-pick-table">
+            <thead><tr><th style="width:32px"></th><th>Playlist</th><th style="text-align:right">Tracks</th></tr></thead>
+            <tbody>
+              ${state.playlists.map(pl => `
+                <tr class="ea-pick-row" data-id="${pl.id}">
+                  <td><input type="checkbox" value="${pl.id}"
+                       ${state.selectedPlaylistIds.has(String(pl.id)) ? "checked" : ""} /></td>
+                  <td>${pl.isPersisted === 0 ? "\uD83D\uDEAB " : ""}${esc(pl.title)}</td>
+                  <td style="text-align:right;color:var(--muted)">${pl.trackCount ?? 0}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
         </div>
       ` : `
         <!-- History-Session-Picker -->
@@ -177,15 +182,20 @@ function renderEngineAnalyzeTab() {
             ${state.selectedSessionIds.size} ausgew\u00e4hlt
           </span>
         </div>
-        <div class="ea-playlist-list" style="max-height:300px;overflow-y:auto">
-          ${state.historySessions.map(s => `
-            <label class="ea-playlist-item">
-              <input type="checkbox" value="${s.id}" data-type="session"
-                     ${state.selectedSessionIds.has(String(s.id)) ? "checked" : ""} />
-              <span>${esc(s.title)}</span>
-              <span class="ea-track-count">${esc(s.startTime)}</span>
-            </label>
-          `).join("")}
+        <div class="table-wrap" style="max-height:320px">
+          <table class="data-table ea-pick-table">
+            <thead><tr><th style="width:32px"></th><th>Session</th><th>Datum</th></tr></thead>
+            <tbody>
+              ${state.historySessions.map(s => `
+                <tr class="ea-pick-row" data-id="${s.id}" data-type="session">
+                  <td><input type="checkbox" value="${s.id}" data-type="session"
+                       ${state.selectedSessionIds.has(String(s.id)) ? "checked" : ""} /></td>
+                  <td>${esc(s.title || `Session #${s.id}`)}</td>
+                  <td style="color:var(--muted)">${esc(s.startTime)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
         </div>
       `}
     </section>
@@ -325,14 +335,27 @@ function bindEvents() {
     });
   });
 
-  // Checkbox-Handler
-  document.querySelectorAll(".ea-playlist-item input[type=checkbox]").forEach(cb => {
-    cb.addEventListener("change", (e) => {
-      const isSession = e.target.dataset.type === "session";
+  // Checkbox-Handler (Tabellen-Rows klickbar)
+  document.querySelectorAll(".ea-pick-row").forEach(row => {
+    const cb = row.querySelector("input[type=checkbox]");
+    if (!cb) return;
+    row.addEventListener("click", (e) => {
+      if (e.target === cb) return; // Checkbox selbst handled sich
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event("change"));
+    });
+    cb.addEventListener("change", () => {
+      const isSession = cb.dataset.type === "session";
       const set = isSession ? state.selectedSessionIds : state.selectedPlaylistIds;
-      if (e.target.checked) set.add(e.target.value);
-      else set.delete(e.target.value);
-      renderEngineAnalyzeTab();
+      if (cb.checked) set.add(cb.value);
+      else set.delete(cb.value);
+      // Leichtgewichtiges Update: nur Counter + Button aktualisieren
+      const total = state.sourceMode === "playlists" ? state.selectedPlaylistIds.size : state.selectedSessionIds.size;
+      const analyzeBtn = document.getElementById("eaAnalyzeBtn");
+      if (analyzeBtn) {
+        analyzeBtn.disabled = total === 0;
+        analyzeBtn.textContent = `${total} ${state.sourceMode === "playlists" ? "Playlisten" : "Sessions"} analysieren`;
+      }
     });
   });
 }

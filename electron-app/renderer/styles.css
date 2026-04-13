@@ -1476,6 +1476,11 @@ summary {
 .match-none{background:rgba(255,107,107,.12);color:#ff6b6b}
 .ea-recent-path{padding:6px 10px;font-size:12px;color:var(--text-secondary);cursor:pointer;border-radius:var(--radius-sm);transition:background .1s;font-family:var(--font-mono,monospace)}
 .ea-recent-path:hover{background:var(--panel-hover);color:var(--text)}
+.ea-pick-table{width:100%}
+.ea-pick-table td,.ea-pick-table th{padding:6px 10px;font-size:13px}
+.ea-pick-table input[type=checkbox]{accent-color:var(--primary);width:16px;height:16px;cursor:pointer}
+.ea-pick-row{cursor:pointer;transition:background .1s}
+.ea-pick-row:hover{background:var(--panel-hover)}
 .topbar{position:relative}
 .workflow-dialog{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-md);padding:0;max-width:720px;width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .workflow-dialog::backdrop{background:rgba(0,0,0,.6)}
