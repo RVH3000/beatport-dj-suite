@@ -2693,6 +2693,24 @@ async function loadEngineAnalyzeTab() {
   }
 }
 
+// ─── Cross-Tab Events ────────────────────────────────────────────────────────
+
+window.addEventListener("engine-analyze:load-in-search", async (e) => {
+  const { tracks, source } = e.detail || {};
+  if (!Array.isArray(tracks) || tracks.length === 0) return;
+
+  // Search-Tab aktivieren
+  const searchBtn = document.querySelector('.tab[aria-controls="tab-search"]');
+  if (searchBtn) searchBtn.click();
+
+  // Search-Modul laden falls nötig, dann Tracks übergeben
+  if (!searchModule) {
+    searchModule = await import("./tabs/search.js");
+  }
+  await searchModule.initSearchTab();
+  searchModule.loadExternalTracks(tracks, source || "Engine-Analyse");
+});
+
 bootstrap().catch((error) => {
   stopRunPolling();
   setStatus(

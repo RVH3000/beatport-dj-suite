@@ -630,9 +630,9 @@ async function exportCsv() {
     setMessage("Keine Tracks zum Exportieren.", "warning");
     return;
   }
-  const header = "Title;Artist;BPM;Key;Genre;Rating;Plays;MatchType";
+  const header = "Title;Artist;BPM;Key;Camelot;Genre;Rating;Plays;MatchType";
   const rows = tracks.map(t =>
-    [t.title, t.artists, t.bpm ?? "", t.key ?? "", t.genre || "", t.rating || "", t.plays_total || 0, t.matchType || ""]
+    [t.title, t.artists, t.bpm ?? "", t.key ?? "", t.camelot || "", t.genre || "", t.rating || "", t.plays_total || 0, t.matchType || ""]
       .map(v => `"${String(v).replace(/"/g, '""')}"`)
       .join(";")
   );

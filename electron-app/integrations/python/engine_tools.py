@@ -1392,6 +1392,244 @@ def dump_playlist_tracks_enriched(database_folder: Path, playlist_ids: list[int]
     }
 
 
+def dump_history_tracks_enriched(
+    database_folder: Path, session_ids: list[int], limit: int = 5000
+) -> dict:
+    """Liefert History-Tracks angereichert mit vollständigen Metadaten aus m.db.
+
+    hm.db Track-Tabelle hat nur Basisdaten (title, artist, bpm, key, filename).
+    Diese Funktion cross-joined mit m.db, um rating, genre, label, year, comment,
+    uri, PerformanceData etc. hinzuzufügen — gleiches Format wie
+    dump_playlist_tracks_enriched().
+    """
+    main_db = database_folder / DATABASE_FILES["main"]
+    history_db = database_folder / DATABASE_FILES["history"]
+    if not history_db.exists():
+        return {"ok": False, "error": f"hm.db nicht gefunden: {history_db}"}
+    if not session_ids:
+        return {"ok": False, "error": "Keine Session-IDs angegeben."}
+
+    # 1. History-Einträge aus hm.db laden
+    placeholders = ", ".join("?" for _ in session_ids)
+    history_entries: list[dict] = []
+    with connect_readonly(history_db) as hconn:
+        rows = hconn.execute(
+            f"""
+            SELECT
+              he.id AS history_entry_id,
+              he.listId AS session_id,
+              he.trackId,
+              datetime(he.startTime, 'unixepoch') AS startTime,
+              he.startTime AS startTimeRaw
+            FROM HistorylistEntity he
+            WHERE he.listId IN ({placeholders})
+            ORDER BY he.listId, he.startTime ASC
+            LIMIT {int(limit)}
+            """,
+            session_ids,
+        ).fetchall()
+        history_entries = [dict(r) for r in rows]
+
+    if not history_entries:
+        return {
+            "ok": True,
+            "database_folder": str(database_folder),
+            "session_ids": session_ids,
+            "tracks": [],
+            "total_tracks": 0,
+            "with_beatport_id": 0,
+        }
+
+    # 2. Eindeutige trackIds sammeln
+    track_ids = list({e["trackId"] for e in history_entries if e["trackId"] is not None})
+
+    # 3. Vollständige Metadaten aus m.db laden
+    main_track_data: dict[int, dict] = {}
+    if main_db.exists() and track_ids:
+        with connect_readonly(main_db) as conn:
+            track_cols = _columns_of(conn, "Track")
+
+            def col_or_null(name: str, alias: str | None = None) -> str:
+                alias = alias or name
+                return f"t.{name} AS {alias}" if name in track_cols else f"NULL AS {alias}"
+
+            select_parts = [
+                "t.id AS engine_track_id",
+                col_or_null("title"),
+                col_or_null("artist", "artists"),
+                col_or_null("album"),
+                col_or_null("genre"),
+                col_or_null("bpm"),
+                col_or_null("key"),
+                col_or_null("year"),
+                col_or_null("label"),
+                col_or_null("comment"),
+                col_or_null("path", "file_path_full"),
+                col_or_null("filename", "file_name"),
+                col_or_null("length", "length_raw"),
+                col_or_null("rating", "rating_raw"),
+                col_or_null("dateAdded", "date_added"),
+                col_or_null("timeLastPlayed", "last_played_track"),
+                col_or_null("isPlayed", "is_played"),
+                col_or_null("uri"),
+            ]
+            id_placeholders = ", ".join("?" for _ in track_ids)
+            sql = (
+                "SELECT " + ",\n".join(select_parts)
+                + f" FROM Track t WHERE t.id IN ({id_placeholders})"
+            )
+            for row in conn.execute(sql, track_ids).fetchall():
+                d = dict(row)
+                tid = d["engine_track_id"]
+
+                d["beatport_id"] = _extract_beatport_id(d.pop("uri", None))
+
+                length_raw = d.pop("length_raw", None)
+                if length_raw is not None:
+                    try:
+                        val = float(length_raw)
+                        d["length_ms"] = int(val * 1000) if val < 10000 else int(val)
+                    except (TypeError, ValueError):
+                        d["length_ms"] = None
+                else:
+                    d["length_ms"] = None
+
+                rating_raw = d.pop("rating_raw", None)
+                if rating_raw is None or rating_raw == 0:
+                    d["rating"] = None
+                else:
+                    try:
+                        stars = round(float(rating_raw) / 20)
+                        d["rating"] = max(0, min(5, int(stars)))
+                    except (TypeError, ValueError):
+                        d["rating"] = None
+
+                full = d.pop("file_path_full", None)
+                name = d.pop("file_name", None)
+                d["file_path"] = full or name
+
+                tlp = d.pop("last_played_track", None)
+                d["_last_played_track"] = int(tlp) if tlp else None
+
+                d["camelot"] = None
+                main_track_data[tid] = d
+
+    # 4. PerformanceData aus m.db
+    perf_by_track: dict[int, dict] = {}
+    if main_db.exists() and track_ids:
+        try:
+            with connect_readonly(main_db) as conn:
+                for row in conn.execute(
+                    "SELECT trackId, trackData, quickCues, loops FROM PerformanceData"
+                ).fetchall():
+                    tid = row["trackId"]
+                    if tid not in main_track_data:
+                        continue
+                    td = parse_trackdata_blob(row["trackData"]) if row["trackData"] else None
+                    cues = parse_quickcues_blob(row["quickCues"]) if row["quickCues"] else None
+                    lps = parse_loops_blob(row["loops"]) if row["loops"] else None
+                    perf_by_track[tid] = {
+                        "has_trackdata": td is not None,
+                        "trackdata": td,
+                        "has_cues": cues is not None and len(cues) > 0,
+                        "cue_count": len(cues) if cues else 0,
+                        "cues": cues or [],
+                        "has_loops": lps is not None and len(lps) > 0,
+                        "loop_count": len(lps) if lps else 0,
+                        "loops": lps or [],
+                    }
+        except sqlite3.Error:
+            pass
+
+    default_perf = {
+        "has_trackdata": False, "trackdata": None,
+        "has_cues": False, "cue_count": 0, "cues": [],
+        "has_loops": False, "loop_count": 0, "loops": [],
+    }
+
+    # 5. History-Aggregation (plays_total, last_played)
+    plays_by_id: dict[int, dict] = {}
+    try:
+        with connect_readonly(history_db) as hconn:
+            he_cols = _columns_of(hconn, "HistorylistEntity")
+            if "trackId" in he_cols and "startTime" in he_cols:
+                for row in hconn.execute(
+                    """
+                    SELECT trackId, COUNT(*) AS plays_total, MAX(startTime) AS last_played
+                    FROM HistorylistEntity
+                    WHERE trackId IS NOT NULL
+                    GROUP BY trackId
+                    """
+                ).fetchall():
+                    tid = row["trackId"]
+                    if tid is None:
+                        continue
+                    plays_by_id[int(tid)] = {
+                        "plays_total": int(row["plays_total"] or 0),
+                        "last_played": int(row["last_played"] or 0) or None,
+                    }
+    except sqlite3.Error:
+        pass
+
+    # 6. Ergebnis zusammenbauen — ein Eintrag pro History-Entry
+    all_tracks: list[dict] = []
+    for entry in history_entries:
+        tid = entry["trackId"]
+        if tid is None:
+            continue
+
+        enriched = dict(main_track_data.get(tid, {}))
+        if not enriched:
+            # Fallback: nur Basis-Felder aus hm.db Track
+            enriched = {
+                "engine_track_id": tid,
+                "title": None, "artists": None, "album": None,
+                "genre": None, "bpm": None, "key": None, "year": None,
+                "label": None, "comment": None, "file_path": None,
+                "length_ms": None, "rating": None, "beatport_id": None,
+                "date_added": None, "is_played": None, "camelot": None,
+            }
+            # hm.db Track-Daten als Fallback laden
+            try:
+                with connect_readonly(history_db) as hconn:
+                    hrow = hconn.execute(
+                        "SELECT title, artist, bpm, key, filename FROM Track WHERE id = ?",
+                        (tid,),
+                    ).fetchone()
+                    if hrow:
+                        hd = dict(hrow)
+                        enriched["title"] = hd.get("title")
+                        enriched["artists"] = hd.get("artist")
+                        enriched["bpm"] = hd.get("bpm")
+                        enriched["key"] = hd.get("key")
+                        enriched["file_path"] = hd.get("filename")
+            except sqlite3.Error:
+                pass
+
+        enriched["startTime"] = entry["startTime"]
+        enriched["startTimeRaw"] = entry["startTimeRaw"]
+        enriched["_sessionId"] = entry["session_id"]
+        enriched["performance"] = perf_by_track.get(tid, dict(default_perf))
+
+        hist = plays_by_id.get(tid)
+        enriched["plays_total"] = hist["plays_total"] if hist else 0
+        hist_last = hist["last_played"] if hist else None
+        track_last = enriched.pop("_last_played_track", None)
+        enriched["last_played"] = hist_last or track_last
+
+        all_tracks.append(enriched)
+
+    return {
+        "ok": True,
+        "database_folder": str(database_folder),
+        "session_ids": session_ids,
+        "tracks": all_tracks,
+        "total_tracks": len(all_tracks),
+        "with_beatport_id": sum(1 for t in all_tracks if t.get("beatport_id") is not None),
+        "enriched_from_main": sum(1 for t in all_tracks if t.get("rating") is not None or t.get("genre") is not None),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Engine DJ / Denon History Helpers")
     parser.add_argument("--database-folder", default="", help="Pfad zu Engine Library oder Database2")
@@ -1452,6 +1690,10 @@ def build_parser() -> argparse.ArgumentParser:
     enriched.add_argument("--playlist-ids", required=True, help="Kommaseparierte Playlist-IDs")
     enriched.add_argument("--limit", type=int, default=5000)
 
+    hist_enriched = sub.add_parser("history-tracks-enriched")
+    hist_enriched.add_argument("--session-ids", required=True, help="Kommaseparierte Session-IDs")
+    hist_enriched.add_argument("--limit", type=int, default=5000)
+
     return parser
 
 
@@ -1506,6 +1748,14 @@ def main() -> int:
             emit({"ok": False, "error": f"Ungültige Playlist-IDs: {e}"})
             return 1
         emit(dump_playlist_tracks_enriched(database_folder, ids, args.limit))
+        return 0
+    if args.command == "history-tracks-enriched":
+        try:
+            ids = [int(x.strip()) for x in args.session_ids.split(",") if x.strip()]
+        except ValueError as e:
+            emit({"ok": False, "error": f"Ungültige Session-IDs: {e}"})
+            return 1
+        emit(dump_history_tracks_enriched(database_folder, ids, args.limit))
         return 0
     if args.command == "create-playlist":
         track_titles = []

@@ -1485,33 +1485,26 @@ app.whenReady().then(() => {
       let allTracks = [];
 
       if (options.sourceMode === "history") {
-        // History: pro Session die Tracks laden
-        const sessionIds = String(options.sessionIds || "").split(",").filter(Boolean);
-        for (const sid of sessionIds) {
-          const histResult = await runPythonJson(
-            "electron-app/integrations/python/engine_tools.py",
-            [
-              "--database-folder",
-              String(options.databaseFolder || ""),
-              "history-tracks",
-              "--session-id",
-              sid,
-              "--limit",
-              String(options.limit || 5000),
-            ],
-            { pythonCommand: options.pythonCommand }
-          );
-          if (histResult?.ok && Array.isArray(histResult.tracks)) {
-            // Track-Felder normalisieren (history-tracks hat artist statt artists)
-            for (const t of histResult.tracks) {
-              t.artists = t.artists || t.artist || "";
-              t.engine_track_id = t.engine_track_id || t.trackId || t.id;
-              t.plays_total = t.plays_total || 0;
-              t._sessionId = Number(sid);
-            }
-            allTracks.push(...histResult.tracks);
-          }
+        // History: enriched Tracks laden (Cross-Join hm.db → m.db für Rating/Genre/Label etc.)
+        const enrichedResult = await runPythonJson(
+          "electron-app/integrations/python/engine_tools.py",
+          [
+            "--database-folder",
+            String(options.databaseFolder || ""),
+            "history-tracks-enriched",
+            "--session-ids",
+            String(options.sessionIds || ""),
+            "--limit",
+            String(options.limit || 5000),
+          ],
+          { pythonCommand: options.pythonCommand }
+        );
+
+        if (!enrichedResult?.ok) {
+          return enrichedResult;
         }
+
+        allTracks = enrichedResult.tracks || [];
       } else {
         // Playlists: enriched Tracks laden
         const enrichedResult = await runPythonJson(

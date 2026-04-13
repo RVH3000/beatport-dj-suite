@@ -38,10 +38,10 @@ Nach: Claude Code CLI / Dispatch
 ## Offene TODOs
 
 ### Engine-Analyse Tab — Feinschliff
-- [ ] History-Analyse: Tracks kommen ohne Rating/Genre zurück (hm.db hat weniger Felder als m.db) — Cross-Join mit m.db Track-Tabelle implementieren
-- [ ] "In Suche laden" Button: Event wird dispatched aber search.js lauscht noch nicht darauf — EventListener in app.js verdrahten
+- [x] History-Analyse: Cross-Join hm.db → m.db implementiert (dump_history_tracks_enriched + history-tracks-enriched CLI + IPC-Handler)
+- [x] "In Suche laden" Button: EventListener in app.js verdrahtet → wechselt zum Search-Tab und lädt Tracks via loadExternalTracks()
 - [ ] Scoring-Data-Pfad: Aktuell hardcoded leer ("") — aus Settings laden oder Dateiauswahl-Dialog
-- [ ] CSV-Export: Camelot-Spalte fehlt im Export
+- [x] CSV-Export: Camelot-Spalte im Export ergänzt
 - [ ] Fuzzy-Matching testen: Prefix-Bucket-Optimierung validieren mit echten Daten
 - [ ] `renderTable()` aus app.js ist nicht exportiert — Engine-Analyse baut eigene Tabellen. Langfristig: renderTable exportieren oder als shared Modul
 
