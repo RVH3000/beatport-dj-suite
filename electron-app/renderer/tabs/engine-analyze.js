@@ -16,7 +16,8 @@ const state = {
   selectedPlaylistIds: new Set(),
   selectedSessionIds: new Set(),
   sourceMode: "playlists", // "playlists" | "history"
-  analysisResult: null,
+  analysisResults: [],     // Verlauf: [{source, sourceMode, result, timestamp}]
+  analysisResult: null,    // aktive Anzeige
   sortKey: "title",
   sortAsc: true,
   loading: false,
@@ -65,16 +66,57 @@ function setMessage(text, tone = "info") {
   state.tone = tone;
 }
 
-const RESULT_COLUMNS = [
-  { key: "title",       label: "Title" },
-  { key: "artists",     label: "Artist" },
-  { key: "bpm",         label: "BPM",    numeric: true },
-  { key: "key",         label: "Key" },
-  { key: "genre",       label: "Genre" },
-  { key: "rating",      label: "Rating", numeric: true },
-  { key: "plays_total", label: "Plays",  numeric: true },
-  { key: "matchType",   label: "Match" },
-];
+// ─── Key → Camelot Mapping ──────────────────────────────────────────────────
+
+const KEY_TO_CAMELOT = {
+  "C": "8B", "Am": "8A", "Cm": "5A", "C#": "3B", "Db": "3B", "C#m": "12A", "Dbm": "12A",
+  "D": "10B", "Dm": "7A", "D#": "5B", "Eb": "5B", "D#m": "2A", "Ebm": "2A",
+  "E": "12B", "Em": "9A", "F": "7B", "Fm": "4A",
+  "F#": "2B", "Gb": "2B", "F#m": "11A", "Gbm": "11A",
+  "G": "9B", "Gm": "6A", "G#": "4B", "Ab": "4B", "G#m": "1A", "Abm": "1A",
+  "A": "11B", "Bb": "6B", "A#": "6B", "A#m": "3A", "Bbm": "3A",
+  "B": "1B", "Bm": "10A",
+  // Engine DJ speichert numerisch (0-23)
+  "0": "8B", "1": "8A", "2": "3B", "3": "12A", "4": "10B", "5": "7A",
+  "6": "5B", "7": "2A", "8": "12B", "9": "9A", "10": "7B", "11": "4A",
+  "12": "2B", "13": "11A", "14": "9B", "15": "6A", "16": "4B", "17": "1A",
+  "18": "11B", "19": "10A", "20": "6B", "21": "3A", "22": "1B", "23": "10A",
+};
+
+function toCamelot(key) {
+  if (!key && key !== 0) return "";
+  const k = String(key).trim();
+  // Schon Camelot-Format (z.B. "8A", "11B")
+  if (/^\d{1,2}[AB]$/i.test(k)) return k.toUpperCase();
+  return KEY_TO_CAMELOT[k] || k;
+}
+
+function camelotSortVal(cam) {
+  if (!cam) return 999;
+  const n = parseInt(cam);
+  const l = cam.slice(-1).toUpperCase();
+  return (isNaN(n) ? 99 : n) * 2 + (l === "B" ? 1 : 0);
+}
+
+// ─── Result Columns ─────────────────────────────────────────────────────────
+
+function getResultColumns() {
+  const base = [
+    { key: "title",       label: "Title" },
+    { key: "artists",     label: "Artist" },
+    { key: "bpm",         label: "BPM",     numeric: true },
+    { key: "camelot",     label: "Camelot" },
+    { key: "genre",       label: "Genre" },
+    { key: "rating",      label: "Rating",  numeric: true },
+    { key: "plays_total", label: "Plays",   numeric: true },
+    { key: "matchType",   label: "Match" },
+  ];
+  // History: Spielzeit-Spalte einfügen nach Plays
+  if (state.sourceMode === "history") {
+    base.splice(7, 0, { key: "startTime", label: "Gespielt" });
+  }
+  return base;
+}
 
 function sortArrow(key) {
   if (state.sortKey !== key) return "";
@@ -84,14 +126,31 @@ function sortArrow(key) {
 function getSortedTracks() {
   const tracks = state.analysisResult?.tracks || [];
   if (!tracks.length) return tracks;
-  const col = RESULT_COLUMNS.find(c => c.key === state.sortKey);
+  const cols = getResultColumns();
+  const col = cols.find(c => c.key === state.sortKey);
   const sorted = [...tracks].sort((a, b) => {
-    const va = a[state.sortKey] ?? "";
-    const vb = b[state.sortKey] ?? "";
+    let va = a[state.sortKey] ?? "";
+    let vb = b[state.sortKey] ?? "";
+    if (state.sortKey === "camelot") return camelotSortVal(va) - camelotSortVal(vb);
     if (col?.numeric) return (Number(va) || 0) - (Number(vb) || 0);
     return String(va).localeCompare(String(vb), "de", { sensitivity: "base" });
   });
   return state.sortAsc ? sorted : sorted.reverse();
+}
+
+function renderTrackCell(t, colKey) {
+  switch (colKey) {
+    case "title": return esc(t.title);
+    case "artists": return esc(t.artists);
+    case "bpm": return t.bpm ?? "";
+    case "camelot": return `<span style="color:#b197fc;font-weight:700">${esc(t.camelot || "")}</span>`;
+    case "genre": return esc(t.genre || "");
+    case "rating": return t.rating ? "\u2605".repeat(t.rating) : "";
+    case "plays_total": return t.plays_total || 0;
+    case "startTime": return esc(t.startTime || t.last_played || "");
+    case "matchType": return `<span class="match-badge match-${t.matchType || "none"}">${t.matchType || "\u2014"}</span>`;
+    default: return esc(t[colKey] ?? "");
+  }
 }
 
 // ─── Render ─────────────────────────────────────────────────────────────────
@@ -250,8 +309,8 @@ function renderEngineAnalyzeTab() {
     </section>
     ` : ""}
 
-    <!-- Section 4: Ergebnisse -->
-    ${state.analysisResult ? `
+    <!-- Analyse-Verlauf (Tabs fuer mehrere Ergebnisse) -->
+    ${state.analysisResults.length > 0 ? `
     <section class="panel">
       <div class="section-head">
         <h2>4 \u2014 Ergebnisse</h2>
@@ -261,24 +320,42 @@ function renderEngineAnalyzeTab() {
         </div>
       </div>
 
+      ${state.analysisResults.length > 1 ? `
+      <div class="actions compact" style="margin-bottom:10px">
+        ${state.analysisResults.map((entry, idx) => `
+          <button class="ea-result-tab ${state.analysisResult === entry.result ? "primary" : ""}"
+                  data-result-idx="${idx}" type="button">
+            ${entry.sourceMode === "history" ? "\uD83D\uDCCA" : "\uD83C\uDFB5"} ${esc(entry.label)}
+          </button>
+        `).join("")}
+      </div>
+      ` : ""}
+
+      ${state.analysisResult ? (() => {
+        const r = state.analysisResult;
+        const activeEntry = state.analysisResults.find(e => e.result === r);
+        const isHistory = activeEntry?.sourceMode === "history";
+        const cols = getResultColumns();
+        return `
       <div class="detail-summary">
-        ${state.analysisResult.matchStats ? `
-          ${state.analysisResult.matchStats.total} Tracks |
-          Gematcht: ${state.analysisResult.matchStats.total - (state.analysisResult.matchStats.none || 0)}
-          (${state.analysisResult.matchStats.matchRate}%) |
-          <span class="match-exact">${state.analysisResult.matchStats.exact_id || 0} Beatport-ID</span> |
-          <span class="match-title">${state.analysisResult.matchStats.title_artist || 0} Title/Artist</span> |
-          <span class="match-fuzzy">${state.analysisResult.matchStats.fuzzy || 0} Fuzzy</span> |
-          <span class="match-none">${state.analysisResult.matchStats.none || 0} kein Match</span>
-        ` : `${state.analysisResult.totalTracks} Tracks (kein Scoring-Data zum Matchen)`}
+        <strong>${isHistory ? "\uD83D\uDCCA History" : "\uD83C\uDFB5 Playlist"}:</strong>
+        ${r.matchStats ? `
+          ${r.matchStats.total} Tracks |
+          Gematcht: ${r.matchStats.total - (r.matchStats.none || 0)}
+          (${r.matchStats.matchRate}%) |
+          <span class="match-exact">${r.matchStats.exact_id || 0} Beatport-ID</span> |
+          <span class="match-title">${r.matchStats.title_artist || 0} Title/Artist</span> |
+          <span class="match-fuzzy">${r.matchStats.fuzzy || 0} Fuzzy</span> |
+          <span class="match-none">${r.matchStats.none || 0} kein Match</span>
+        ` : `${r.totalTracks} Tracks (kein Scoring-Data)`}
       </div>
 
-      ${state.analysisResult.classifierSummary?.summary ? `
+      ${r.classifierSummary?.summary ? `
       <div class="automation-stats">
         ${["count", "avgEnergy", "avgDanceability", "avgIntensity"].map(key => `
           <div class="stat-card">
             <span class="stat-label">${key === "count" ? "Tracks" : key.replace("avg", "\u00D8 ")}</span>
-            <strong class="stat-value">${state.analysisResult.classifierSummary.summary[key] ?? 0}</strong>
+            <strong class="stat-value">${r.classifierSummary.summary[key] ?? 0}</strong>
           </div>
         `).join("")}
       </div>
@@ -287,26 +364,20 @@ function renderEngineAnalyzeTab() {
       <div class="table-wrap" style="max-height:500px">
         <table class="data-table">
           <thead>
-            <tr>${RESULT_COLUMNS.map(c =>
+            <tr>${cols.map(c =>
               `<th class="ea-sortable" data-sort="${c.key}" style="cursor:pointer;user-select:none">${c.label}${sortArrow(c.key)}</th>`
             ).join("")}</tr>
           </thead>
           <tbody>
             ${getSortedTracks().slice(0, 200).map(t => `
               <tr>
-                <td class="wrap-cell">${esc(t.title)}</td>
-                <td class="wrap-cell">${esc(t.artists)}</td>
-                <td>${t.bpm ?? ""}</td>
-                <td>${t.key ?? ""}</td>
-                <td>${esc(t.genre || "")}</td>
-                <td>${t.rating ? "\u2605".repeat(t.rating) : ""}</td>
-                <td>${t.plays_total || 0}</td>
-                <td><span class="match-badge match-${t.matchType || "none"}">${t.matchType || "\u2014"}</span></td>
+                ${cols.map(c => `<td${c.key === "title" || c.key === "artists" ? ' class="wrap-cell"' : ""}>${renderTrackCell(t, c.key)}</td>`).join("")}
               </tr>
             `).join("")}
           </tbody>
         </table>
-      </div>
+      </div>`;
+      })() : ""}
     </section>
     ` : ""}
 
@@ -348,6 +419,19 @@ function bindEvents() {
   });
   document.getElementById("eaLoadInSearchBtn")?.addEventListener("click", loadInSearch);
   document.getElementById("eaExportCsvBtn")?.addEventListener("click", exportCsv);
+
+  // Ergebnis-Tabs umschalten
+  document.querySelectorAll(".ea-result-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.resultIdx);
+      const entry = state.analysisResults[idx];
+      if (entry) {
+        state.analysisResult = entry.result;
+        state.sourceMode = entry.sourceMode;
+        renderEngineAnalyzeTab();
+      }
+    });
+  });
 
   // Sortierbare Spalten-Header
   document.querySelectorAll(".ea-sortable").forEach(th => {
@@ -462,7 +546,33 @@ async function runAnalysis() {
       playlistIds: Array.from(state.selectedPlaylistIds).join(","),
       scoringDataPath: "",
     });
+
+    // Camelot-Konvertierung fuer alle Tracks
+    if (result?.tracks) {
+      for (const t of result.tracks) {
+        t.camelot = toCamelot(t.key);
+      }
+    }
+
+    // History: Default-Sortierung nach Spielzeit
+    if (state.sourceMode === "history") {
+      state.sortKey = "startTime";
+      state.sortAsc = true;
+    }
+
     state.analysisResult = result;
+
+    // In Verlauf speichern
+    const label = state.sourceMode === "history"
+      ? `History (${result?.totalTracks || 0})`
+      : `Playlist (${result?.totalTracks || 0})`;
+    state.analysisResults.push({
+      label,
+      sourceMode: state.sourceMode,
+      result,
+      timestamp: new Date().toISOString(),
+    });
+
     setMessage(`${result?.totalTracks || 0} Tracks analysiert`, "success");
   } catch (error) {
     setMessage(String(error.message || error), "warning");
