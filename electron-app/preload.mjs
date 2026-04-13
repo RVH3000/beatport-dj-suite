@@ -164,5 +164,6 @@ contextBridge.exposeInMainWorld("syncApi", {
 contextBridge.exposeInMainWorld("engineAnalyzeApi", {
   discoverDatabases: () => ipcRenderer.invoke("engine-analyze:discover-databases"),
   listPlaylists: (options) => ipcRenderer.invoke("engine-analyze:list-playlists", options),
+  listHistorySessions: (options) => ipcRenderer.invoke("unified:engine-history-sessions", options),
   loadPlaylistTracks: (options) => ipcRenderer.invoke("engine-analyze:load-playlist-tracks", options),
 });

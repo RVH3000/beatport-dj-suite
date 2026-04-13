@@ -1,21 +1,54 @@
 // ─── Engine-Analyse Tab ──────────────────────────────────────────────────────
-// Lädt Engine-DJ-Playlisten, matcht gegen Beatport-Scoring-Data und
-// klassifiziert Tracks nach Energy/Danceability/Intensity.
+// Lädt Engine-DJ-Playlisten + History, matcht gegen Beatport-Scoring-Data
+// und klassifiziert Tracks nach Energy/Danceability/Intensity.
 // ─────────────────────────────────────────────────────────────────────────────
+
+const EA_STORAGE_KEY = "beatport-suite-engine-analyze-v1";
 
 const state = {
   initialized: false,
   databaseFolder: "",
+  recentPaths: [],       // zuletzt verwendete DB-Pfade
   discoveredDbs: [],
   playlists: [],
+  smartlists: [],
+  historySessions: [],
   selectedPlaylistIds: new Set(),
+  selectedSessionIds: new Set(),
+  sourceMode: "playlists", // "playlists" | "history"
   analysisResult: null,
   loading: false,
   message: "",
   tone: "info",
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Persistence ────────────────────────────────────────────────────────────
+
+function loadPersistedState() {
+  try {
+    const raw = localStorage.getItem(EA_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    state.databaseFolder = saved.databaseFolder || "";
+    state.recentPaths = Array.isArray(saved.recentPaths) ? saved.recentPaths : [];
+  } catch { /* ignore */ }
+}
+
+function persistState() {
+  const toSave = {
+    databaseFolder: state.databaseFolder,
+    recentPaths: state.recentPaths.slice(0, 10),
+  };
+  localStorage.setItem(EA_STORAGE_KEY, JSON.stringify(toSave));
+}
+
+function addRecentPath(path) {
+  if (!path) return;
+  state.recentPaths = [path, ...state.recentPaths.filter(p => p !== path)].slice(0, 10);
+  persistState();
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function esc(value) {
   return String(value ?? "")
@@ -30,27 +63,38 @@ function setMessage(text, tone = "info") {
   state.tone = tone;
 }
 
-// ─── Render ──────────────────────────────────────────────────────────────────
+// ─── Render ─────────────────────────────────────────────────────────────────
 
 function renderEngineAnalyzeTab() {
   const container = document.getElementById("engine-analyze-content");
   if (!container) return;
 
+  const hasData = state.playlists.length > 0 || state.historySessions.length > 0;
+  const totalSelected = state.sourceMode === "playlists"
+    ? state.selectedPlaylistIds.size
+    : state.selectedSessionIds.size;
+
   container.innerHTML = `
+    <!-- Workflow-Hinweis -->
+    <section class="panel">
+      <p class="detail-summary" style="margin:0">
+        <strong>Workflow:</strong>
+        1. Datenbank w\u00e4hlen (USB, Backup, lokal)
+        \u2192 2. Playlisten oder History-Sessions laden
+        \u2192 3. Ausw\u00e4hlen + Analysieren
+        \u2192 4. Ergebnisse in Suche laden oder exportieren
+      </p>
+    </section>
+
     <!-- Section 1: DB-Auswahl -->
     <section class="panel">
       <div class="section-head">
-        <h2>Engine-Datenbank</h2>
+        <h2>1 \u2014 Engine-Datenbank</h2>
         <div class="actions compact">
-          <button id="eaDiscoverBtn" type="button">Erkennen</button>
-          <button id="eaLoadPlaylistsBtn" class="primary" type="button">Playlisten laden</button>
+          <button id="eaDiscoverBtn" type="button" title="USB-Sticks und lokale Engine-Datenbanken automatisch finden">Erkennen</button>
         </div>
       </div>
-      ${
-        state.message
-          ? `<div class="callout ${state.tone}">${esc(state.message)}</div>`
-          : ""
-      }
+      ${state.message ? `<div class="callout ${state.tone}">${esc(state.message)}</div>` : ""}
       <div class="field-grid">
         <label class="wide">
           Datenbankpfad
@@ -58,52 +102,122 @@ function renderEngineAnalyzeTab() {
                  placeholder="/Volumes/USB/Engine Library/Database2" />
         </label>
       </div>
+      ${state.recentPaths.length > 0 ? `
+        <details class="cockpit-acc" style="margin-top:8px">
+          <summary>Zuletzt verwendet (${state.recentPaths.length})</summary>
+          <div class="acc-body">
+            ${state.recentPaths.map(p => `
+              <div class="ea-recent-path" data-path="${esc(p)}">${esc(p)}</div>
+            `).join("")}
+          </div>
+        </details>
+      ` : ""}
       ${state.discoveredDbs.length > 0 ? `
-        <select id="eaDbSelect">
-          <option value="">Datenbank w\u00e4hlen\u2026</option>
+        <select id="eaDbSelect" style="margin-top:8px">
+          <option value="">Gefundene Datenbank w\u00e4hlen\u2026</option>
           ${state.discoveredDbs.map(db => `
-            <option value="${esc(db.path)}">${esc(db.volume)} (${db.source}) \u2014 ${db.path}</option>
+            <option value="${esc(db.path)}" ${db.path === state.databaseFolder ? "selected" : ""}>
+              ${esc(db.volume)} (${db.source}) \u2014 ${esc(db.path)}
+            </option>
           `).join("")}
         </select>
       ` : ""}
+      <div class="actions compact" style="margin-top:10px">
+        <button id="eaLoadDataBtn" class="primary" type="button" ${!state.databaseFolder ? "disabled" : ""}>
+          Playlisten + History laden
+        </button>
+      </div>
     </section>
 
-    <!-- Section 2: Playlist-Picker -->
-    <section class="panel" ${state.playlists.length === 0 ? 'style="display:none"' : ""}>
+    <!-- Section 2: Quellen-Auswahl (Playlisten / History) -->
+    ${hasData ? `
+    <section class="panel">
       <div class="section-head">
-        <h2>Playlisten (${state.selectedPlaylistIds.size} / ${state.playlists.length} ausgew\u00e4hlt)</h2>
+        <h2>2 \u2014 Quelle ausw\u00e4hlen</h2>
         <div class="actions compact">
-          <button id="eaSelectAllBtn" type="button">Alle</button>
-          <button id="eaSelectNoneBtn" type="button">Keine</button>
-          <button id="eaAnalyzeBtn" class="primary" type="button" ${state.selectedPlaylistIds.size === 0 ? "disabled" : ""}>
-            Analysieren
+          <button id="eaModePlaylistsBtn" type="button" class="${state.sourceMode === "playlists" ? "primary" : ""}">
+            Playlisten (${state.playlists.length})
+          </button>
+          <button id="eaModeHistoryBtn" type="button" class="${state.sourceMode === "history" ? "primary" : ""}">
+            History (${state.historySessions.length})
           </button>
         </div>
       </div>
-      <div class="ea-playlist-list" style="max-height:300px;overflow-y:auto">
-        ${state.playlists.map(pl => `
-          <label class="ea-playlist-item">
-            <input type="checkbox" value="${pl.id}"
-                   ${state.selectedPlaylistIds.has(String(pl.id)) ? "checked" : ""} />
-            <span>${pl.isPersisted === 0 ? "\uD83D\uDEAB " : ""}${esc(pl.title)}</span>
-            <span class="ea-track-count">${pl.trackCount ?? 0} Tracks</span>
-          </label>
-        `).join("")}
-      </div>
+
+      ${state.sourceMode === "playlists" ? `
+        <!-- Playlist-Picker -->
+        <div class="actions compact" style="margin-bottom:8px">
+          <button id="eaSelectAllBtn" type="button">Alle</button>
+          <button id="eaSelectNoneBtn" type="button">Keine</button>
+          <span style="color:var(--muted);font-size:12px;margin-left:8px">
+            ${state.selectedPlaylistIds.size} ausgew\u00e4hlt
+          </span>
+        </div>
+        ${state.smartlists.length > 0 ? `
+          <p style="font-size:11px;color:var(--muted);margin:0 0 6px">
+            \u{1F4CB} ${state.smartlists.length} Smartlists vorhanden (werden nicht aufgel\u00f6st)
+          </p>
+        ` : ""}
+        <div class="ea-playlist-list" style="max-height:300px;overflow-y:auto">
+          ${state.playlists.map(pl => `
+            <label class="ea-playlist-item">
+              <input type="checkbox" value="${pl.id}"
+                     ${state.selectedPlaylistIds.has(String(pl.id)) ? "checked" : ""} />
+              <span>${pl.isPersisted === 0 ? "\uD83D\uDEAB " : ""}${esc(pl.title)}</span>
+              <span class="ea-track-count">${pl.trackCount ?? 0} Tracks</span>
+            </label>
+          `).join("")}
+        </div>
+      ` : `
+        <!-- History-Session-Picker -->
+        <div class="actions compact" style="margin-bottom:8px">
+          <button id="eaSelectAllHistBtn" type="button">Alle</button>
+          <button id="eaSelectNoneHistBtn" type="button">Keine</button>
+          <span style="color:var(--muted);font-size:12px;margin-left:8px">
+            ${state.selectedSessionIds.size} ausgew\u00e4hlt
+          </span>
+        </div>
+        <div class="ea-playlist-list" style="max-height:300px;overflow-y:auto">
+          ${state.historySessions.map(s => `
+            <label class="ea-playlist-item">
+              <input type="checkbox" value="${s.id}" data-type="session"
+                     ${state.selectedSessionIds.has(String(s.id)) ? "checked" : ""} />
+              <span>${esc(s.title)}</span>
+              <span class="ea-track-count">${esc(s.startTime)}</span>
+            </label>
+          `).join("")}
+        </div>
+      `}
     </section>
 
-    <!-- Section 3: Ergebnisse -->
+    <!-- Analyse starten -->
+    <section class="panel">
+      <div class="section-head">
+        <h2>3 \u2014 Analysieren</h2>
+        <div class="actions compact">
+          <button id="eaAnalyzeBtn" class="primary" type="button"
+                  ${totalSelected === 0 ? "disabled" : ""}>
+            ${totalSelected} ${state.sourceMode === "playlists" ? "Playlisten" : "Sessions"} analysieren
+          </button>
+        </div>
+      </div>
+      <p class="detail-summary" style="margin:0">
+        Tracks werden extrahiert, gegen scoring-data.json gematcht und durch den Performance-Classifier geschickt.
+      </p>
+    </section>
+    ` : ""}
+
+    <!-- Section 4: Ergebnisse -->
     ${state.analysisResult ? `
     <section class="panel">
       <div class="section-head">
-        <h2>Ergebnisse</h2>
+        <h2>4 \u2014 Ergebnisse</h2>
         <div class="actions compact">
           <button id="eaLoadInSearchBtn" type="button">In Suche laden</button>
           <button id="eaExportCsvBtn" type="button">CSV Export</button>
         </div>
       </div>
 
-      <!-- Match-Statistik -->
       <div class="detail-summary">
         ${state.analysisResult.matchStats ? `
           ${state.analysisResult.matchStats.total} Tracks |
@@ -116,7 +230,6 @@ function renderEngineAnalyzeTab() {
         ` : `${state.analysisResult.totalTracks} Tracks (kein Scoring-Data zum Matchen)`}
       </div>
 
-      <!-- Classifier Summary -->
       ${state.analysisResult.classifierSummary?.summary ? `
       <div class="automation-stats">
         ${["count", "avgEnergy", "avgDanceability", "avgIntensity"].map(key => `
@@ -128,7 +241,6 @@ function renderEngineAnalyzeTab() {
       </div>
       ` : ""}
 
-      <!-- Ergebnis-Tabelle -->
       <div class="table-wrap" style="max-height:500px">
         <table class="data-table">
           <thead>
@@ -159,16 +271,39 @@ function renderEngineAnalyzeTab() {
   bindEvents();
 }
 
-// ─── Event-Binding ───────────────────────────────────────────────────────────
+// ─── Event-Binding ──────────────────────────────────────────────────────────
 
 function bindEvents() {
   document.getElementById("eaDiscoverBtn")?.addEventListener("click", discoverDbs);
-  document.getElementById("eaLoadPlaylistsBtn")?.addEventListener("click", loadPlaylists);
+  document.getElementById("eaLoadDataBtn")?.addEventListener("click", loadAllData);
   document.getElementById("eaAnalyzeBtn")?.addEventListener("click", runAnalysis);
-  document.getElementById("eaSelectAllBtn")?.addEventListener("click", selectAll);
-  document.getElementById("eaSelectNoneBtn")?.addEventListener("click", selectNone);
+  document.getElementById("eaSelectAllBtn")?.addEventListener("click", () => {
+    state.selectedPlaylistIds = new Set(state.playlists.map(p => String(p.id)));
+    renderEngineAnalyzeTab();
+  });
+  document.getElementById("eaSelectNoneBtn")?.addEventListener("click", () => {
+    state.selectedPlaylistIds = new Set();
+    renderEngineAnalyzeTab();
+  });
+  document.getElementById("eaSelectAllHistBtn")?.addEventListener("click", () => {
+    state.selectedSessionIds = new Set(state.historySessions.map(s => String(s.id)));
+    renderEngineAnalyzeTab();
+  });
+  document.getElementById("eaSelectNoneHistBtn")?.addEventListener("click", () => {
+    state.selectedSessionIds = new Set();
+    renderEngineAnalyzeTab();
+  });
+  document.getElementById("eaModePlaylistsBtn")?.addEventListener("click", () => {
+    state.sourceMode = "playlists";
+    renderEngineAnalyzeTab();
+  });
+  document.getElementById("eaModeHistoryBtn")?.addEventListener("click", () => {
+    state.sourceMode = "history";
+    renderEngineAnalyzeTab();
+  });
   document.getElementById("eaLoadInSearchBtn")?.addEventListener("click", loadInSearch);
   document.getElementById("eaExportCsvBtn")?.addEventListener("click", exportCsv);
+
   document.getElementById("eaDatabaseFolder")?.addEventListener("change", (e) => {
     state.databaseFolder = e.target.value;
   });
@@ -178,17 +313,29 @@ function bindEvents() {
     if (input) input.value = e.target.value;
   });
 
-  // Checkbox-Handler fuer Playlist-Selection
+  // Recent paths klickbar
+  document.querySelectorAll(".ea-recent-path").forEach(el => {
+    el.addEventListener("click", () => {
+      state.databaseFolder = el.dataset.path;
+      const input = document.getElementById("eaDatabaseFolder");
+      if (input) input.value = el.dataset.path;
+      renderEngineAnalyzeTab();
+    });
+  });
+
+  // Checkbox-Handler
   document.querySelectorAll(".ea-playlist-item input[type=checkbox]").forEach(cb => {
     cb.addEventListener("change", (e) => {
-      if (e.target.checked) state.selectedPlaylistIds.add(e.target.value);
-      else state.selectedPlaylistIds.delete(e.target.value);
+      const isSession = e.target.dataset.type === "session";
+      const set = isSession ? state.selectedSessionIds : state.selectedPlaylistIds;
+      if (e.target.checked) set.add(e.target.value);
+      else set.delete(e.target.value);
       renderEngineAnalyzeTab();
     });
   });
 }
 
-// ─── Async Actions ───────────────────────────────────────────────────────────
+// ─── Async Actions ──────────────────────────────────────────────────────────
 
 async function discoverDbs() {
   try {
@@ -201,14 +348,34 @@ async function discoverDbs() {
   renderEngineAnalyzeTab();
 }
 
-async function loadPlaylists() {
+async function loadAllData() {
+  const folder = document.getElementById("eaDatabaseFolder")?.value || state.databaseFolder;
+  if (!folder) {
+    setMessage("Bitte zuerst einen Datenbankpfad eingeben.", "warning");
+    renderEngineAnalyzeTab();
+    return;
+  }
+  state.databaseFolder = folder;
+  addRecentPath(folder);
+
   try {
-    const folder = document.getElementById("eaDatabaseFolder")?.value || state.databaseFolder;
-    state.databaseFolder = folder;
-    const result = await window.engineAnalyzeApi.listPlaylists({ databaseFolder: folder });
-    state.playlists = result?.playlists || [];
+    // Playlisten + History parallel laden
+    const [plResult, histResult] = await Promise.all([
+      window.engineAnalyzeApi.listPlaylists({ databaseFolder: folder }),
+      window.engineAnalyzeApi.listHistorySessions({ engineDatabaseFolder: folder }).catch(() => ({ sessions: [] })),
+    ]);
+
+    state.playlists = plResult?.playlists || [];
+    state.smartlists = plResult?.smartlists || [];
+    state.historySessions = histResult?.sessions || [];
     state.selectedPlaylistIds = new Set();
-    setMessage(`${state.playlists.length} Playlisten geladen`, "success");
+    state.selectedSessionIds = new Set();
+    state.analysisResult = null;
+
+    const parts = [`${state.playlists.length} Playlisten`];
+    if (state.historySessions.length > 0) parts.push(`${state.historySessions.length} History-Sessions`);
+    if (state.smartlists.length > 0) parts.push(`${state.smartlists.length} Smartlists`);
+    setMessage(parts.join(", ") + " geladen", "success");
   } catch (error) {
     setMessage(String(error.message || error), "warning");
   }
@@ -223,7 +390,7 @@ async function runAnalysis() {
     const result = await window.engineAnalyzeApi.loadPlaylistTracks({
       databaseFolder: state.databaseFolder,
       playlistIds: Array.from(state.selectedPlaylistIds).join(","),
-      scoringDataPath: "", // TODO: aus Settings laden oder Dateiauswahl
+      scoringDataPath: "",
     });
     state.analysisResult = result;
     setMessage(`${result?.totalTracks || 0} Tracks analysiert`, "success");
@@ -234,19 +401,7 @@ async function runAnalysis() {
   renderEngineAnalyzeTab();
 }
 
-function selectAll() {
-  state.selectedPlaylistIds = new Set(state.playlists.map(p => String(p.id)));
-  renderEngineAnalyzeTab();
-}
-
-function selectNone() {
-  state.selectedPlaylistIds = new Set();
-  renderEngineAnalyzeTab();
-}
-
 async function loadInSearch() {
-  // Bridge zum Search-Tab — wird in Schritt 7 implementiert
-  // Vorerst: Event dispatchen
   const tracks = state.analysisResult?.tracks || [];
   window.dispatchEvent(
     new CustomEvent("engine-analyze:load-in-search", {
@@ -257,10 +412,9 @@ async function loadInSearch() {
 }
 
 async function exportCsv() {
-  // CSV-Export — rudimentaer, wird in Schritt 7/8 erweitert
   const tracks = state.analysisResult?.tracks || [];
   if (tracks.length === 0) {
-    setMessage("Keine Tracks zum Exportieren vorhanden.", "warning");
+    setMessage("Keine Tracks zum Exportieren.", "warning");
     return;
   }
   const header = "Title;Artist;BPM;Key;Genre;Rating;Plays;MatchType";
@@ -280,9 +434,10 @@ async function exportCsv() {
   setMessage(`${tracks.length} Tracks als CSV exportiert`, "success");
 }
 
-// ─── Exports ─────────────────────────────────────────────────────────────────
+// ─── Exports ────────────────────────────────────────────────────────────────
 
 export async function initEngineAnalyzeTab() {
+  loadPersistedState();
   renderEngineAnalyzeTab();
   if (!state.initialized) {
     state.initialized = true;
