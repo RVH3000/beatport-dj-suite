@@ -160,3 +160,9 @@ contextBridge.exposeInMainWorld("syncApi", {
     return () => ipcRenderer.removeListener("sync:pipeline-progress", handler);
   },
 });
+
+contextBridge.exposeInMainWorld("engineAnalyzeApi", {
+  discoverDatabases: () => ipcRenderer.invoke("engine-analyze:discover-databases"),
+  listPlaylists: (options) => ipcRenderer.invoke("engine-analyze:list-playlists", options),
+  loadPlaylistTracks: (options) => ipcRenderer.invoke("engine-analyze:load-playlist-tracks", options),
+});

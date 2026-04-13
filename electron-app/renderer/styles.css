@@ -1462,6 +1462,18 @@ summary {
 /* ─── Workflow Modal ─── */
 .workflow-btn{position:absolute;top:16px;right:20px;background:var(--panel-strong);color:var(--text);border:1px solid var(--line);padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-family:inherit;transition:all .15s}
 .workflow-btn:hover{border-color:var(--primary);color:var(--primary)}
+/* ─── Engine-Analyse Tab ─── */
+.ea-playlist-list{display:flex;flex-direction:column;gap:2px}
+.ea-playlist-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;transition:background .1s}
+.ea-playlist-item:hover{background:var(--panel-hover)}
+.ea-playlist-item input[type=checkbox]{accent-color:var(--primary);width:16px;height:16px;cursor:pointer}
+.ea-playlist-item span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ea-track-count{color:var(--muted);font-size:11px;flex-shrink:0}
+.match-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.match-exact,.match-exact_id{background:rgba(72,199,142,.15);color:#48c78e}
+.match-title,.match-title_artist{background:rgba(255,224,102,.15);color:#ffe066}
+.match-fuzzy{background:rgba(255,159,67,.15);color:#ff9f43}
+.match-none{background:rgba(255,107,107,.12);color:#ff6b6b}
 .topbar{position:relative}
 .workflow-dialog{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-md);padding:0;max-width:720px;width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .workflow-dialog::backdrop{background:rgba(0,0,0,.6)}

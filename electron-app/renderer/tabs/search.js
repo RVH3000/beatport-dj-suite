@@ -1656,3 +1656,47 @@ function renderBpmFlow() {
     panel.querySelector(".srch-reco-close")?.addEventListener("click", () => panel.remove());
   }
 })();
+
+// ─── Bridge für Engine-Analyse Tab ──────────────────────────────────────────
+
+/**
+ * Lädt externe Tracks (z.B. aus Engine-Analyse) in den Search-Tab.
+ * Wandelt Engine-Track-Format in scoring-data.json Kurzformat um.
+ */
+export function loadExternalTracks(tracks, sourceName = "Engine-Analyse") {
+  if (!Array.isArray(tracks) || tracks.length === 0) return;
+
+  const converted = tracks.map((t) => ({
+    i: t.beatport_id || t.engine_track_id || 0,
+    t: t.title || "",
+    m: "",
+    a: t.artists || "",
+    g: t.genre || "",
+    sg: "",
+    b: t.bpm || 0,
+    k: t.key || "",
+    cam: t.camelot || "",
+    y: t.year || 0,
+    l: t.label || "",
+    r: t.album || "",
+    ms: t.length_ms || 0,
+    p: [],
+    _source: "engine-analyze",
+    _matchType: t.matchType || "none",
+  }));
+
+  allTracks = converted;
+
+  const status = document.getElementById("srchDataStatus");
+  if (status) {
+    status.innerHTML = `<span style="color:var(--success)">&check; ${converted.length} Tracks aus ${sourceName} geladen</span>`;
+  }
+
+  buildDashData();
+  initFilters();
+  initSubGenreFilter();
+  initLabelFilter();
+  initChipFilters();
+  renderDashboard();
+  doSearch();
+}

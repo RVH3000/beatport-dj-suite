@@ -1452,6 +1452,99 @@ app.whenReady().then(() => {
     }
   });
 
+  // ── Engine Analyze ────────────────────────────────────────────────────────
+
+  ipcMain.handle("engine-analyze:discover-databases", async () => {
+    return runPythonJson(
+      "electron-app/integrations/python/engine_tools.py",
+      ["discover-all-databases"],
+      {}
+    );
+  });
+
+  ipcMain.handle("engine-analyze:list-playlists", async (_event, options = {}) => {
+    try {
+      return runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.databaseFolder || ""),
+          "playlists",
+          "--limit",
+          String(options.limit || 500),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("engine-analyze:load-playlist-tracks", async (_event, options = {}) => {
+    try {
+      // 1. Enriched Tracks aus Python laden
+      const enrichedResult = await runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.databaseFolder || ""),
+          "playlist-tracks-enriched",
+          "--playlist-ids",
+          String(options.playlistIds || ""),
+          "--limit",
+          String(options.limit || 5000),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+
+      if (!enrichedResult?.ok) {
+        return enrichedResult;
+      }
+
+      // 2. Alle Tracks flach sammeln
+      const allTracks = (enrichedResult.playlists || []).flatMap(p => p.tracks || []);
+
+      // 3. Scoring-Data laden (gleiche Logik wie sync:load-scoring-data)
+      let matchStats = null;
+      let matchedTracks = allTracks;
+      if (options.scoringDataPath) {
+        const fs = await import("node:fs/promises");
+        try {
+          const raw = await fs.readFile(options.scoringDataPath, "utf8");
+          const scoringData = JSON.parse(raw);
+          const scoringTracks = scoringData.all_tracks || (Array.isArray(scoringData) ? scoringData : []);
+
+          const { buildMatchIndex, matchEngineTracksToScoring } = await import("./integrations/engine-analyze-matcher.mjs");
+          const index = buildMatchIndex(scoringTracks);
+          const matchResult = matchEngineTracksToScoring(allTracks, index);
+          matchedTracks = matchResult.tracks;
+          matchStats = matchResult.stats;
+        } catch (matchError) {
+          matchStats = { error: String(matchError.message || matchError) };
+        }
+      }
+
+      // 4. Performance-Klassifikation
+      let classifierSummary = null;
+      try {
+        classifierSummary = classifyTrackBatch(matchedTracks);
+      } catch (classError) {
+        classifierSummary = { error: String(classError.message || classError) };
+      }
+
+      return {
+        ok: true,
+        tracks: matchedTracks,
+        matchStats,
+        classifierSummary,
+        totalTracks: allTracks.length,
+        databaseFolder: enrichedResult.database_folder,
+      };
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
   // ── DJPlaylists.fm → Lexicon Batch-Automation ─────────────────────────────
   //
   // Entdeckte Endpoints (2026-03-27, via Browser-Interception):

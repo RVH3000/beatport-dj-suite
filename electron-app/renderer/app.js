@@ -7,6 +7,7 @@ let searchModule = null;
 let automationModule = null;
 let settingsModule = null;
 let labelsModule = null;
+let engineAnalyzeModule = null;
 const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
 
 // ─── Tab-Navigation ─────────────────────────────────────────────────────────
@@ -55,6 +56,8 @@ const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
       loadAutomationTab();
     } else if (targetId === "tab-labels") {
       loadLabelsTab();
+    } else if (targetId === "tab-engine-analyze") {
+      loadEngineAnalyzeTab();
     } else if (targetId === "tab-settings") {
       loadSettingsTab();
     }
@@ -2676,6 +2679,17 @@ async function loadLabelsTab() {
     await labelsModule.initLabelsTab();
   } catch (err) {
     console.error("[labels] Laden fehlgeschlagen:", err);
+  }
+}
+
+async function loadEngineAnalyzeTab() {
+  try {
+    if (!engineAnalyzeModule) {
+      engineAnalyzeModule = await import("./tabs/engine-analyze.js");
+    }
+    await engineAnalyzeModule.initEngineAnalyzeTab();
+  } catch (err) {
+    console.error("[engine-analyze] Laden fehlgeschlagen:", err);
   }
 }
 
