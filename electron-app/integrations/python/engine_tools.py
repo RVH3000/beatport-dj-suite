@@ -368,11 +368,16 @@ def list_playlists(database_folder: Path, limit: int) -> dict:
             "SELECT name FROM sqlite_master WHERE type='table'"
         ).fetchall()}
         if "Smartlist" in tables:
-            smartlists = [
-                dict(row) for row in connection.execute(
-                    "SELECT id, title FROM Smartlist ORDER BY title COLLATE NOCASE"
-                ).fetchall()
-            ]
+            sl_cols = _columns_of(connection, "Smartlist")
+            sl_id = "id" if "id" in sl_cols else "rowid"
+            try:
+                smartlists = [
+                    dict(row) for row in connection.execute(
+                        f"SELECT {sl_id} AS id, title FROM Smartlist ORDER BY title COLLATE NOCASE"
+                    ).fetchall()
+                ]
+            except sqlite3.Error:
+                smartlists = []
 
     return {
         "ok": True,
