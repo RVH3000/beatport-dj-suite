@@ -1428,7 +1428,7 @@ summary {
 .status-bar .status-actions button.primary-soft:hover{background:var(--primary);color:#0a0b12}
 .status-bar .callouts.inline{display:flex;gap:8px;flex-wrap:wrap;margin:0;flex:1 1 auto;min-width:0}
 .acc-hint{margin:0 0 12px;font-size:11px;color:var(--muted);font-style:italic}
-.cockpit-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+.cockpit-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;align-items:start}
 @media(max-width:1100px){.cockpit-grid{grid-template-columns:1fr}}
 .cockpit-h{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-secondary)}
 .cockpit-action .hero-btn{display:block;width:100%;padding:22px;font-size:18px;font-weight:800;letter-spacing:.02em;border-radius:12px;background:var(--primary);color:#0a0b12;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(78,205,196,.25);transition:all .15s}
@@ -1449,6 +1449,28 @@ summary {
 .cockpit-acc[open]>summary::before{transform:rotate(90deg)}
 .cockpit-acc>summary:hover{background:var(--panel-hover)}
 .cockpit-acc .acc-body{padding:6px 18px 18px}
+.active-run-summary .run-card.active{border-left:3px solid var(--primary);padding-left:12px;margin-bottom:8px}
+.cockpit-run .cockpit-acc{margin-top:8px}
+/* ─── Progress Bar (Scan/Import) ─── */
+.scan-progress{margin-top:14px}
+.scan-progress-bar{height:6px;background:var(--panel-strong);border-radius:3px;overflow:hidden}
+.scan-progress-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .3s ease}
+.scan-progress-text{font-size:11px;color:var(--muted);margin-top:4px}
+@keyframes scanPulse{0%,100%{opacity:.4}50%{opacity:1}}
+.inline-cta{background:none;border:1px solid var(--primary);color:var(--primary);padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-family:inherit;transition:all .15s}
+.inline-cta:hover{background:var(--primary);color:#0a0b12}
+/* ─── Workflow Modal ─── */
+.workflow-btn{position:absolute;top:16px;right:20px;background:var(--panel-strong);color:var(--text);border:1px solid var(--line);padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-family:inherit;transition:all .15s}
+.workflow-btn:hover{border-color:var(--primary);color:var(--primary)}
+.topbar{position:relative}
+.workflow-dialog{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-md);padding:0;max-width:720px;width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.workflow-dialog::backdrop{background:rgba(0,0,0,.6)}
+.workflow-dialog-content{padding:24px}
+.workflow-dialog-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.workflow-dialog-head h2{margin:0;font-size:16px;font-weight:700}
+.workflow-close{background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;padding:4px 8px}
+.workflow-close:hover{color:var(--text)}
+.workflow-diagram{font-size:13px;line-height:1.6;color:var(--text-secondary);overflow-x:auto;margin:0}
 .library-subnav{margin:12px 0 16px}
 /* ─── Search Multi-Select Chips (v3.5.2) ─── */
 .srch-fg-wide{grid-column:span 2}

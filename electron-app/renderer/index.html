@@ -18,7 +18,30 @@
         Scanner, Analyse, Playlist-Management, Automation &amp; Export
         &mdash; alles in einer App.
       </p>
+      <button id="workflowBtn" type="button" class="workflow-btn" title="Workflow-Diagramm anzeigen">Workflow</button>
     </header>
+
+    <dialog id="workflowDialog" class="workflow-dialog">
+      <div class="workflow-dialog-content">
+        <div class="workflow-dialog-head">
+          <h2>Daten-Workflow</h2>
+          <button id="workflowCloseBtn" type="button" class="workflow-close">&times;</button>
+        </div>
+<pre class="workflow-diagram">
+Beatport (CDP/XHR) ──▶ scoring-data.json (99k Tracks) ──▶ Suche / Filter / Analyse
+                                │
+        ┌───────────────────────┼─────────────────────┐
+        ▼                       ▼                     ▼
+  Engine DB (m.db)      Merge / Import          Labels DB (suite.db)
+  ├ Ratings             (396 Sterne,            (511 Labels)
+  ├ Play-Counts          2577 Plays)
+  └ History
+
+Pipeline: Beatport → DJPL.fm → Lexicon → Engine DJ → USB / Prime 4+
+                                  └──▶ Rekordbox / Traktor (via Export)
+</pre>
+      </div>
+    </dialog>
 
     <nav class="group-bar" role="tablist" aria-label="Workflow-Gruppen">
       <button class="group active" data-group="library"  aria-selected="true"  title="Datenquellen & Caches: Scanner, Arbeitsbestand, Ergebnisse, Engine-Import, Löschen">📚 Library</button>
@@ -98,6 +121,10 @@ Schritte:
             <div id="cacheStatus" class="detail-summary empty">
               Lokaler Arbeitsbestand wird geladen.
             </div>
+            <div id="scanProgress" class="scan-progress" style="display:none">
+              <div class="scan-progress-bar"><div id="scanProgressFill" class="scan-progress-fill" style="width:0%"></div></div>
+              <div id="scanProgressText" class="scan-progress-text"></div>
+            </div>
           </section>
 
           <!-- Run-Panel -->
@@ -133,17 +160,27 @@ Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</s
               </label>
             </div>
 
-            <div id="runOverview" class="run-overview"></div>
-            <div id="runMeta" class="detail-meta empty">Noch kein Run ausgewählt</div>
-
-            <div class="actions compact">
-              <button id="openArchiveDirBtn" type="button">📂 Archiv</button>
-              <button id="openExportDirBtn" type="button">📂 Export</button>
-              <button id="exportZipBtn" type="button">ZIP</button>
-              <button id="migrateLegacyBtn" type="button">Legacy migrieren</button>
-            </div>
-            <div id="outputFiles" class="file-list"></div>
-            <div id="migrationResult" class="table-wrap empty">Noch keine Migration ausgeführt</div>
+            <div id="activeRunSummary" class="active-run-summary"></div>
+            <details class="cockpit-acc">
+              <summary>Run-History</summary>
+              <div class="acc-body">
+                <div id="runOverview" class="run-overview"></div>
+              </div>
+            </details>
+            <details class="cockpit-acc">
+              <summary>Pfade & Details</summary>
+              <div class="acc-body">
+                <div id="runMeta" class="detail-meta empty">Noch kein Run ausgewählt</div>
+                <div class="actions compact">
+                  <button id="openArchiveDirBtn" type="button">📂 Archiv</button>
+                  <button id="openExportDirBtn" type="button">📂 Export</button>
+                  <button id="exportZipBtn" type="button">ZIP</button>
+                  <button id="migrateLegacyBtn" type="button">Legacy migrieren</button>
+                </div>
+                <div id="outputFiles" class="file-list"></div>
+                <div id="migrationResult" class="table-wrap empty">Noch keine Migration ausgeführt</div>
+              </div>
+            </details>
           </section>
 
         </div>
@@ -290,10 +327,10 @@ Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</s
         <section class="panel span-full">
           <h2>Ergebnis</h2>
           <h3>Duplikate</h3>
-          <div id="duplicateTableWrap" class="table-wrap empty">Noch kein Run</div>
+          <div id="duplicateTableWrap" class="table-wrap empty">Noch kein Run — <button type="button" class="inline-cta" onclick="document.getElementById('discoverBtn')?.click()">Delta-Sync starten</button></div>
 
           <h3>Tiefenanalyse je Playlist</h3>
-          <div id="analysisTableWrap" class="table-wrap empty">Noch keine Analyse</div>
+          <div id="analysisTableWrap" class="table-wrap empty">Noch keine Analyse — <button type="button" class="inline-cta" onclick="document.getElementById('analyzeBtn')?.click()">Auswahl analysieren</button></div>
 
           <h3>Playlist-Inhalt</h3>
           <div id="playlistDetailSummary" class="detail-summary empty">

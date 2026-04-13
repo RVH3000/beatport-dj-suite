@@ -925,6 +925,14 @@ function renderRunOverview() {
     },
   ];
 
+  // Aktiver Run separat oben anzeigen
+  const activeCard = cards.pop(); // letztes Element = "Aktiver Run"
+  const activeEl = document.getElementById("activeRunSummary");
+  if (activeEl) {
+    activeEl.innerHTML = `<article class="run-card active"><h3>${activeCard.label}</h3><p>${activeCard.value}</p></article>`;
+  }
+
+  // History-Karten ins Accordion
   els.runOverview.innerHTML = cards
     .map(
       (entry) =>
@@ -1850,6 +1858,7 @@ function setActivity(kind, runId = "") {
   state.pauseRequested = false;
   startRunPolling();
   updateActionButtons();
+  showScanProgress(kind);
 }
 
 function clearActivity() {
@@ -1857,6 +1866,28 @@ function clearActivity() {
   state.pauseRequested = false;
   stopRunPolling();
   updateActionButtons();
+  hideScanProgress();
+}
+
+function showScanProgress(kind) {
+  const wrap = document.getElementById("scanProgress");
+  const fill = document.getElementById("scanProgressFill");
+  const text = document.getElementById("scanProgressText");
+  if (!wrap) return;
+  const labels = { "delta-sync": "Delta-Sync", quickscan: "Komplettlauf", "cache-rebuild": "Cache-Rebuild" };
+  wrap.style.display = "";
+  fill.style.width = "100%";
+  fill.style.animation = "scanPulse 1.5s ease-in-out infinite";
+  text.textContent = `${labels[kind] || kind} läuft ...`;
+}
+
+function hideScanProgress() {
+  const wrap = document.getElementById("scanProgress");
+  const fill = document.getElementById("scanProgressFill");
+  if (!wrap) return;
+  fill.style.animation = "";
+  fill.style.width = "100%";
+  setTimeout(() => { wrap.style.display = "none"; }, 600);
 }
 
 function currentSelectionPayload() {
@@ -2467,6 +2498,11 @@ async function bootstrap() {
       await window.scannerApi.openRunFolder(run.files.exportDir);
     }
   });
+  // Workflow-Dialog
+  const wfDialog = document.getElementById("workflowDialog");
+  document.getElementById("workflowBtn")?.addEventListener("click", () => wfDialog?.showModal());
+  document.getElementById("workflowCloseBtn")?.addEventListener("click", () => wfDialog?.close());
+  wfDialog?.addEventListener("click", (e) => { if (e.target === wfDialog) wfDialog.close(); });
   els.runSelect.addEventListener("change", async () => {
     state.selectedRunId = els.runSelect.value;
     if (state.selectedPlaylistRef?.runId !== "cache") {
