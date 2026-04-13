@@ -35,14 +35,14 @@ jobs:
         run: npm ci
 
       - name: Tests ausführen
-        run: npm test
+        run: npm test 2>&1 | tee test-output.txt
 
       - name: Test-Zusammenfassung
         if: always()
         run: |
           echo "## Test-Ergebnisse (Node ${{ matrix.node-version }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npm test 2>&1 | grep -E "^ℹ " >> $GITHUB_STEP_SUMMARY || true
+          grep -E "^ℹ " test-output.txt >> $GITHUB_STEP_SUMMARY || true
 
   build:
     name: macOS App-Bundle bauen
