@@ -35,17 +35,21 @@ export const REQUEST_DELAY_MS = 200;
 export const MAX_RETRIES = 3;
 export const RETRY_DELAY_MS = 2000;
 
+// ─── EPIPE-Schutz: stderr/stdout können in Electron geschlossen sein ──────────
+process.stderr?.on?.("error", () => {});
+process.stdout?.on?.("error", () => {});
+
 // ─── Hilfsfunktionen ───────────────────────────────────────────────────────────
 
 export function log(msg) {
-  process.stderr.write(`[xhr-tool] ${msg}\n`);
+  try { process.stderr.write(`[xhr-tool] ${msg}\n`); } catch {}
 }
 
 export function logProgress(current, total, label = "") {
   const pct = total > 0 ? ((current / total) * 100).toFixed(1) : "?";
-  process.stderr.write(
-    `\r[xhr-tool] ${label} ${current}/${total} (${pct}%)   `
-  );
+  try {
+    process.stderr.write(`\r[xhr-tool] ${label} ${current}/${total} (${pct}%)   `);
+  } catch {}
 }
 
 function sleep(ms) {

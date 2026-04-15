@@ -2693,6 +2693,46 @@ async function loadEngineAnalyzeTab() {
   }
 }
 
+// ─── Playlist Builder Drawer ─────────────────────────────────────────────────
+
+let builderModule = null;
+
+function toggleBuilderDrawer() {
+  const drawer = document.getElementById("builder-drawer");
+  if (!drawer) return;
+  const isOpen = drawer.classList.contains("open");
+  if (isOpen) {
+    drawer.classList.remove("open");
+    document.body.classList.remove("builder-open");
+  } else {
+    openBuilderDrawer();
+  }
+}
+
+async function openBuilderDrawer() {
+  const drawer = document.getElementById("builder-drawer");
+  if (!drawer) return;
+  if (!builderModule) {
+    builderModule = await import("./components/playlist-builder.js");
+    const content = document.getElementById("builderDrawerContent");
+    if (content) builderModule.renderBuilder(content);
+  }
+  drawer.classList.add("open");
+  document.body.classList.add("builder-open");
+}
+
+document.getElementById("builderToggle")?.addEventListener("click", toggleBuilderDrawer);
+document.getElementById("builderDrawerClose")?.addEventListener("click", toggleBuilderDrawer);
+
+window.addEventListener("builder:add-tracks", async (e) => {
+  const { tracks } = e.detail || {};
+  if (!Array.isArray(tracks) || tracks.length === 0) return;
+  await openBuilderDrawer();
+  if (builderModule) {
+    const added = builderModule.addTracksToPool(tracks);
+  }
+});
+
 // ─── Cross-Tab Events ────────────────────────────────────────────────────────
 
 window.addEventListener("engine-analyze:load-in-search", async (e) => {

@@ -1,0 +1,51 @@
+{
+  "name": "browser-devtools-automation",
+  "version": "0.1.0",
+  "description": "Beobachtet externe Browser-Automationen ueber DevTools/CDP und erkennt Requests, UI-Schritte sowie bekannte Playlist-Titel.",
+  "author": {
+    "name": "Robert H.",
+    "email": "[TODO: author@example.com]",
+    "url": "[TODO: https://github.com/author]"
+  },
+  "homepage": "[TODO: https://docs.example.com/plugin]",
+  "repository": "[TODO: https://github.com/author/plugin]",
+  "license": "[TODO: MIT]",
+  "keywords": [
+    "browser-automation",
+    "devtools",
+    "djplaylists",
+    "beatport",
+    "playlist-memory"
+  ],
+  "skills": "./skills/",
+  "hooks": "[TODO: ./hooks.json]",
+  "mcpServers": "./.mcp.json",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Browser DevTools Automation",
+    "shortDescription": "Beobachtet DJPlaylists- und Beatport-Flows ueber CDP und merkt bekannte Playlists.",
+    "longDescription": "Dieses Plugin haengt sich an eine extern laufende Browser-Automation, protokolliert Requests, UI-Ereignisse und Stack-Hinweise und aktualisiert bekannte Playlist-Titel ausserhalb des Repos.",
+    "developerName": "Robert H.",
+    "category": "Productivity",
+    "capabilities": [
+      "Observe",
+      "Write"
+    ],
+    "websiteURL": "[TODO: https://openai.com/]",
+    "privacyPolicyURL": "[TODO: https://openai.com/policies/row-privacy-policy/]",
+    "termsOfServiceURL": "[TODO: https://openai.com/policies/row-terms-of-use/]",
+    "defaultPrompt": [
+      "Beobachte meinen DJPlaylists-Import und zeige die Requests.",
+      "Merke bekannte Playlist-Titel aus My Playlists.",
+      "Finde die Funktionen hinter dem Beatport-Import."
+    ],
+    "brandColor": "#D12F8F",
+    "composerIcon": "[TODO: ./assets/icon.png]",
+    "logo": "[TODO: ./assets/logo.png]",
+    "screenshots": [
+      "[TODO: ./assets/screenshot1.png]",
+      "[TODO: ./assets/screenshot2.png]",
+      "[TODO: ./assets/screenshot3.png]"
+    ]
+  }
+}

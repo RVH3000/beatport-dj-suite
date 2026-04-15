@@ -7,6 +7,10 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// EPIPE-Schutz: verhindert Uncaught Exception wenn stderr/stdout Pipe bricht
+process.stderr?.on?.("error", () => {});
+process.stdout?.on?.("error", () => {});
+
 // ─── Hot-Reload im Dev-Modus ─────────────────────────────────────────────────
 if (!app.isPackaged) {
   try {
@@ -1564,6 +1568,25 @@ app.whenReady().then(() => {
         totalTracks: allTracks.length,
         databaseFolder: String(options.databaseFolder || ""),
       };
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
+  ipcMain.handle("engine-analyze:track-stats", async (_event, options = {}) => {
+    try {
+      const result = await runPythonJson(
+        "electron-app/integrations/python/engine_tools.py",
+        [
+          "--database-folder",
+          String(options.databaseFolder || ""),
+          "track-stats",
+          "--limit",
+          String(options.limit || 500),
+        ],
+        { pythonCommand: options.pythonCommand }
+      );
+      return result;
     } catch (error) {
       throw new Error(toErrorMessage(error));
     }

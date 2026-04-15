@@ -1,0 +1,20 @@
+{
+  "name": "beatport-dj-suite-local",
+  "interface": {
+    "displayName": "Beatport DJ Suite Plugins"
+  },
+  "plugins": [
+    {
+      "name": "browser-devtools-automation",
+      "source": {
+        "source": "local",
+        "path": "./plugins/browser-devtools-automation"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

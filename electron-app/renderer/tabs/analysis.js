@@ -198,12 +198,11 @@ function renderAnalysis() {
   const withKey = trackData.filter((t) => toCamelot(t.key)).length;
 
   container.innerHTML = `
-    <section class="panel span-full">
-      <div class="callout info" style="margin-bottom:14px">
-        <strong>Datenquelle:</strong> Analyse basiert auf dem ausgewählten Scanner-Run (Tiefenanalyse).
-        Zeigt BPM-Verteilung, Tonarten-Kompatibilität (Camelot-Wheel), Genre-Breakdown und Playlist-Überschneidungen.
-        <br><strong>Tipp:</strong> Das Dashboard im Suche-Tab zeigt ähnliche Charts direkt aus der scoring-data.json — ohne Scanner-Run.
-      </div>
+    <section class="panel span-full" style="padding:10px 14px">
+      <p class="detail-summary" style="margin:0 0 8px;font-size:11px;color:var(--muted)">
+        <strong>Datenquelle:</strong> Scanner-Run (Tiefenanalyse) &mdash;
+        <strong>Tipp:</strong> Suche-Tab zeigt \u00e4hnliche Charts direkt aus scoring-data.json
+      </p>
       <div class="analysis-stats">
         <div class="stat-card">
           <span class="stat-label">Track-Einträge</span>
@@ -228,22 +227,24 @@ function renderAnalysis() {
       </div>
     </section>
 
-    <section class="panel">
-      <h2>BPM-Verteilung</h2>
-      <p class="detail-summary" style="margin-bottom:8px">Histogramm aller Track-BPM-Werte. Peaks zeigen die häufigsten Tempi in deiner Library.</p>
-      <canvas id="chart-bpm" width="600" height="320"></canvas>
-    </section>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;grid-column:1/-1">
+      <section class="panel" style="margin:0">
+        <h2 style="font-size:14px;margin:0 0 4px">BPM-Verteilung</h2>
+        <p class="detail-summary" style="margin:0 0 6px;font-size:11px">Peaks = h\u00e4ufigste Tempi</p>
+        <canvas id="chart-bpm" width="600" height="220"></canvas>
+      </section>
 
-    <section class="panel">
-      <h2>Camelot Key-Wheel</h2>
-      <p class="detail-summary" style="margin-bottom:8px">24 Segmente (1A-12B). Je größer ein Segment, desto mehr Tracks in dieser Tonart. Benachbarte Segmente = harmonisch kompatibel.</p>
-      <canvas id="chart-key" width="480" height="480"></canvas>
-    </section>
+      <section class="panel" style="margin:0">
+        <h2 style="font-size:14px;margin:0 0 4px">Camelot Key-Wheel</h2>
+        <p class="detail-summary" style="margin:0 0 6px;font-size:11px">24 Segmente \u2014 Nachbarn = harmonisch kompatibel</p>
+        <canvas id="chart-key" width="300" height="300"></canvas>
+      </section>
+    </div>
 
-    <section class="panel span-full">
-      <h2>Genre-Breakdown</h2>
-      <p class="detail-summary" style="margin-bottom:8px">Top-Genres nach Track-Anzahl. Klicke auf einen Balken um in die Suche mit diesem Genre zu springen.</p>
-      <canvas id="chart-genre" width="900" height="360"></canvas>
+    <section class="panel span-full" style="margin-top:0">
+      <h2 style="font-size:14px;margin:0 0 4px">Genre-Breakdown</h2>
+      <p class="detail-summary" style="margin:0 0 6px;font-size:11px">Top-Genres nach Track-Anzahl. Klicke auf einen Balken f\u00fcr Genre-Suche.</p>
+      <canvas id="chart-genre" width="900" height="280"></canvas>
     </section>
 
     <section class="panel span-full">

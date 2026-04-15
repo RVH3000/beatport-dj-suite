@@ -805,8 +805,139 @@ summary {
 
 #analysis-content canvas {
   width: 100%;
-  height: auto;
   display: block;
+}
+
+#analysis-content #chart-bpm {
+  height: 200px;
+}
+
+#analysis-content #chart-key {
+  height: 260px;
+  width: 260px;
+  margin: 0 auto;
+}
+
+#analysis-content #chart-genre {
+  height: 220px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLAYLIST BUILDER DRAWER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.builder-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 420px;
+  background: var(--panel-strong, #1a1d23);
+  border-left: 2px solid var(--line-strong, #333);
+  z-index: 100;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.builder-drawer.open {
+  transform: translateX(0);
+}
+
+body.builder-open .tab-panel.active {
+  margin-right: 420px;
+}
+
+.builder-drawer-head {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-strong, #333);
+  position: sticky;
+  top: 0;
+  background: inherit;
+  z-index: 1;
+}
+
+.builder-drawer-head h3 {
+  margin: 0;
+  font-size: 14px;
+  flex: 1;
+}
+
+.builder-drawer-close {
+  background: none;
+  border: none;
+  color: var(--text, #ccc);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+#builderDrawerContent {
+  flex: 1;
+  padding: 10px 12px;
+  overflow-y: auto;
+}
+
+.builder-toggle {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 11px;
+  background: var(--bg-card, #1e2128);
+  border: 1px solid var(--line-strong, #333);
+  border-radius: 4px;
+  color: var(--text, #ccc);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.builder-toggle .badge {
+  background: var(--primary, #0e6b5f);
+  color: #fff;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Builder Panels (Pool + Playlist nebeneinander) */
+.pb-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  height: calc(100vh - 120px);
+}
+
+.pb-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card, #1e2128);
+  border: 1px solid var(--line, #2a2d35);
+  border-radius: 6px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.pb-pool-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--line, #2a2d35);
+}
+
+.pb-pool-item:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.04));
+}
+
+@media (max-width: 1400px) {
+  .builder-drawer { width: 360px; }
+  body.builder-open .tab-panel.active { margin-right: 360px; }
+  .pb-wrap { grid-template-columns: 1fr; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

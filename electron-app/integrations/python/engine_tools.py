@@ -1630,6 +1630,186 @@ def dump_history_tracks_enriched(
     }
 
 
+def aggregate_track_stats(database_folder: Path, limit: int = 500) -> dict:
+    """Aggregiert Track-Statistiken über alle History-Sessions.
+
+    Pro Track:
+      - unique_sessions: Anzahl verschiedener Sessions in denen der Track vorkam
+      - total_plays: Gesamtanzahl Abspielungen (inkl. Duplikate innerhalb Session)
+      - sessions: [{session_id, title, startTime, position, is_duplicate}]
+      - first_played / last_played: Zeitstempel
+      - is_streaming: ob Beatport-Streaming-Track (hat URI)
+
+    Sortiert nach total_plays DESC (meistgespielte zuerst).
+    """
+    main_db = database_folder / DATABASE_FILES["main"]
+    history_db = database_folder / DATABASE_FILES["history"]
+    if not history_db.exists():
+        return {"ok": False, "error": f"hm.db nicht gefunden: {history_db}"}
+
+    # 1. Alle Sessions laden
+    sessions_by_id: dict[int, dict] = {}
+    with connect_readonly(history_db) as hconn:
+        for row in hconn.execute(
+            """SELECT id, title, startTime
+               FROM Historylist
+               WHERE isDeleted = 0
+               ORDER BY startTime ASC"""
+        ).fetchall():
+            sessions_by_id[row["id"]] = {
+                "session_id": row["id"],
+                "title": row["title"],
+                "startTime": row["startTime"],
+            }
+
+    if not sessions_by_id:
+        return {"ok": True, "tracks": [], "total_sessions": 0,
+                "total_unique_tracks": 0, "total_plays": 0}
+
+    # 2. Alle History-Entries laden (chronologisch pro Session)
+    all_entries: list[dict] = []
+    with connect_readonly(history_db) as hconn:
+        for row in hconn.execute(
+            """SELECT he.id, he.listId AS session_id, he.trackId, he.startTime
+               FROM HistorylistEntity he
+               WHERE he.trackId IS NOT NULL
+               ORDER BY he.listId, he.startTime ASC"""
+        ).fetchall():
+            all_entries.append(dict(row))
+
+    # 3. Pro Track aggregieren
+    # track_id -> { plays: [], sessions_seen: set }
+    track_agg: dict[int, dict] = {}
+    for entry in all_entries:
+        tid = entry["trackId"]
+        sid = entry["session_id"]
+        if tid not in track_agg:
+            track_agg[tid] = {"plays": [], "sessions_seen": set()}
+        track_agg[tid]["plays"].append(entry)
+        track_agg[tid]["sessions_seen"].add(sid)
+
+    # 4. Track-Metadaten aus m.db laden
+    track_meta: dict[int, dict] = {}
+    track_ids = list(track_agg.keys())
+    if main_db.exists() and track_ids:
+        with connect_readonly(main_db) as conn:
+            track_cols = _columns_of(conn, "Track")
+
+            def col_or_null(name: str, alias: str | None = None) -> str:
+                alias = alias or name
+                return f"t.{name} AS {alias}" if name in track_cols else f"NULL AS {alias}"
+
+            select_parts = [
+                "t.id AS engine_track_id",
+                col_or_null("title"),
+                col_or_null("artist", "artists"),
+                col_or_null("genre"),
+                col_or_null("bpm"),
+                col_or_null("key"),
+                col_or_null("rating", "rating_raw"),
+                col_or_null("uri"),
+                col_or_null("label"),
+            ]
+            # Batch-weise laden (SQLite Variablen-Limit)
+            batch_size = 900
+            for i in range(0, len(track_ids), batch_size):
+                batch = track_ids[i : i + batch_size]
+                ph = ", ".join("?" for _ in batch)
+                sql = "SELECT " + ",\n".join(select_parts) + f" FROM Track t WHERE t.id IN ({ph})"
+                for row in conn.execute(sql, batch).fetchall():
+                    d = dict(row)
+                    tid = d["engine_track_id"]
+                    d["beatport_id"] = _extract_beatport_id(d.pop("uri", None))
+                    d["is_streaming"] = d["beatport_id"] is not None
+
+                    rating_raw = d.pop("rating_raw", None)
+                    if rating_raw and rating_raw != 0:
+                        try:
+                            d["rating"] = max(0, min(5, int(round(float(rating_raw) / 20))))
+                        except (TypeError, ValueError):
+                            d["rating"] = None
+                    else:
+                        d["rating"] = None
+
+                    track_meta[tid] = d
+
+    # Fallback: Metadaten aus hm.db Track-Tabelle
+    missing_ids = [tid for tid in track_ids if tid not in track_meta]
+    if missing_ids:
+        try:
+            with connect_readonly(history_db) as hconn:
+                for tid in missing_ids:
+                    hrow = hconn.execute(
+                        "SELECT title, artist, bpm, key, filename FROM Track WHERE id = ?",
+                        (tid,),
+                    ).fetchone()
+                    if hrow:
+                        hd = dict(hrow)
+                        track_meta[tid] = {
+                            "engine_track_id": tid,
+                            "title": hd.get("title"),
+                            "artists": hd.get("artist"),
+                            "genre": None, "bpm": hd.get("bpm"),
+                            "key": hd.get("key"),
+                            "label": None, "rating": None,
+                            "beatport_id": None, "is_streaming": False,
+                        }
+        except sqlite3.Error:
+            pass
+
+    # 5. Ergebnis zusammenbauen
+    result_tracks: list[dict] = []
+    for tid, agg in track_agg.items():
+        plays = agg["plays"]
+        sessions_seen = agg["sessions_seen"]
+        meta = track_meta.get(tid, {"engine_track_id": tid, "title": None, "artists": None})
+
+        # Duplikate innerhalb Sessions zählen
+        seen_in_session: dict[int, int] = {}  # session_id -> play count
+        for play in plays:
+            sid = play["session_id"]
+            seen_in_session[sid] = seen_in_session.get(sid, 0) + 1
+
+        play_times = [p["startTime"] for p in plays if p["startTime"]]
+        duplicates_in_sessions = sum(max(0, cnt - 1) for cnt in seen_in_session.values())
+
+        track_entry = {
+            **meta,
+            "unique_sessions": len(sessions_seen),
+            "total_plays": len(plays),
+            "duplicates_in_sessions": duplicates_in_sessions,
+            "first_played": min(play_times) if play_times else None,
+            "last_played": max(play_times) if play_times else None,
+        }
+        result_tracks.append(track_entry)
+
+    # Sortieren: meistgespielte zuerst
+    result_tracks.sort(key=lambda t: (-t["total_plays"], -t["unique_sessions"]))
+
+    total_plays = sum(t["total_plays"] for t in result_tracks)
+    total_dupes = sum(t["duplicates_in_sessions"] for t in result_tracks)
+    streaming_count = sum(1 for t in result_tracks if t.get("is_streaming"))
+    total_unique = len(result_tracks)
+
+    # Limit anwenden (Aggregat-Zahlen bleiben vollständig)
+    truncated = len(result_tracks) > limit
+    result_tracks = result_tracks[:limit]
+
+    return {
+        "ok": True,
+        "database_folder": str(database_folder),
+        "total_sessions": len(sessions_by_id),
+        "total_unique_tracks": total_unique,
+        "total_plays": total_plays,
+        "total_duplicates": total_dupes,
+        "streaming_tracks": streaming_count,
+        "local_tracks": total_unique - streaming_count,
+        "tracks": result_tracks,
+        "truncated": truncated,
+        "limit": limit,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Engine DJ / Denon History Helpers")
     parser.add_argument("--database-folder", default="", help="Pfad zu Engine Library oder Database2")
@@ -1694,6 +1874,9 @@ def build_parser() -> argparse.ArgumentParser:
     hist_enriched.add_argument("--session-ids", required=True, help="Kommaseparierte Session-IDs")
     hist_enriched.add_argument("--limit", type=int, default=5000)
 
+    ts = sub.add_parser("track-stats", help="Aggregierte Track-Statistiken über alle History-Sessions")
+    ts.add_argument("--limit", type=int, default=500, help="Max. Tracks im Ergebnis (default 500)")
+
     return parser
 
 
@@ -1756,6 +1939,9 @@ def main() -> int:
             emit({"ok": False, "error": f"Ungültige Session-IDs: {e}"})
             return 1
         emit(dump_history_tracks_enriched(database_folder, ids, args.limit))
+        return 0
+    if args.command == "track-stats":
+        emit(aggregate_track_stats(database_folder, args.limit))
         return 0
     if args.command == "create-playlist":
         track_titles = []

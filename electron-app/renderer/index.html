@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Beatport Database Specialist</p>
-        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v3.8.0</span></h1>
+        <h1>Beatport DJ Suite <span class="version-badge" title="Aktuelle Version">v4.0.0</span></h1>
       </div>
       <p class="subtitle">
         Scanner, Analyse, Playlist-Management, Automation &amp; Export
@@ -62,6 +62,7 @@ Pipeline: Beatport → DJPL.fm → Lexicon → Engine DJ → USB / Prime 4+
       <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-export"     data-tab="export">Export</button>
       <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-automation" data-tab="automation">Automation</button>
       <button class="tab"        role="tab" data-group="settings" aria-selected="false" aria-controls="tab-settings"   data-tab="settings">Einstellungen</button>
+      <button id="builderToggle" class="builder-toggle" type="button" title="Playlist Builder ein-/ausblenden">Builder <span id="builderToggleBadge" class="badge">0</span></button>
     </nav>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -614,6 +615,18 @@ Sicherheit:
         </section>
       </div>
     </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- GLOBAL: Playlist Builder Drawer                                    -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <aside id="builder-drawer" class="builder-drawer">
+      <div class="builder-drawer-head">
+        <h3>Playlist Builder</h3>
+        <span id="builderPoolBadge" class="badge" style="margin-left:6px">0</span>
+        <button id="builderDrawerClose" type="button" class="builder-drawer-close">&times;</button>
+      </div>
+      <div id="builderDrawerContent"></div>
+    </aside>
 
     <script type="module" src="./app.js"></script>
   </body>

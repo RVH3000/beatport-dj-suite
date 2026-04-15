@@ -15,10 +15,14 @@ const state = {
   historySessions: [],
   selectedPlaylistIds: new Set(),
   selectedSessionIds: new Set(),
-  sourceMode: "playlists", // "playlists" | "history"
+  sourceMode: "playlists", // "playlists" | "history" | "stats"
   historySort: "desc",     // "asc" (alt→neu) | "desc" (neu→alt)
   analysisResults: [],     // Verlauf: [{source, sourceMode, result, timestamp}]
   analysisResult: null,    // aktive Anzeige
+  trackStats: null,        // Ergebnis von aggregate_track_stats()
+  statsSortKey: "total_plays",
+  statsSortAsc: false,
+  statsFilter: "all",      // "all" | "streaming" | "local" | "duplicates"
   sortKey: "title",
   sortAsc: true,
   loading: false,
@@ -169,6 +173,153 @@ function renderTrackCell(t, colKey) {
   }
 }
 
+// ─── Stats Columns & Rendering ──────────────────────────────────────────────
+
+function getStatsColumns() {
+  return [
+    { key: "title",                label: "Title" },
+    { key: "artists",              label: "Artist" },
+    { key: "total_plays",          label: "Plays",     numeric: true },
+    { key: "unique_sessions",      label: "Sessions",  numeric: true },
+    { key: "duplicates_in_sessions", label: "Dupes",   numeric: true },
+    { key: "bpm",                  label: "BPM",       numeric: true },
+    { key: "camelot",              label: "Camelot" },
+    { key: "genre",                label: "Genre" },
+    { key: "rating",               label: "Rating",    numeric: true },
+    { key: "last_played",          label: "Zuletzt" },
+  ];
+}
+
+function getFilteredStatsTracks() {
+  const tracks = state.trackStats?.tracks || [];
+  if (state.statsFilter === "streaming") return tracks.filter(t => t.is_streaming);
+  if (state.statsFilter === "local") return tracks.filter(t => !t.is_streaming);
+  if (state.statsFilter === "duplicates") return tracks.filter(t => t.duplicates_in_sessions > 0);
+  return tracks;
+}
+
+function getSortedStatsTracks() {
+  const tracks = getFilteredStatsTracks();
+  if (!tracks.length) return tracks;
+  const cols = getStatsColumns();
+  const col = cols.find(c => c.key === state.statsSortKey);
+  const sorted = [...tracks].sort((a, b) => {
+    let va = a[state.statsSortKey] ?? "";
+    let vb = b[state.statsSortKey] ?? "";
+    if (state.statsSortKey === "camelot") return camelotSortVal(toCamelot(va)) - camelotSortVal(toCamelot(vb));
+    if (col?.numeric) return (Number(va) || 0) - (Number(vb) || 0);
+    return String(va).localeCompare(String(vb), "de", { sensitivity: "base" });
+  });
+  return state.statsSortAsc ? sorted : sorted.reverse();
+}
+
+function statsSortArrow(key) {
+  if (state.statsSortKey !== key) return "";
+  return state.statsSortAsc ? " \u25B2" : " \u25BC";
+}
+
+function renderStatsCell(t, colKey) {
+  switch (colKey) {
+    case "title": {
+      const icon = t.is_streaming ? '<span title="Beatport Streaming">\uD83C\uDF10</span> ' : "";
+      return icon + esc(t.title || "");
+    }
+    case "artists": return esc(t.artists || "");
+    case "total_plays": return `<strong>${t.total_plays || 0}</strong>`;
+    case "unique_sessions": return t.unique_sessions || 0;
+    case "duplicates_in_sessions": return t.duplicates_in_sessions > 0
+      ? `<span style="color:#e5534b">${t.duplicates_in_sessions}</span>` : "\u2014";
+    case "bpm": return t.bpm ?? "";
+    case "camelot": return `<span style="color:#b197fc;font-weight:700">${esc(toCamelot(t.key) || "")}</span>`;
+    case "genre": return esc(t.genre || "");
+    case "rating": return t.rating ? "\u2605".repeat(t.rating) : "";
+    case "last_played": return esc(formatTimestamp(t.last_played));
+    default: return esc(t[colKey] ?? "");
+  }
+}
+
+function renderStatsView() {
+  const s = state.trackStats;
+  if (!s) return "";
+  const cols = getStatsColumns();
+  const filtered = getFilteredStatsTracks();
+  const sorted = getSortedStatsTracks();
+
+  return `
+    <section class="panel">
+      <div class="section-head">
+        <h2>Track-Statistik</h2>
+        <div class="actions compact">
+          <button id="eaStatsToBuilderBtn" class="primary" type="button"
+                  title="Gefilterte Tracks zum Playlist Builder hinzuf\u00fcgen">Zum Builder</button>
+          <button id="eaSaveAsPlaylistBtn" type="button"
+                  title="Gefilterte Tracks als neue Engine-DJ-Playlist speichern">Als Playlist speichern</button>
+          <button id="eaStatsExportBtn" type="button">CSV Export</button>
+        </div>
+      </div>
+
+      <div class="automation-stats">
+        <div class="stat-card">
+          <span class="stat-label">Sessions</span>
+          <strong class="stat-value">${s.total_sessions}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Unique Tracks</span>
+          <strong class="stat-value">${s.total_unique_tracks}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Plays</span>
+          <strong class="stat-value">${s.total_plays}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Duplikate</span>
+          <strong class="stat-value" ${s.total_duplicates > 0 ? 'style="color:#e5534b"' : ""}>${s.total_duplicates}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Streaming</span>
+          <strong class="stat-value">${s.streaming_tracks}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Lokal</span>
+          <strong class="stat-value">${s.local_tracks}</strong>
+        </div>
+      </div>
+
+      <div class="actions compact" style="margin:10px 0">
+        <button class="ea-stats-filter ${state.statsFilter === "all" ? "primary" : ""}" data-filter="all" type="button">
+          Alle (${s.total_unique_tracks})
+        </button>
+        <button class="ea-stats-filter ${state.statsFilter === "streaming" ? "primary" : ""}" data-filter="streaming" type="button">
+          Streaming (${s.streaming_tracks})
+        </button>
+        <button class="ea-stats-filter ${state.statsFilter === "local" ? "primary" : ""}" data-filter="local" type="button">
+          Lokal (${s.local_tracks})
+        </button>
+        <button class="ea-stats-filter ${state.statsFilter === "duplicates" ? "primary" : ""}" data-filter="duplicates" type="button">
+          Mit Duplikaten (${s.total_duplicates > 0 ? s.tracks.filter(t => t.duplicates_in_sessions > 0).length : 0})
+        </button>
+      </div>
+
+      <div class="table-wrap" style="max-height:500px">
+        <table class="data-table">
+          <thead>
+            <tr>${cols.map(c =>
+              `<th class="ea-stats-sortable" data-sort="${c.key}" style="cursor:pointer;user-select:none">${c.label}${statsSortArrow(c.key)}</th>`
+            ).join("")}</tr>
+          </thead>
+          <tbody>
+            ${sorted.slice(0, 300).map(t => `
+              <tr>
+                ${cols.map(c => `<td${c.key === "title" || c.key === "artists" ? ' class="wrap-cell"' : ""}>${renderStatsCell(t, c.key)}</td>`).join("")}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${filtered.length > 300 ? `<p style="color:var(--muted);font-size:12px;margin-top:4px">Zeige 300 von ${filtered.length} Tracks</p>` : ""}
+    </section>`;
+}
+
 // ─── Render ─────────────────────────────────────────────────────────────────
 
 function renderEngineAnalyzeTab() {
@@ -247,10 +398,19 @@ function renderEngineAnalyzeTab() {
           <button id="eaModeHistoryBtn" type="button" class="${state.sourceMode === "history" ? "primary" : ""}">
             History (${state.historySessions.length})
           </button>
+          <button id="eaModeStatsBtn" type="button" class="${state.sourceMode === "stats" ? "primary" : ""}"
+                  title="Aggregierte Track-Statistiken \u00fcber alle History-Sessions">
+            \uD83D\uDCCA Stats
+          </button>
         </div>
       </div>
 
-      ${state.sourceMode === "playlists" ? `
+      ${state.sourceMode === "stats" ? `
+        <!-- Stats-Modus: kein Picker n\u00f6tig, l\u00e4dt alle Sessions -->
+        <p class="detail-summary" style="margin:0 0 10px">
+          L\u00e4dt <strong>alle</strong> History-Sessions und aggregiert Plays, Duplikate und Session-Vorkommen pro Track.
+        </p>
+      ` : state.sourceMode === "playlists" ? `
         <!-- Playlist-Picker -->
         <div class="actions compact" style="margin-bottom:8px">
           <button id="eaSelectAllBtn" type="button">Alle</button>
@@ -322,16 +482,24 @@ function renderEngineAnalyzeTab() {
     <!-- Analyse starten -->
     <section class="panel">
       <div class="section-head">
-        <h2>3 \u2014 Analysieren</h2>
+        <h2>3 \u2014 ${state.sourceMode === "stats" ? "Track-Statistik" : "Analysieren"}</h2>
         <div class="actions compact">
+          ${state.sourceMode === "stats" ? `
+          <button id="eaStatsBtn" class="primary" type="button">
+            \uD83D\uDCCA Track-Stats laden
+          </button>
+          ` : `
           <button id="eaAnalyzeBtn" class="primary" type="button"
                   ${totalSelected === 0 ? "disabled" : ""}>
             ${totalSelected} ${state.sourceMode === "playlists" ? "Playlisten" : "Sessions"} analysieren
           </button>
+          `}
         </div>
       </div>
       <p class="detail-summary" style="margin:0">
-        Tracks werden extrahiert, gegen scoring-data.json gematcht und durch den Performance-Classifier geschickt.
+        ${state.sourceMode === "stats"
+          ? "Aggregiert Plays, Duplikate und Session-Vorkommen \u00fcber alle History-Sessions."
+          : "Tracks werden extrahiert, gegen scoring-data.json gematcht und durch den Performance-Classifier geschickt."}
       </p>
     </section>
     ` : ""}
@@ -342,6 +510,7 @@ function renderEngineAnalyzeTab() {
       <div class="section-head">
         <h2>4 \u2014 Ergebnisse</h2>
         <div class="actions compact">
+          <button id="eaToBuilderBtn" class="primary" type="button" title="Alle Tracks zum Playlist Builder hinzuf\u00fcgen">Zum Builder</button>
           <button id="eaLoadInSearchBtn" type="button">In Suche laden</button>
           <button id="eaExportCsvBtn" type="button">CSV Export</button>
         </div>
@@ -408,6 +577,8 @@ function renderEngineAnalyzeTab() {
     </section>
     ` : ""}
 
+    ${state.trackStats ? renderStatsView() : ""}
+
     ${state.loading ? '<div class="callout info">Analyse l\u00e4uft\u2026</div>' : ""}
   `;
 
@@ -444,10 +615,16 @@ function bindEvents() {
     state.sourceMode = "history";
     renderEngineAnalyzeTab();
   });
+  document.getElementById("eaModeStatsBtn")?.addEventListener("click", () => {
+    state.sourceMode = "stats";
+    renderEngineAnalyzeTab();
+  });
+  document.getElementById("eaStatsBtn")?.addEventListener("click", loadTrackStats);
   document.getElementById("eaHistSortBtn")?.addEventListener("click", () => {
     state.historySort = state.historySort === "asc" ? "desc" : "asc";
     renderEngineAnalyzeTab();
   });
+  document.getElementById("eaToBuilderBtn")?.addEventListener("click", sendToBuilder);
   document.getElementById("eaLoadInSearchBtn")?.addEventListener("click", loadInSearch);
   document.getElementById("eaExportCsvBtn")?.addEventListener("click", exportCsv);
 
@@ -463,6 +640,29 @@ function bindEvents() {
       }
     });
   });
+
+  // Stats: Filter-Buttons
+  document.querySelectorAll(".ea-stats-filter").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.statsFilter = btn.dataset.filter;
+      renderEngineAnalyzeTab();
+    });
+  });
+
+  // Stats: Sortierbare Spalten-Header
+  document.querySelectorAll(".ea-stats-sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sort;
+      if (state.statsSortKey === key) { state.statsSortAsc = !state.statsSortAsc; }
+      else { state.statsSortKey = key; state.statsSortAsc = false; }
+      renderEngineAnalyzeTab();
+    });
+  });
+
+  // Stats: Builder + CSV-Export + Playlist speichern
+  document.getElementById("eaStatsToBuilderBtn")?.addEventListener("click", sendStatsToBuilder);
+  document.getElementById("eaStatsExportBtn")?.addEventListener("click", exportStatsCsv);
+  document.getElementById("eaSaveAsPlaylistBtn")?.addEventListener("click", saveStatsAsPlaylist);
 
   // Sortierbare Spalten-Header
   document.querySelectorAll(".ea-sortable").forEach(th => {
@@ -612,6 +812,139 @@ async function runAnalysis() {
   }
   state.loading = false;
   renderEngineAnalyzeTab();
+}
+
+function sendToBuilder() {
+  const tracks = state.analysisResult?.tracks || [];
+  if (tracks.length === 0) {
+    setMessage("Keine Tracks vorhanden.", "warning");
+    return;
+  }
+  window.dispatchEvent(new CustomEvent("builder:add-tracks", { detail: { tracks } }));
+  setMessage(`${tracks.length} Tracks zum Builder gesendet`, "success");
+}
+
+function sendStatsToBuilder() {
+  const tracks = getFilteredStatsTracks();
+  if (tracks.length === 0) {
+    setMessage("Keine Tracks vorhanden.", "warning");
+    return;
+  }
+  window.dispatchEvent(new CustomEvent("builder:add-tracks", { detail: { tracks } }));
+  setMessage(`${tracks.length} Tracks zum Builder gesendet`, "success");
+}
+
+async function loadTrackStats() {
+  state.loading = true;
+  setMessage("Track-Statistik wird geladen\u2026", "info");
+  renderEngineAnalyzeTab();
+  try {
+    const result = await window.engineAnalyzeApi.trackStats({
+      databaseFolder: state.databaseFolder,
+    });
+    if (!result?.ok) {
+      setMessage(result?.error || "Fehler beim Laden", "warning");
+    } else {
+      state.trackStats = result;
+      setMessage(
+        `${result.total_unique_tracks} Tracks, ${result.total_plays} Plays, ${result.total_sessions} Sessions`,
+        "success"
+      );
+    }
+  } catch (error) {
+    setMessage(String(error.message || error), "warning");
+  }
+  state.loading = false;
+  renderEngineAnalyzeTab();
+}
+
+async function saveStatsAsPlaylist() {
+  const tracks = getFilteredStatsTracks();
+  if (tracks.length === 0) {
+    setMessage("Keine Tracks zum Speichern.", "warning");
+    return;
+  }
+
+  // Nur Streaming-Tracks k\u00f6nnen als Streaming-Playlist geschrieben werden
+  const streamingTracks = tracks.filter(t => t.beatport_id);
+  if (streamingTracks.length === 0) {
+    setMessage("Keine Streaming-Tracks mit Beatport-ID vorhanden. Nur Beatport-Streaming-Tracks k\u00f6nnen als Playlist geschrieben werden.", "warning");
+    return;
+  }
+
+  const name = prompt(
+    `Playlist-Name f\u00fcr ${streamingTracks.length} Streaming-Tracks:`,
+    `Stats Top ${Math.min(streamingTracks.length, 50)} \u2014 ${new Date().toISOString().slice(0, 10)}`
+  );
+  if (!name) return;
+
+  state.loading = true;
+  setMessage(`Playlist "${name}" wird geschrieben\u2026`, "info");
+  renderEngineAnalyzeTab();
+
+  try {
+    // Tracks im scoring-data Format aufbereiten
+    const importTracks = streamingTracks.map(t => ({
+      track_id: t.beatport_id,
+      title: t.title || "",
+      artists: t.artists || "",
+      genre: t.genre || "",
+      bpm: t.bpm || 0,
+      label: t.label || "",
+      year: t.year || 0,
+      length_ms: t.length_ms || 0,
+    }));
+
+    const result = await window.engineAnalyzeApi.saveAsPlaylist({
+      tracks: importTracks,
+      playlistTitle: name,
+      databaseFolder: state.databaseFolder,
+    });
+
+    if (result?.ok) {
+      const msg = [
+        `Playlist "${name}" gespeichert!`,
+        `${result.tracksCreated || 0} neu`,
+        `${result.tracksExisted || 0} existierten`,
+        `${result.entityCount || 0} Playlist-Eintr\u00e4ge`,
+      ];
+      if (result.backupPath) msg.push(`Backup: ${result.backupPath}`);
+      setMessage(msg.join(" \u2014 "), "success");
+    } else {
+      setMessage(result?.error || "Fehler beim Schreiben", "warning");
+    }
+  } catch (error) {
+    setMessage(String(error.message || error), "warning");
+  }
+  state.loading = false;
+  renderEngineAnalyzeTab();
+}
+
+async function exportStatsCsv() {
+  const tracks = getFilteredStatsTracks();
+  if (tracks.length === 0) {
+    setMessage("Keine Tracks zum Exportieren.", "warning");
+    return;
+  }
+  const header = "Title;Artist;Plays;Sessions;Duplikate;BPM;Key;Genre;Rating;Streaming;Zuletzt gespielt";
+  const rows = tracks.map(t =>
+    [
+      t.title, t.artists, t.total_plays, t.unique_sessions,
+      t.duplicates_in_sessions, t.bpm ?? "", t.key ?? "",
+      t.genre || "", t.rating || "", t.is_streaming ? "Ja" : "Nein",
+      formatTimestamp(t.last_played),
+    ]
+      .map(v => `"${String(v).replace(/"/g, '""')}"`)
+      .join(";")
+  );
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `engine-track-stats-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setMessage(`${tracks.length} Tracks exportiert`, "success");
 }
 
 async function loadInSearch() {

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browser DevTools Automation</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Beatport DJ Suite Plugin</p>
+        <h1>Browser DevTools Automation</h1>
+        <p class="subtitle">
+          Kleine Start-App fuer den DJPlaylists-/Beatport-Observer mit geplanter Startzeit,
+          Live-Status und direktem Launcher fuer einen Chromium-Browser mit offenen DevTools.
+        </p>
+      </header>
+
+      <section class="layout">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Start</h2>
+            <span class="badge" id="observer-status-badge">Inaktiv</span>
+          </div>
+
+          <form id="observer-form" class="form-grid">
+            <label>
+              <span>Startzeit lokal</span>
+              <input id="start-at" name="startAt" type="datetime-local" />
+            </label>
+
+            <label>
+              <span>CDP-Port</span>
+              <input id="port" name="port" type="number" min="1" step="1" value="9222" />
+            </label>
+
+            <label>
+              <span>URL-Filter</span>
+              <input
+                id="url-pattern"
+                name="urlPattern"
+                type="text"
+                value="djplaylists.fm"
+                placeholder="djplaylists.fm"
+              />
+            </label>
+
+            <label>
+              <span>Titel-Filter</span>
+              <input
+                id="title-pattern"
+                name="titlePattern"
+                type="text"
+                placeholder="optional"
+              />
+            </label>
+
+            <label>
+              <span>Attach-Wartezeit (ms)</span>
+              <input id="wait-ms" name="waitMs" type="number" min="0" step="1000" value="30000" />
+            </label>
+
+            <label>
+              <span>Auto-Stop (Sekunden)</span>
+              <input id="duration-sec" name="durationSec" type="number" min="0" step="1" value="0" />
+            </label>
+
+            <div class="actions">
+              <button type="submit" class="button button-primary" id="start-observer">
+                Observer starten
+              </button>
+              <button type="button" class="button" id="stop-observer">Observer stoppen</button>
+            </div>
+          </form>
+
+          <div class="status-list">
+            <div>
+              <span class="status-label">PID</span>
+              <strong id="observer-pid">-</strong>
+            </div>
+            <div>
+              <span class="status-label">Output</span>
+              <strong id="observer-output">-</strong>
+            </div>
+            <div>
+              <span class="status-label">Memory</span>
+              <strong id="observer-memory">-</strong>
+            </div>
+            <div>
+              <span class="status-label">Letzter Stop</span>
+              <strong id="observer-stop-reason">-</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Browser</h2>
+            <span class="badge badge-accent">DevTools</span>
+          </div>
+
+          <form id="browser-form" class="form-grid">
+            <label class="full-width">
+              <span>Start-URL</span>
+              <input
+                id="browser-url"
+                name="url"
+                type="url"
+                value="https://www.djplaylists.fm/"
+                placeholder="https://www.djplaylists.fm/"
+              />
+            </label>
+
+            <label>
+              <span>Remote-Debugging-Port</span>
+              <input
+                id="browser-port"
+                name="port"
+                type="number"
+                min="1"
+                step="1"
+                value="9222"
+              />
+            </label>
+
+            <label class="full-width">
+              <span>Browser-Pfad</span>
+              <input
+                id="browser-path"
+                name="browserPath"
+                type="text"
+                placeholder="optional, sonst Chrome/Chromium/Edge/Brave"
+              />
+            </label>
+
+            <div class="actions">
+              <button type="submit" class="button button-primary">Browser mit DevTools starten</button>
+              <button type="button" class="button" id="open-output">Letzten Output oeffnen</button>
+            </div>
+          </form>
+
+          <p class="hint">
+            Die externe Automation kann danach normal weiterlaufen. Diese App startet nur den
+            Observer und optional den Browser mit offenem DevTools-Port.
+          </p>
+        </section>
+      </section>
+
+      <section class="panel panel-log">
+        <div class="panel-header">
+          <h2>Live-Log</h2>
+          <button type="button" class="button button-small" id="clear-log">Log leeren</button>
+        </div>
+        <pre id="log-output" class="log-output"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

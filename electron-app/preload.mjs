@@ -166,4 +166,6 @@ contextBridge.exposeInMainWorld("engineAnalyzeApi", {
   listPlaylists: (options) => ipcRenderer.invoke("engine-analyze:list-playlists", options),
   listHistorySessions: (options) => ipcRenderer.invoke("unified:engine-history-sessions", options),
   loadPlaylistTracks: (options) => ipcRenderer.invoke("engine-analyze:load-playlist-tracks", options),
+  trackStats: (options) => ipcRenderer.invoke("engine-analyze:track-stats", options),
+  saveAsPlaylist: (options) => ipcRenderer.invoke("engine:import-streaming", options),
 });

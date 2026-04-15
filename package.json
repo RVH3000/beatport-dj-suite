@@ -8,6 +8,7 @@
   "main": "electron-app/main.mjs",
   "scripts": {
     "desktop:dev": "electron .",
+    "browser-devtools:app": "electron plugins/browser-devtools-automation/app/main.mjs",
     "desktop:dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
     "desktop:dir:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir",
     "test": "node --test $(find tests -name '*.test.mjs')",
