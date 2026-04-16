@@ -43,6 +43,34 @@ function camelotSortVal(cam) {
   return (isNaN(n) ? 99 : n) * 2 + (l === "B" ? 1 : 0);
 }
 
+// ─── Dramaturgie (portiert aus PL WIZ v5) ──────────────────────────────────
+// @experimental — Algorithmus noch nicht durch Hoertests validiert
+
+function normBpm(bpm) {
+  if (!bpm) return 0;
+  let b = bpm;
+  while (b < 80 && b > 0) b *= 2;
+  while (b > 170) b /= 2;
+  return Math.round(b * 10) / 10;
+}
+
+function dramaScore(bpm, camelot) {
+  if (!bpm && !camelot) return 0;
+  const effectiveBpm = normBpm(bpm) || bpm;
+  const bpmN = effectiveBpm ? Math.max(0, Math.min(100, ((effectiveBpm - 80) / 80) * 100)) : 50;
+  const camVal = camelot ? camelotSortVal(camelot) : 12;
+  const camN = (camVal / 24) * 100;
+  return Math.round(bpmN * 0.6 + camN * 0.4);
+}
+
+function dramaColor(score) {
+  if (score >= 75) return "var(--danger, #dc2626)";
+  if (score >= 55) return "#f59e0b";
+  if (score >= 35) return "#eab308";
+  if (score >= 15) return "var(--primary, #0e6b5f)";
+  return "#3b82f6";
+}
+
 const KEY_TO_CAMELOT = {
   "Ab min": "1A", "G# min": "1A", "B maj": "1B", "Eb min": "2A", "D# min": "2A",
   "F# maj": "2B", "Gb maj": "2B", "Bb min": "3A", "A# min": "3A", "Db maj": "3B",
@@ -196,10 +224,13 @@ function renderPool() {
   const show = filtered.slice(0, 100);
   $("pbPoolCount").textContent = `(${filtered.length})`;
 
-  list.innerHTML = show.map((t, idx) =>
-    `<div class="pb-pool-item"><div class="info"><div class="title" style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.t)}</div>
-    <div class="meta" style="font-size:9px;color:var(--muted)">${esc(t.a) || "\u2014"} \u00B7 ${t.b || "?"} BPM \u00B7 ${toCamelot(t.k) || "?"}</div></div>
-    <button class="pb-add-btn" data-pidx="${idx}" style="padding:2px 8px;font-size:14px;cursor:pointer;background:none;border:1px solid var(--line-strong);border-radius:4px;color:var(--text)">+</button></div>`
+  list.innerHTML = show.map((t, idx) => {
+    const ds = dramaScore(t.b, toCamelot(t.k));
+    const dc = dramaColor(ds);
+    return `<div class="pb-pool-item"><div class="info"><div class="title" style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.t)}</div>
+    <div class="meta" style="font-size:9px;color:var(--muted)">${esc(t.a) || "\u2014"} \u00B7 ${t.b || "?"} BPM \u00B7 ${toCamelot(t.k) || "?"} \u00B7 <span style="color:${dc};font-weight:700">D${ds}</span></div></div>
+    <button class="pb-add-btn" data-pidx="${idx}" style="padding:2px 8px;font-size:14px;cursor:pointer;background:none;border:1px solid var(--line-strong);border-radius:4px;color:var(--text)">+</button></div>`;
+  }
   ).join("") + (filtered.length > 100 ? `<div style="padding:6px;text-align:center;color:var(--muted);font-size:10px">${filtered.length - 100} weitere</div>` : "");
 
   list.querySelectorAll(".pb-add-btn").forEach(btn => {
@@ -232,10 +263,13 @@ function renderPlaylist() {
       cc = comp === "perfect" || comp === "good" ? "var(--success)" : comp === "ok" ? "#fbbf24" : comp === "bad" ? "var(--danger)" : "#555";
       compLabel = comp;
     }
+    const ds = dramaScore(t.b, toCamelot(t.k));
+    const dc = dramaColor(ds);
     return `<div class="pb-pl-item" draggable="true" data-idx="${i}" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid var(--line);cursor:grab">
       <div style="width:6px;height:6px;border-radius:50%;background:${cc};flex-shrink:0" title="${compLabel || "Start"}"></div>
       <div style="flex:1;overflow:hidden"><div style="font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.t)}</div>
       <div style="font-size:9px;color:var(--muted)">${esc(t.a) || "\u2014"} \u00B7 ${t.b} BPM \u00B7 ${toCamelot(t.k) || "?"}</div></div>
+      <span style="font-size:10px;font-weight:700;color:${dc};min-width:24px;text-align:center" title="Dramaturgie ${ds}">${ds}</span>
       <button class="pb-rm-btn" data-ridx="${i}" style="padding:2px 6px;font-size:12px;cursor:pointer;background:none;border:none;color:var(--muted)">\u00D7</button></div>`;
   }).join("");
 
