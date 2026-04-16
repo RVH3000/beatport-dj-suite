@@ -2,25 +2,32 @@
 
 **Projekt:** Beatport DJ Suite (All-in-One Beatport Electron App)
 **Repository:** `~/Projects/_local/beatport-dj-suite`
-**Remote:** ⚠️ KEINS — noch nicht auf GitHub gepusht!
-**Version:** 2.0.0
-**Branch:** main
-**Stack:** Electron + Node.js
-**Letzte Aktualisierung:** 2026-03-26 (Pfade aktualisiert nach Ordner-Umstrukturierung)
+**Remote:** github.com/RVH3000/beatport-dj-suite (privat)
+**Version:** 4.0.0
+**Branch:** v4 (aktiv); daneben `main`, `release/v2.3-stable`, `feat/label-import-2026-04-08`, `merge-analysis`
+**Stack:** Electron 32 + Node.js + Python 3 (Engine-DB-Integration)
+**Letzte Aktualisierung:** 2026-04-16 (Merge-Analyse gestartet — drei Beatport-Tools werden konsolidiert)
 
 ---
 
 ## Projekt-Kontext
 
-Nachfolger des beatport-scanner v1.5.1. Umstrukturiert als modulare Suite mit Tabs:
-- **Playlist Scanner** — CDP-basiertes Beatport-Scraping
-- **Analysis** — Track-Analyse und Scoring (NEU, in Entwicklung)
-- **Export** — Verschiedene Exportformate (NEU, in Entwicklung)
-- **Playlist Wiz** — Playlist-Builder (NEU, in Entwicklung)
+Nachfolger des beatport-scanner v1.5.1. Modulare Electron-Suite mit Tabs:
+- **📚 Library** — Scanner (CDP/XHR Delta-Sync), Arbeitsbestand, Duplikat-Tiefenanalyse, Engine-Import
+- **🔍 Explore** — Wildcard-Suche + Multi-Filter, Labels, Analyse-Dashboards, Engine-Analyse
+- **🛠 Build** — Playlist WIZ (Live Beatport CRUD), Playlist Builder (Camelot-Check)
+- **🚀 Pipeline** — Beatport → DJPL → Lexicon → Engine → USB Sync; Rekordbox/Traktor/M3U/JSON Export; OSC-Bridge (OBS)
+- **⚙️ Settings** — Unified Config
 
-## Aktueller Stand
+## Merge-Analyse (laufend)
 
-6 modifizierte Dateien + 4 neue Tab-Module. Aktive Entwicklung.
+Aktive Konsolidierung: Unique Features aus `beatport-scanner` v1.5.1 und `Beatport PL WIZ` v5 werden ins Haupttool portiert. Strategie + Simplifier-Kritik liegen im Worktree `merge-analysis`:
+
+- `.agents/merge-analysis/architect-strategy.md` (270 Zeilen, 6 Phasen — zu ambitioniert)
+- `.agents/merge-analysis/simplifier-critique.md` (130 Zeilen, reduziert auf 3 Schritte — verbindlich)
+- `.agents/merge-analysis/explorer-reports/` (drei Repo-Analysen)
+
+Worktree-Pfad: `~/Projects/_local/beatport-dj-suite.worktrees/merge-analysis/`
 
 ## Scripts
 
@@ -37,9 +44,6 @@ npm run beatport:scan    # Scan starten
 - **beatport-dedupe** → `~/Projects/_local/beatport-dedupe` (Duplikat-Analyse)
 - **Beatport PL WIZ** → `~/Documents/Claude/Projects/Beatport PL WIZ/` (HTML-Tool, v5)
 
-## ⚠️ Backup-Priorität
+## Backup-Status
 
-Dieses Repo hat KEIN GitHub-Remote. Push empfohlen:
-```bash
-gh repo create RVH3000/beatport-dj-suite --private --source=. --push
-```
+GitHub-Remote ist eingerichtet (`RVH3000/beatport-dj-suite`, privat). Push via `git push origin v4` (bzw. den jeweils aktuellen Branch).
