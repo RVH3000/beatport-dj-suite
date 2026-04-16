@@ -82,6 +82,10 @@ contextBridge.exposeInMainWorld("analysisApi", {
   getOverlapMatrix: (config) => ipcRenderer.invoke("analysis:get-overlap-matrix", config),
 });
 
+contextBridge.exposeInMainWorld("duplicatesApi", {
+  fuzzyScan: (options) => ipcRenderer.invoke("duplicates:fuzzy-scan", options),
+});
+
 contextBridge.exposeInMainWorld("engineApi", {
   discoverDatabases: () => ipcRenderer.invoke("engine:discover-databases"),
   discoverAllDatabases: () => ipcRenderer.invoke("engine:discover-all-databases"),

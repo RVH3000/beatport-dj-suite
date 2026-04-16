@@ -2595,6 +2595,7 @@ async function loadAnalysisTab() {
     if (!analysisModule) {
       analysisModule = await import("./tabs/analysis.js");
     }
+    analysisModule.initDuplicatesPanel?.();
     const config = getCurrentConfig();
     await analysisModule.loadAnalysisData(config);
   } catch (err) {

@@ -1290,6 +1290,37 @@ app.whenReady().then(() => {
     return JSON.parse(raw);
   });
 
+  // ── Fuzzy-Duplikat-Finder (Lese-Modus) ─────────────────────────────────
+
+  ipcMain.handle("duplicates:fuzzy-scan", async (_event, options = {}) => {
+    try {
+      const { findFuzzyDuplicates, findCrossPlaylistDupes } = await import(
+        "./integrations/duplicate-finder.mjs"
+      );
+      const scoringPath = options.scoringDataPath || path.join(
+        app.getPath("home"),
+        "Documents/Claude/Projects/Beatport PL WIZ/scoring-data.json"
+      );
+      const raw = await fs.readFile(scoringPath, "utf8");
+      const data = JSON.parse(raw);
+      const tracks = data.all_tracks || (Array.isArray(data) ? data : []);
+
+      const fuzzyGroups = findFuzzyDuplicates(tracks, {
+        threshold: options.threshold ?? 0.85,
+        bpmTolerance: options.bpmTolerance ?? 5,
+      });
+      const crossPlaylist = findCrossPlaylistDupes(tracks);
+
+      return {
+        fuzzyGroups,
+        crossPlaylist: crossPlaylist.slice(0, 500), // Top 500 reicht fuer UI
+        totalTracks: tracks.length,
+      };
+    } catch (error) {
+      throw new Error(`Duplikat-Scan fehlgeschlagen: ${toErrorMessage(error)}`);
+    }
+  });
+
   // ── Sync-Pipeline v2.3.0: Automatisierter Orchestrator ──────────────────
   registerPipelineHandlers(ipcMain, () => mainWindow);
 

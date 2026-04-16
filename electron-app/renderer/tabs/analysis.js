@@ -630,3 +630,108 @@ function escapeHtml(str) {
   d.textContent = str || "";
   return d.innerHTML;
 }
+
+// ─── Fuzzy-Duplikat-Finder (Lese-Modus) ──────────────────────────────────────
+
+let dupInitialized = false;
+
+export function initDuplicatesPanel() {
+  if (dupInitialized) return;
+  dupInitialized = true;
+
+  const btn = document.getElementById("dupFuzzyScanBtn");
+  const statusEl = document.getElementById("dupStatus");
+  const resultsEl = document.getElementById("dupFuzzyResults");
+  if (!btn || !resultsEl) return;
+
+  btn.addEventListener("click", async () => {
+    const threshold = parseFloat(document.getElementById("dupThreshold")?.value) || 0.85;
+    btn.disabled = true;
+    statusEl.textContent = "Scanne...";
+    resultsEl.innerHTML = "";
+
+    try {
+      const t0 = performance.now();
+      const result = await window.duplicatesApi.fuzzyScan({ threshold });
+      const ms = Math.round(performance.now() - t0);
+
+      statusEl.textContent =
+        `${result.totalTracks.toLocaleString("de")} Tracks gescannt in ${(ms / 1000).toFixed(1)}s` +
+        ` — ${result.fuzzyGroups.length} Fuzzy-Gruppen, ${result.crossPlaylist.length}+ Cross-Playlist`;
+
+      renderDuplicateResults(resultsEl, result);
+    } catch (err) {
+      statusEl.textContent = "";
+      resultsEl.innerHTML = `<div class="callout warning">${escapeHtml(err.message || String(err))}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+function renderDuplicateResults(container, result) {
+  let html = "";
+
+  // Fuzzy-Gruppen
+  if (result.fuzzyGroups.length > 0) {
+    html += `<h3 style="font-size:13px;margin:14px 0 6px">Fuzzy-Duplikate (${result.fuzzyGroups.length} Gruppen)</h3>`;
+    html += `<div class="table-wrap"><table class="data-table"><thead><tr>
+      <th>#</th><th>Typ</th><th>Sim.</th><th>Track A</th><th>Artist A</th><th>BPM</th>
+      <th>Track B</th><th>Artist B</th><th>BPM</th>
+    </tr></thead><tbody>`;
+
+    for (let i = 0; i < Math.min(result.fuzzyGroups.length, 200); i++) {
+      const g = result.fuzzyGroups[i];
+      const a = g.tracks[0];
+      const b = g.tracks[1] || {};
+      const simPct = Math.round(g.similarity * 100);
+      const typeBadge = g.matchType === "fingerprint"
+        ? `<span style="color:var(--primary);font-weight:600">Exakt</span>`
+        : `<span style="color:var(--accent)">Fuzzy</span>`;
+
+      html += `<tr>
+        <td style="color:var(--muted)">${i + 1}</td>
+        <td>${typeBadge}</td>
+        <td><strong>${simPct}%</strong></td>
+        <td>${escapeHtml(a.title)} <span style="color:var(--muted);font-size:10px">${escapeHtml(a.mix)}</span></td>
+        <td>${escapeHtml(a.artist)}</td>
+        <td style="color:var(--accent)">${a.bpm || "—"}</td>
+        <td>${escapeHtml(b.title || "")} <span style="color:var(--muted);font-size:10px">${escapeHtml(b.mix || "")}</span></td>
+        <td>${escapeHtml(b.artist || "")}</td>
+        <td style="color:var(--accent)">${b.bpm || "—"}</td>
+      </tr>`;
+    }
+    html += "</tbody></table></div>";
+    if (result.fuzzyGroups.length > 200) {
+      html += `<p style="font-size:11px;color:var(--muted);margin:6px 0">...und ${result.fuzzyGroups.length - 200} weitere Gruppen (Top 200 gezeigt)</p>`;
+    }
+  }
+
+  // Cross-Playlist Top-Tracks
+  if (result.crossPlaylist.length > 0) {
+    html += `<h3 style="font-size:13px;margin:18px 0 6px">Cross-Playlist-Tracks (in 2+ Playlists)</h3>`;
+    html += `<div class="table-wrap"><table class="data-table"><thead><tr>
+      <th>#</th><th>Title</th><th>Artist</th><th>Genre</th><th>BPM</th><th>Key</th><th>Playlists</th>
+    </tr></thead><tbody>`;
+
+    for (let i = 0; i < Math.min(result.crossPlaylist.length, 100); i++) {
+      const t = result.crossPlaylist[i];
+      html += `<tr>
+        <td style="color:var(--muted)">${i + 1}</td>
+        <td><strong>${escapeHtml(t.title)}</strong> <span style="color:var(--muted);font-size:10px">${escapeHtml(t.mix)}</span></td>
+        <td>${escapeHtml(t.artist)}</td>
+        <td>${escapeHtml(t.genre)}</td>
+        <td style="color:var(--accent)">${t.bpm || "—"}</td>
+        <td>${t.camelot || t.key || "—"}</td>
+        <td><strong style="color:var(--primary)">${t.playlistCount}</strong></td>
+      </tr>`;
+    }
+    html += "</tbody></table></div>";
+  }
+
+  if (!html) {
+    html = `<p style="color:var(--muted);font-size:12px;margin-top:12px">Keine Duplikate gefunden.</p>`;
+  }
+
+  container.innerHTML = html;
+}

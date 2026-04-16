@@ -524,6 +524,25 @@ Sicherheit:
           </p>
         </section>
       </div>
+
+      <!-- Fuzzy-Duplikat-Finder (Lese-Modus) -->
+      <div class="layout" id="duplicates-content" style="margin-top:14px">
+        <section class="panel span-full">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <h2 style="margin:0;font-size:15px">Duplikate (Fuzzy)</h2>
+            <button id="dupFuzzyScanBtn" type="button" class="primary-btn" style="font-size:12px;padding:4px 12px">
+              Scan starten
+            </button>
+            <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px">
+              Schwellenwert
+              <input id="dupThreshold" type="number" min="0.5" max="1" step="0.05" value="0.85"
+                     style="width:56px;font-size:11px;padding:2px 4px" />
+            </label>
+            <span id="dupStatus" style="font-size:11px;color:var(--text-secondary)"></span>
+          </div>
+          <div id="dupFuzzyResults"></div>
+        </section>
+      </div>
     </main>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
