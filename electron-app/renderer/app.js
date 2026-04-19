@@ -246,6 +246,7 @@ const els = {
   status: document.getElementById("status"),
   cacheStatus: document.getElementById("cacheStatus"),
   appInfo: document.getElementById("appInfo"),
+  appVersionBadge: document.getElementById("appVersionBadge"),
   authMeta: document.getElementById("authMeta"),
   authCallouts: document.getElementById("authCallouts"),
   appWarnings: document.getElementById("appWarnings"),
@@ -631,6 +632,9 @@ function renderTable(node, rows, options = {}) {
 
 function renderAppInfo(info) {
   state.appInfo = info;
+  if (els.appVersionBadge && info.version) {
+    els.appVersionBadge.textContent = `v${info.version}`;
+  }
   const items = [
     ["Version", info.version],
     ["Build-ID", info.buildId],

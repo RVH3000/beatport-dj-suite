@@ -19,12 +19,17 @@
     "check": "node scripts/check-scanner.mjs",
     "smoke:beatport": "node scripts/smoke-beatport.mjs",
     "beatport:scan": "node tools/bpx.mjs scan",
-    "beatport:delete": "node tools/bpx.mjs delete"
+    "beatport:delete": "node tools/bpx.mjs delete",
+    "release": "commit-and-tag-version && git push --follow-tags origin v4",
+    "release:patch": "commit-and-tag-version --release-as patch && git push --follow-tags origin v4",
+    "release:minor": "commit-and-tag-version --release-as minor && git push --follow-tags origin v4",
+    "release:major": "commit-and-tag-version --release-as major && git push --follow-tags origin v4"
   },
   "dependencies": {
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "commit-and-tag-version": "^12.7.1",
     "electron": "^32.2.0",
     "electron-builder": "^25.1.8",
     "electron-reload": "^2.0.0-alpha.1"
