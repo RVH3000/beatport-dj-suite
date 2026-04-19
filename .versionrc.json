@@ -1,0 +1,14 @@
+{
+  "types": [
+    { "type": "feat", "section": "✨ Features" },
+    { "type": "fix", "section": "🐛 Bugfixes" },
+    { "type": "perf", "section": "⚡ Performance" },
+    { "type": "refactor", "section": "♻️ Refactoring" },
+    { "type": "chore", "hidden": true },
+    { "type": "docs", "hidden": true },
+    { "type": "style", "hidden": true },
+    { "type": "test", "hidden": true }
+  ],
+  "commitUrlFormat": "https://github.com/RVH3000/beatport-dj-suite/commit/{{hash}}",
+  "compareUrlFormat": "https://github.com/RVH3000/beatport-dj-suite/compare/{{previousTag}}...{{currentTag}}"
+}
