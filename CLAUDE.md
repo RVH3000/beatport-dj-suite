@@ -6,7 +6,7 @@
 **Version:** 4.0.0
 **Branch:** v4 (aktiv); daneben `main`, `release/v2.3-stable`, `feat/label-import-2026-04-08`, `merge-analysis`
 **Stack:** Electron 32 + Node.js + Python 3 (Engine-DB-Integration)
-**Letzte Aktualisierung:** 2026-04-16 (Merge-Analyse gestartet — drei Beatport-Tools werden konsolidiert)
+**Letzte Aktualisierung:** 2026-04-20 (Bridge-Kontext + Sandbox-Strategie ergänzt)
 
 ---
 
@@ -18,6 +18,43 @@ Nachfolger des beatport-scanner v1.5.1. Modulare Electron-Suite mit Tabs:
 - **🛠 Build** — Playlist WIZ (Live Beatport CRUD), Playlist Builder (Camelot-Check)
 - **🚀 Pipeline** — Beatport → DJPL → Lexicon → Engine → USB Sync; Rekordbox/Traktor/M3U/JSON Export; OSC-Bridge (OBS)
 - **⚙️ Settings** — Unified Config
+
+## Beatport LINK → Engine Library Bridge (Alleinstellungsmerkmal)
+
+Das **Kern-Feature** der App. Andere Tools (Soundiiz, TuneMyMusic, DJ.Studio) können das nicht.
+
+**Problem:** Engine DJ zeigt Beatport-LINK-Tracks in Playlisten erst korrekt an, wenn jeder Track einmal abgespielt wurde (History-Eintrag). Bei großen Playlisten unzumutbar.
+
+**Lösung:** Synthetische History-Einträge schreiben — ohne echte Wiedergabe, ohne Download. Bleibt innerhalb des LINK-Abos.
+
+**Technische Bausteine:**
+- Schreib-Kanal vorhanden: **engine-dj-manager** unter `~/Projects/_github/engine-dj-manager/` (Next.js, läuft auf localhost:3000)
+- Analyse-Report: `~/Projects/_github/engine-dj-manager/ANALYSE_REPORT.md`
+- `PATCH /api/tracks/{id}` funktioniert bereits — schreibt in m.db
+- `POST /api/backup` macht automatisches Backup vor Änderung
+- **Fehlt noch:** Schreib-Endpoint für `hm.db` (History) — aktuell Read-Only
+
+**Eingefrorener Planungsstand:** `.agents/poc-link-bridge/EINFRIER-STATUS-2026-04-19.md`
+**Erste Analyse:** `docs/bridge/01-engine-tools-analysis.md`
+**Sandbox-Handoff:** `docs/bridge/HANDOFF_02_SANDBOX.md`
+
+## Engine Library Sandbox
+
+**NIEMALS** direkt auf der echten Engine-DB arbeiten — weder lesend-mit-Lock noch schreibend.
+
+**Sandbox-Strategie:** Immer den **ganzen Ordner** `/Users/roberth./Music/Engine Library/` kopieren, nicht einzelne DB-Dateien. Grund: m.db, hm.db, stm.db, sm.db, rbm.db, itm.db, trm.db referenzieren sich gegenseitig. Einzelne Datei = inkonsistenter Zustand.
+
+**Sandbox anlegen:**
+```bash
+cp -a "/Users/roberth./Music/Engine Library" \
+      "/Users/roberth./Music/Engine Library SANDBOX"
+```
+
+**Bestehende Backups im Original-Ordner** (nicht als Sandbox geeignet, nur als Vergleich):
+- `hm.db.FULL-BACKUP-2026-03-30` (64 MB, 30. März)
+- `m.db.FULL-BACKUP-2026-03-30` (58 MB, 30. März)
+- `backups/` (5 × m.db vom 29./30. März)
+- `hm.db Kopie` (56 MB, 1. Februar — zu alt, 10 MB fehlen)
 
 ## Merge-Analyse (laufend)
 
@@ -43,6 +80,15 @@ npm run beatport:scan    # Scan starten
 - **beatport-scanner** → `~/Projects/_github/beatport-scanner` (Vorgänger v1.x)
 - **beatport-dedupe** → `~/Projects/_local/beatport-dedupe` (Duplikat-Analyse)
 - **Beatport PL WIZ** → `~/Documents/Claude/Projects/Beatport PL WIZ/` (HTML-Tool, v5)
+- **engine-dj-manager** → `~/Projects/_github/engine-dj-manager` (Next.js, Schreib-Kanal für Bridge)
+- **engine-analyzer** → `~/Projects/_local/engine-analyzer` (Python, Read-Only Verifikation)
+
+## FragmentIndex Scan-Ergebnisse
+
+Unter `/Users/roberth./FragmentIndex/reports/` liegen 145 Scan-Berichte vom 19. April. Für dieses Projekt relevant:
+- `scan_2026-04-19_1314_02_beatport-dj-suite.md` (95 KB, 567 Treffer)
+- `scan_2026-04-19_1314_03_engine-dj-manager.md` (9 KB, 52 Treffer)
+- `scan_2026-04-19_1314_04_engine-analyzer.md` (0,6 KB, 2 Treffer)
 
 ## Backup-Status
 
