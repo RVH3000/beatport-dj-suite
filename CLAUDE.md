@@ -93,3 +93,28 @@ Unter `/Users/roberth./FragmentIndex/reports/` liegen 145 Scan-Berichte vom 19. 
 ## Backup-Status
 
 GitHub-Remote ist eingerichtet (`RVH3000/beatport-dj-suite`, privat). Push via `git push origin v4` (bzw. den jeweils aktuellen Branch).
+
+## Session-Kontinuität (Pflicht)
+
+Bei JEDEM neuen Chat in diesem Projekt gilt für Claude:
+
+1. Bevor auf die erste Nachricht geantwortet wird: `conversation_search`
+   oder `recent_chats` aufrufen, um den letzten Stand aus vorherigen Chats
+   zu laden.
+2. Einsteiger-Sätze wie "Nächster Schritt 2...", "weiter wie gestern",
+   "mach weiter mit...", "OK für Schritt X?" sind IMMER ein Signal, dass
+   der Kontext aus einem früheren Chat kommt — nicht aus den Projekt-Dateien.
+3. Zusätzlich die aktuellste `LLM_HANDOFF.md` und alle `HANDOFF_*.md`
+   im Repo-Root lesen.
+4. Erst DANN antworten. Niemals raten, was der User meint, wenn Referenzen
+   auf vergangene Arbeit fehlen.
+5. Wenn der Kontext nach der Suche noch unklar ist: gezielt nachfragen,
+   statt blind Schritte vorzuschlagen.
+
+Ablauf:
+- Änderung in der Datei vornehmen
+- `git status` zeigen
+- `git diff CLAUDE.md` zeigen
+- Auf meine Bestätigung warten, BEVOR commit/push
+- Commit-Message-Vorschlag: "docs: Session-Kontinuitäts-Regel in CLAUDE.md ergänzt"
+- Nicht pushen ohne explizites OK
