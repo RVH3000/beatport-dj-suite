@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>BBP RADIO — Insta Reel Cover 1080×1920</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bbp-bg: #0D1220;
+    --bbp-bg-soft: #151B2E;
+    --bbp-text: #F4F0E8;
+    --bbp-text-dim: #8A93A8;
+    --bbp-accent: #FF2D87;
+
+    /* Dynamischer Content */
+    --reel-title-1: "LIVE";
+    --reel-title-2: "MIX";
+    --dj: "SUENCHBAERDJ";
+    --date: "18.04.2026";
+    --time: "22:00";
+    --tags: "#House #Techno #Dub";
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    font-family: 'Inter', sans-serif;
+  }
+  .reel {
+    width: 1080px;
+    height: 1920px;
+    background: var(--bbp-bg);
+    position: relative;
+    overflow: hidden;
+    color: var(--bbp-text);
+    transform-origin: top center;
+    transform: scale(0.4);
+    margin-bottom: -1152px;
+  }
+
+  /* Dot Grid */
+  .reel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--bbp-bg-soft) 1px, transparent 0);
+    background-size: 28px 28px;
+    opacity: 0.6;
+  }
+
+  /* Zentraler Glow */
+  .glow {
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 900px;
+    height: 900px;
+    background: radial-gradient(circle, var(--bbp-accent) 0%, transparent 60%);
+    opacity: 0.22;
+    pointer-events: none;
+  }
+
+  /* Conic Strahlen */
+  .rays {
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1400px;
+    height: 1400px;
+    pointer-events: none;
+    opacity: 0.06;
+  }
+  .rays::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-conic-gradient(from 0deg,
+                var(--bbp-accent) 0deg 2deg,
+                transparent 2deg 20deg);
+    border-radius: 50%;
+  }
+
+  /* Layout */
+  .content {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 180px 1fr 380px 120px;
+    padding: 80px 80px;
+  }
+
+  /* Top: Sender Logo */
+  .top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .top .mark {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 56px;
+    letter-spacing: -0.02em;
+  }
+  .top .mark .accent { color: var(--bbp-accent); }
+  .top .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.5em;
+    color: var(--bbp-text-dim);
+    text-transform: uppercase;
+    padding: 10px 20px;
+    border-top: 2px solid var(--bbp-bg-soft);
+    border-bottom: 2px solid var(--bbp-bg-soft);
+  }
+
+  /* Mitte: 3D-Render */
+  .render-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .render-placeholder {
+    width: 700px;
+    height: 700px;
+    border: 3px dashed var(--bbp-text-dim);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    opacity: 0.5;
+  }
+  .render-placeholder .icon { font-size: 120px; }
+  .render-placeholder .txt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    letter-spacing: 0.25em;
+    text-align: center;
+    line-height: 1.8;
+  }
+  .render-image {
+    max-width: 900px;
+    max-height: 900px;
+    filter: drop-shadow(0 0 80px var(--bbp-accent));
+  }
+
+  /* Unten: Titel-Block */
+  .title-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+  }
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-family: 'Anton', sans-serif;
+    font-size: 220px;
+    line-height: 0.85;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+  }
+  .title-row .part-1 { color: var(--bbp-text); }
+  .title-row .part-2 { color: var(--bbp-accent); }
+
+  .meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    letter-spacing: 0.2em;
+    color: var(--bbp-text);
+    padding: 20px 40px;
+    border-top: 2px solid var(--bbp-bg-soft);
+    border-bottom: 2px solid var(--bbp-bg-soft);
+  }
+  .meta-sep {
+    width: 8px;
+    height: 8px;
+    background: var(--bbp-accent);
+    border-radius: 50%;
+  }
+  .dj-name { color: var(--bbp-accent); font-weight: 700; }
+
+  /* Footer */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 30px;
+    border-top: 2px solid var(--bbp-bg-soft);
+  }
+  .tags {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    color: var(--bbp-text-dim);
+    letter-spacing: 0.08em;
+  }
+  .platform-mark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .live-dot {
+    width: 16px;
+    height: 16px;
+    background: var(--bbp-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 16px var(--bbp-accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .platform-label {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    color: var(--bbp-accent);
+    letter-spacing: 0.15em;
+  }
+
+  /* CSS-Variable Insertion */
+  .part-1::before { content: var(--reel-title-1); }
+  .part-2::before { content: var(--reel-title-2); }
+  .date::before { content: var(--date); }
+  .time::before { content: var(--time); }
+  .dj-name::before { content: var(--dj); }
+  .tags::before { content: var(--tags); }
+</style>
+</head>
+<body>
+
+<div class="reel">
+  <div class="rays"></div>
+  <div class="glow"></div>
+
+  <div class="content">
+
+    <!-- Top: Logo -->
+    <div class="top">
+      <div class="mark">BBP <span class="accent">RADIO</span></div>
+      <div class="sub">Bauch · Beine · Po · 24/7</div>
+    </div>
+
+    <!-- Mitte: 3D Render -->
+    <div class="render-area">
+      <!-- <img class="render-image" src="arms-legs.png"> -->
+      <div class="render-placeholder">
+        <div class="icon">🤸</div>
+        <div class="txt">3D RENDER<br>PNG · ALPHA · 1200×1200<br>ARMS · LEGS · BODIES</div>
+      </div>
+    </div>
+
+    <!-- Titel + Meta -->
+    <div class="title-block">
+      <div class="title-row">
+        <span class="part-1"></span>
+        <span class="part-2"></span>
+      </div>
+      <div class="meta-row">
+        <span class="dj-name"></span>
+        <div class="meta-sep"></div>
+        <span class="date"></span>
+        <div class="meta-sep"></div>
+        <span class="time"></span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="tags"></div>
+      <div class="platform-mark">
+        <div class="live-dot"></div>
+        <div class="platform-label">ON AIR</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>BBP RADIO — Logo Set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0D1220;
+    --bg-soft: #151B2E;
+    --text: #F4F0E8;
+    --text-dim: #8A93A8;
+    --accent: #FF2D87;       /* Pink — Default */
+    --accent-2: #E8A33D;     /* Gold — Alternative */
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    padding: 40px;
+    line-height: 1.5;
+  }
+  h1 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  .intro {
+    color: var(--text-dim);
+    margin-bottom: 40px;
+    max-width: 800px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    max-width: 1600px;
+  }
+  .logo-card {
+    background: var(--bg);
+    border: 1px solid var(--bg-soft);
+    border-radius: 12px;
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-height: 420px;
+  }
+  .logo-card.wide { grid-column: span 2; }
+  .logo-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .logo-card .title {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    color: var(--text);
+  }
+  .logo-card .description {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  .logo-canvas {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--bg);
+    border-top: 1px solid var(--bg-soft);
+    border-bottom: 1px solid var(--bg-soft);
+    margin: 12px 0;
+  }
+
+  /* ============================================================
+     LOGO 1 — WORTMARKE VOLL (Haupt-Logo, breit)
+     ============================================================ */
+  .logo-1 {
+    text-align: center;
+  }
+  .logo-1 .main {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 140px;
+    line-height: 0.9;
+    letter-spacing: -0.03em;
+  }
+  .logo-1 .main .accent { color: var(--accent); }
+  .logo-1 .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    letter-spacing: 0.5em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 16px;
+    padding: 16px 0;
+    border-top: 2px solid var(--bg-soft);
+    border-bottom: 2px solid var(--bg-soft);
+    display: inline-block;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  /* ============================================================
+     LOGO 2 — STEMPEL-MONOGRAMM "BBP" (quadratisch, für Avatar)
+     ============================================================ */
+  .logo-2 {
+    width: 320px;
+    height: 320px;
+    background: var(--accent);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-3deg);
+    box-shadow: 0 20px 50px rgba(255, 45, 135, 0.3);
+  }
+  .logo-2::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 3px solid var(--bg);
+  }
+  .logo-2 .mono {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 140px;
+    color: var(--bg);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+  }
+  .logo-2 .tag {
+    position: absolute;
+    bottom: 32px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    color: var(--bg);
+  }
+
+  /* ============================================================
+     LOGO 3 — HORIZONTAL ONE-LINER (für Header-Leisten)
+     ============================================================ */
+  .logo-3 {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .logo-3 .dot {
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 20px var(--accent);
+  }
+  .logo-3 .name {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 56px;
+    letter-spacing: -0.02em;
+  }
+  .logo-3 .name .accent { color: var(--accent); }
+  .logo-3 .sep {
+    width: 2px;
+    height: 40px;
+    background: var(--bg-soft);
+  }
+  .logo-3 .live {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* ============================================================
+     LOGO 4 — BADGE / RUNDES SIEGEL (für Sticker, Merch, Watermark)
+     ============================================================ */
+  .logo-4-wrapper {
+    width: 320px;
+    height: 320px;
+    position: relative;
+  }
+  .logo-4 {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ============================================================
+     LOGO 5 — MINIMAL SIGNET (drei Punkte + BBP)
+     ============================================================ */
+  .logo-5 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+  .logo-5 .dots {
+    display: flex;
+    gap: 32px;
+  }
+  .logo-5 .dots .dot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-5 .dots .dot-circle {
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .logo-5 .dots .dot-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .logo-5 .name {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 80px;
+    letter-spacing: -0.03em;
+  }
+  .logo-5 .name .accent { color: var(--accent); }
+  .logo-5 .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.4em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* ============================================================
+     LOGO 6 — VERTIKAL (für Insta Story / Reel)
+     ============================================================ */
+  .logo-6 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    writing-mode: horizontal-tb;
+  }
+  .logo-6 .word {
+    font-family: 'Anton', sans-serif;
+    font-size: 72px;
+    line-height: 0.9;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .logo-6 .word:nth-child(2) { color: var(--accent); }
+  .logo-6 .footer-line {
+    margin-top: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* Usage Info */
+  .usage {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<h1>BBP RADIO — Logo Set</h1>
+<p class="intro">6 Logo-Varianten für unterschiedliche Plattformen und Größen. Alle nutzen dieselbe Typo-Familie
+(Archivo Black + Anton + JetBrains Mono) und die Tageszeit-Akzentfarbe lässt sich über eine CSS-Variable wechseln.
+Aktuelle Akzentfarbe: <strong style="color: var(--accent);">Pink #FF2D87</strong> (Sunset).</p>
+
+<div class="grid">
+
+  <!-- LOGO 1 — Wortmarke voll -->
+  <div class="logo-card wide">
+    <div class="label">01 · Wortmarke Voll</div>
+    <div class="title">BBP RADIO — Haupt-Logo</div>
+    <div class="description">Für Banner, Cover, Website-Header. Groß, kantig, stempelhaft.
+      Kombiniert Wort + Unterzeile "Bauch · Beine · Po · 24/7".</div>
+    <div class="logo-canvas">
+      <div class="logo-1">
+        <div class="main">BBP <span class="accent">RADIO</span></div>
+        <div class="sub">Bauch · Beine · Po · 24/7</div>
+      </div>
+    </div>
+    <div class="usage">USE: Twitch Offline Banner · YouTube Header · Website Hero</div>
+  </div>
+
+  <!-- LOGO 2 — Stempel-Monogramm -->
+  <div class="logo-card">
+    <div class="label">02 · Stempel-Monogramm</div>
+    <div class="title">BBP Stamp</div>
+    <div class="description">Quadratisch, leicht gedreht, Stempel-Optik. Perfekt als Avatar
+      auf allen Plattformen. Akzentfarbe bleibt auch im kleinen Format sichtbar.</div>
+    <div class="logo-canvas">
+      <div class="logo-2">
+        <div class="mono">BBP</div>
+        <div class="tag">RADIO · 24/7</div>
+      </div>
+    </div>
+    <div class="usage">USE: Avatar Twitch · Mixcloud · Insta · FB Profile</div>
+  </div>
+
+  <!-- LOGO 4 — Badge/Siegel -->
+  <div class="logo-card">
+    <div class="label">04 · Badge / Rundes Siegel</div>
+    <div class="title">BBP Circle Seal</div>
+    <div class="description">Rundes Abzeichen mit umlaufender Schrift. Für Sticker,
+      Merch, Watermark auf Streams/Reels, Stempel auf Artwork.</div>
+    <div class="logo-canvas">
+      <div class="logo-4-wrapper">
+        <svg class="logo-4" viewBox="0 0 320 320">
+          <defs>
+            <path id="circleText" d="M 160,160 m -130,0 a 130,130 0 1,1 260,0 a 130,130 0 1,1 -260,0" />
+            <path id="circleTextBottom" d="M 160,160 m -110,0 a 110,110 0 1,0 220,0 a 110,110 0 1,0 -220,0" />
+          </defs>
+          <!-- Outer ring -->
+          <circle cx="160" cy="160" r="150" fill="none" stroke="var(--accent)" stroke-width="3"/>
+          <circle cx="160" cy="160" r="142" fill="none" stroke="var(--accent)" stroke-width="1"/>
+          <!-- Umlaufender Text oben -->
+          <text font-family="JetBrains Mono, monospace" font-size="16" font-weight="700"
+                letter-spacing="8" fill="var(--text)">
+            <textPath href="#circleText" startOffset="12%">BAUCH · BEINE · PO · RADIO</textPath>
+          </text>
+          <text font-family="JetBrains Mono, monospace" font-size="13" letter-spacing="8" fill="var(--text-dim)">
+            <textPath href="#circleTextBottom" startOffset="28%">24/7 · LIVESTREAM · HOUSE · TECHNO</textPath>
+          </text>
+          <!-- Zentrales BBP -->
+          <text x="160" y="155" text-anchor="middle"
+                font-family="Archivo Black" font-size="76" fill="var(--text)" letter-spacing="-2">BBP</text>
+          <text x="160" y="195" text-anchor="middle"
+                font-family="Archivo Black" font-size="24" fill="var(--accent)" letter-spacing="6">RADIO</text>
+          <!-- Zierpunkte -->
+          <circle cx="160" cy="50" r="4" fill="var(--accent)"/>
+          <circle cx="160" cy="270" r="4" fill="var(--accent)"/>
+        </svg>
+      </div>
+    </div>
+    <div class="usage">USE: Watermark auf Streams · Sticker · Merch · Insta Story Sticker</div>
+  </div>
+
+  <!-- LOGO 3 — Horizontal One-Liner -->
+  <div class="logo-card wide">
+    <div class="label">03 · Horizontal One-Liner</div>
+    <div class="title">BBP RADIO — Schlanke Header-Version</div>
+    <div class="description">Für schmale Bereiche: Twitch-Profile-Banner, E-Mail-Signatur,
+      Footer-Leisten. Minimal + klar.</div>
+    <div class="logo-canvas">
+      <div class="logo-3">
+        <div class="dot"></div>
+        <div class="name">BBP <span class="accent">RADIO</span></div>
+        <div class="sep"></div>
+        <div class="live">24/7 Livestream</div>
+      </div>
+    </div>
+    <div class="usage">USE: Twitch Profile Banner · Mail Signatur · Website Footer</div>
+  </div>
+
+  <!-- LOGO 5 — Minimal Signet -->
+  <div class="logo-card">
+    <div class="label">05 · Minimal Signet (3 Punkte)</div>
+    <div class="title">BBP · Drei Punkte</div>
+    <div class="description">Das Namens-Konzept visualisiert: drei Punkte für
+      Bauch / Beine / Po. Grafisch, reduziert, für kleinere Anwendungen.</div>
+    <div class="logo-canvas">
+      <div class="logo-5">
+        <div class="dots">
+          <div class="dot"><div class="dot-circle"></div><div class="dot-label">Bauch</div></div>
+          <div class="dot"><div class="dot-circle"></div><div class="dot-label">Beine</div></div>
+          <div class="dot"><div class="dot-circle"></div><div class="dot-label">Po</div></div>
+        </div>
+        <div class="name">BBP <span class="accent">RADIO</span></div>
+      </div>
+    </div>
+    <div class="usage">USE: Reel Intro · Story Sticker · Minimal Merch</div>
+  </div>
+
+  <!-- LOGO 6 — Vertikal für Insta Story/Reel -->
+  <div class="logo-card">
+    <div class="label">06 · Vertikal · Story / Reel</div>
+    <div class="title">BBP Stacked</div>
+    <div class="description">Vertikal gestapelt mit Anton-Font, schmal und hoch.
+      Perfekt für Insta-Reel-Cover und Story-Overlays.</div>
+    <div class="logo-canvas" style="flex-direction: column;">
+      <div class="logo-6">
+        <div class="word">BAUCH</div>
+        <div class="word">BEINE</div>
+        <div class="word">PO</div>
+        <div class="footer-line">Radio · 24/7</div>
+      </div>
+    </div>
+    <div class="usage">USE: Insta Reel Cover · Story Overlay · Poster</div>
+  </div>
+
+</div>
+
+</body>
+</html>

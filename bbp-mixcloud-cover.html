@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>BBP RADIO — Mixcloud Show Cover 1024×1024</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bbp-bg: #0D1220;
+    --bbp-bg-soft: #151B2E;
+    --bbp-text: #F4F0E8;
+    --bbp-text-dim: #8A93A8;
+    --bbp-accent: #FF2D87;
+
+    --show-number: "SHOW #042";
+    --show-title: "LATE NIGHT DUB";
+    --dj: "SUENCHBAERDJ";
+    --duration: "02:45:00";
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px;
+    font-family: 'Inter', sans-serif;
+  }
+  .cover {
+    width: 1024px;
+    height: 1024px;
+    background: var(--bbp-bg);
+    position: relative;
+    overflow: hidden;
+    color: var(--bbp-text);
+    transform-origin: top left;
+    transform: scale(0.7);
+    margin-bottom: -308px;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--bbp-bg-soft) 1px, transparent 0);
+    background-size: 22px 22px;
+    opacity: 0.6;
+  }
+
+  .glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, var(--bbp-accent) 0%, transparent 55%);
+    opacity: 0.22;
+    pointer-events: none;
+  }
+
+  .rays {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1200px;
+    height: 1200px;
+    pointer-events: none;
+    opacity: 0.05;
+  }
+  .rays::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-conic-gradient(from 0deg,
+                var(--bbp-accent) 0deg 2deg,
+                transparent 2deg 24deg);
+    border-radius: 50%;
+  }
+
+  .content {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 70px;
+    gap: 40px;
+  }
+
+  /* Top */
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .logo {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 54px;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+  .logo .accent { color: var(--bbp-accent); }
+  .show-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    letter-spacing: 0.3em;
+    color: var(--bbp-accent);
+    padding: 10px 20px;
+    border: 2px solid var(--bbp-accent);
+    border-radius: 4px;
+    font-weight: 700;
+  }
+
+  /* Center: 3D + Titel overlay */
+  .center {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .render-placeholder {
+    width: 540px;
+    height: 540px;
+    border: 3px dashed var(--bbp-text-dim);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    opacity: 0.5;
+  }
+  .render-placeholder .icon { font-size: 90px; }
+  .render-placeholder .txt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.25em;
+    text-align: center;
+    line-height: 1.8;
+  }
+  .render-image {
+    max-width: 700px;
+    max-height: 700px;
+    filter: drop-shadow(0 0 60px var(--bbp-accent));
+  }
+  .title-overlay {
+    position: absolute;
+    bottom: -20px;
+    left: -30px;
+    right: -30px;
+    text-align: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 140px;
+    line-height: 0.85;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    color: var(--bbp-text);
+    text-shadow:
+      -3px 0 var(--bbp-bg),
+      3px 0 var(--bbp-bg),
+      0 -3px var(--bbp-bg),
+      0 3px var(--bbp-bg);
+  }
+
+  /* Bottom */
+  .bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-top: 24px;
+    border-top: 2px solid var(--bbp-bg-soft);
+  }
+  .dj-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dj-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.3em;
+    color: var(--bbp-text-dim);
+  }
+  .dj {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 36px;
+    color: var(--bbp-accent);
+    letter-spacing: -0.01em;
+  }
+  .duration-info {
+    text-align: right;
+  }
+  .duration-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.3em;
+    color: var(--bbp-text-dim);
+  }
+  .duration {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--bbp-text);
+    letter-spacing: 0.1em;
+  }
+
+  /* Inserts */
+  .show-number::before { content: var(--show-number); }
+  .title-overlay::before { content: var(--show-title); }
+  .dj::before { content: var(--dj); }
+  .duration::before { content: var(--duration); }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="rays"></div>
+  <div class="glow"></div>
+
+  <div class="content">
+
+    <div class="top">
+      <div class="logo">BBP <span class="accent">RADIO</span></div>
+      <div class="show-number"></div>
+    </div>
+
+    <div class="center">
+      <!-- <img class="render-image" src="arms-legs.png"> -->
+      <div class="render-placeholder">
+        <div class="icon">🤸</div>
+        <div class="txt">3D RENDER<br>PNG · ALPHA<br>ARMS · LEGS · BODIES</div>
+      </div>
+      <div class="title-overlay"></div>
+    </div>
+
+    <div class="bottom">
+      <div class="dj-info">
+        <div class="dj-label">MIX BY</div>
+        <div class="dj"></div>
+      </div>
+      <div class="duration-info">
+        <div class="duration-label">DURATION</div>
+        <div class="duration"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

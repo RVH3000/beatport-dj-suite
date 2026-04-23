@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>BBP RADIO — Insta Post 1:1 · 1080×1080</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bbp-bg: #0D1220;
+    --bbp-bg-soft: #151B2E;
+    --bbp-text: #F4F0E8;
+    --bbp-text-dim: #8A93A8;
+    --bbp-accent: #FF2D87;
+
+    --episode: "EP. 042";
+    --title: "AFTERHOUR SESSION";
+    --dj: "SUENCHBAERDJ";
+    --date: "SAT · 18.04.2026";
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px;
+    font-family: 'Inter', sans-serif;
+  }
+  .post {
+    width: 1080px;
+    height: 1080px;
+    background: var(--bbp-bg);
+    position: relative;
+    overflow: hidden;
+    color: var(--bbp-text);
+    transform-origin: top left;
+    transform: scale(0.65);
+    margin-bottom: -378px;
+  }
+
+  .post::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--bbp-bg-soft) 1px, transparent 0);
+    background-size: 24px 24px;
+    opacity: 0.6;
+  }
+
+  .glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 50%, var(--bbp-accent) 0%, transparent 55%);
+    opacity: 0.2;
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 70px;
+    gap: 40px;
+  }
+
+  /* Links: 3D Render */
+  .render-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .render-placeholder {
+    width: 420px;
+    height: 420px;
+    border: 3px dashed var(--bbp-text-dim);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    opacity: 0.5;
+  }
+  .render-placeholder .icon { font-size: 72px; }
+  .render-placeholder .txt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-align: center;
+    line-height: 1.8;
+  }
+  .render-image {
+    max-width: 560px;
+    max-height: 560px;
+    filter: drop-shadow(0 0 60px var(--bbp-accent));
+  }
+
+  /* Rechts: Info */
+  .info {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 10px 0;
+  }
+
+  .logo {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 64px;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+  .logo .accent { color: var(--bbp-accent); }
+  .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.4em;
+    color: var(--bbp-text-dim);
+    text-transform: uppercase;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 2px solid var(--bbp-bg-soft);
+  }
+
+  .center-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+  }
+  .episode {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    color: var(--bbp-accent);
+    letter-spacing: 0.3em;
+    font-weight: 700;
+  }
+  .title {
+    font-family: 'Anton', sans-serif;
+    font-size: 96px;
+    line-height: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+  .dj-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .dj-dot {
+    width: 14px;
+    height: 14px;
+    background: var(--bbp-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 16px var(--bbp-accent);
+  }
+  .dj {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 36px;
+    color: var(--bbp-accent);
+  }
+
+  .footer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 20px;
+    border-top: 2px solid var(--bbp-bg-soft);
+  }
+  .date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    letter-spacing: 0.2em;
+    color: var(--bbp-text);
+    font-weight: 700;
+  }
+  .platforms {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--bbp-text-dim);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  .episode::before { content: var(--episode); }
+  .title::before { content: var(--title); }
+  .dj::before { content: var(--dj); }
+  .date::before { content: var(--date); }
+  .platforms::before { content: "twitch · mixcloud · insta · facebook"; }
+</style>
+</head>
+<body>
+
+<div class="post">
+  <div class="glow"></div>
+
+  <div class="content">
+
+    <div class="render-area">
+      <!-- <img class="render-image" src="arms-legs.png"> -->
+      <div class="render-placeholder">
+        <div class="icon">🤸</div>
+        <div class="txt">3D RENDER<br>PNG · ALPHA<br>ARMS · LEGS · BODIES</div>
+      </div>
+    </div>
+
+    <div class="info">
+      <div>
+        <div class="logo">BBP <span class="accent">RADIO</span></div>
+        <div class="sub">Bauch · Beine · Po · 24/7</div>
+      </div>
+
+      <div class="center-block">
+        <div class="episode"></div>
+        <div class="title"></div>
+        <div class="dj-row">
+          <div class="dj-dot"></div>
+          <div class="dj"></div>
+        </div>
+      </div>
+
+      <div class="footer-info">
+        <div class="date"></div>
+        <div class="platforms"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

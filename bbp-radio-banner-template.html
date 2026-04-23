@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>BBP RADIO — Banner Template 1920×1080</title>
+<!-- Google Fonts: fette Stempel-Typo + saubere Sans -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     BBP RADIO — Brand Template
+     Einfach bearbeitbar: nur die Variablen unten ändern
+     ============================================================ */
+  :root {
+    /* Basis (konstant für alle Banner) */
+    --bbp-bg: #0D1220;              /* Dunkles Graublau */
+    --bbp-bg-soft: #151B2E;         /* Etwas heller fürs Grid */
+    --bbp-text: #F4F0E8;            /* Warmes Creme */
+    --bbp-text-dim: #8A93A8;        /* Gedämpfter Text */
+
+    /* TAGESZEIT-AKZENT — hier umschalten!
+       Jeweils eine Zeile einkommentieren, Rest auskommentieren */
+    --bbp-accent: #FF2D87;          /* Sunset — Hot Pink / Magenta (Standard) */
+    /* --bbp-accent: #7EC8E3;          Arctic Frost — Eisblau (06-09h) */
+    /* --bbp-accent: #7FB069;          Botanical — Grün (09-12h) */
+    /* --bbp-accent: #E6E6E6;          Minimalist — Hellgrau (12-15h) */
+    /* --bbp-accent: #2E86AB;          Ocean — Tiefblau (15-18h) */
+    /* --bbp-accent: #E8A33D;          Golden Hour — Gold (18-20h) */
+    /* --bbp-accent: #D4A5A5;          Desert Rose — Altrosa (22-00h) */
+    /* --bbp-accent: #4A6741;          Forest — Dunkelgrün (00-02h) */
+    /* --bbp-accent: #00E5FF;          Tech Night — Cyan (02-04h) */
+    /* --bbp-accent: #7B2D8E;          Galaxy — Lila (04-06h) */
+
+    /* Dynamischer Inhalt — hier die aktuellen Infos eintragen */
+    --dj-name: "ROBERT AMIN × SUENCHBAERDJ";
+    --stream-date: "FR · 18.04.2026";
+    --stream-time: "22:00 — OPEN END";
+    --collab: "feat. GUEST TBA";
+    --genre-tags: "#House #Techno #Electro #Boogie #Dub #Minimal";
+    --show-title: "LIVE DJ MIX SESSION";
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Das eigentliche Banner — 1920×1080, skaliert für den Browser */
+  .banner {
+    width: 1920px;
+    height: 1080px;
+    background: var(--bbp-bg);
+    position: relative;
+    overflow: hidden;
+    color: var(--bbp-text);
+    transform-origin: top left;
+    transform: scale(0.55);   /* anpassen für Preview-Größe */
+    margin-bottom: -485px;    /* kompensiert Skalierung */
+  }
+
+  /* Feines Dot-Grid im Hintergrund — Aerobic-Studio-Vibe */
+  .banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, var(--bbp-bg-soft) 1px, transparent 0);
+    background-size: 24px 24px;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* Radialer Glow um den 3D-Render-Platz — wie Spot im Studio */
+  .glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center,
+                var(--bbp-accent) 0%,
+                transparent 55%);
+    opacity: 0.18;
+    pointer-events: none;
+  }
+
+  /* ============ LAYOUT ============ */
+  .layout {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 140px 1fr 180px;
+    padding: 60px 80px;
+    gap: 20px;
+  }
+
+  /* Header-Leiste */
+  .header {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 72px;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--bbp-text);
+  }
+  .logo .accent {
+    color: var(--bbp-accent);
+  }
+  .logo-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.4em;
+    color: var(--bbp-text-dim);
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+
+  .on-air {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 28px;
+    border: 3px solid var(--bbp-accent);
+    border-radius: 8px;
+    background: rgba(255, 45, 135, 0.08);
+  }
+  .on-air .dot {
+    width: 16px;
+    height: 16px;
+    background: var(--bbp-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 20px var(--bbp-accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .on-air .label {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 28px;
+    color: var(--bbp-accent);
+    letter-spacing: 0.2em;
+  }
+
+  /* Hauptbereich — 3D-Render-Platzhalter + Info-Block */
+  .main {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    align-items: center;
+    gap: 60px;
+    padding: 20px 0;
+  }
+
+  .render-area {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .render-placeholder {
+    width: 620px;
+    height: 620px;
+    border: 2px dashed var(--bbp-text-dim);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    opacity: 0.5;
+  }
+  .render-placeholder .icon {
+    font-size: 80px;
+  }
+  .render-placeholder .txt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    text-align: center;
+    line-height: 1.6;
+  }
+  /* Wenn du dein PNG hast, ersetze .render-placeholder durch:
+     <img class="render-image" src="dein-3d-render.png"> */
+  .render-image {
+    max-width: 720px;
+    max-height: 720px;
+    filter: drop-shadow(0 0 60px var(--bbp-accent));
+  }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .show-title {
+    font-family: 'Anton', sans-serif;
+    font-size: 64px;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    color: var(--bbp-text);
+  }
+  .dj-name {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 44px;
+    line-height: 1.1;
+    color: var(--bbp-accent);
+  }
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px 0;
+    border-top: 2px solid var(--bbp-bg-soft);
+    border-bottom: 2px solid var(--bbp-bg-soft);
+  }
+  .meta-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: var(--bbp-text);
+  }
+  .meta-label {
+    color: var(--bbp-accent);
+    font-weight: 700;
+    min-width: 110px;
+    letter-spacing: 0.1em;
+    font-size: 18px;
+  }
+
+  /* Footer — Hashtags */
+  .footer {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 30px;
+    border-top: 2px solid var(--bbp-bg-soft);
+  }
+  .hashtags {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    color: var(--bbp-text-dim);
+    letter-spacing: 0.05em;
+  }
+  .platforms {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    color: var(--bbp-text-dim);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  /* Dynamische Inhalte via CSS content() */
+  .dj-name::before { content: var(--dj-name); }
+  .show-title::before { content: var(--show-title); }
+  .collab::before { content: var(--collab); }
+  .date-val::before { content: var(--stream-date); }
+  .time-val::before { content: var(--stream-time); }
+  .hashtags::before { content: var(--genre-tags); }
+
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <div class="glow"></div>
+
+  <div class="layout">
+
+    <!-- HEADER: Logo + ON AIR Badge -->
+    <div class="header">
+      <div>
+        <div class="logo">BBP <span class="accent">RADIO</span></div>
+        <div class="logo-sub">Bauch · Beine · Po · 24/7</div>
+      </div>
+      <div class="on-air">
+        <div class="dot"></div>
+        <div class="label">ON AIR</div>
+      </div>
+    </div>
+
+    <!-- MAIN: 3D-Render-Platzhalter + Info -->
+    <div class="main">
+      <div class="render-area">
+        <!-- Hier dein 3D-Render einfügen:
+             <img class="render-image" src="arms-legs-bodies.png">
+             Solange Platzhalter: -->
+        <div class="render-placeholder">
+          <div class="icon">🤸</div>
+          <div class="txt">
+            3D RENDER<br>
+            PNG · ALPHA · 1200×1200<br>
+            ARMS · LEGS · BODIES
+          </div>
+        </div>
+      </div>
+
+      <div class="info">
+        <div class="show-title"></div>
+        <div class="dj-name"></div>
+        <div class="meta">
+          <div class="meta-row">
+            <span class="meta-label">DATE</span>
+            <span class="date-val"></span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">TIME</span>
+            <span class="time-val"></span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">FEAT</span>
+            <span class="collab"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER: Hashtags + Plattformen -->
+    <div class="footer">
+      <div class="hashtags"></div>
+      <div class="platforms">twitch · mixcloud · youtube · facebook</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

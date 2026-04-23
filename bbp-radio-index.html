@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>BBP RADIO — Brand Kit Übersicht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0D1220;
+    --bg-soft: #151B2E;
+    --text: #F4F0E8;
+    --text-dim: #8A93A8;
+    --accent: #FF2D87;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    padding: 60px;
+    line-height: 1.6;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--bg-soft) 1px, transparent 0);
+    background-size: 24px 24px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; }
+
+  .hero {
+    text-align: center;
+    padding: 40px 0 80px;
+    border-bottom: 2px solid var(--bg-soft);
+  }
+  .hero .logo {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 140px;
+    line-height: 0.85;
+    letter-spacing: -0.03em;
+  }
+  .hero .logo .accent { color: var(--accent); }
+  .hero .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    letter-spacing: 0.5em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 24px;
+    padding: 16px 0;
+    display: inline-block;
+  }
+  .hero .tagline {
+    margin-top: 40px;
+    font-family: 'Anton', sans-serif;
+    font-size: 40px;
+    text-transform: uppercase;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+
+  h2 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 28px;
+    margin: 60px 0 24px;
+    letter-spacing: -0.01em;
+  }
+  h2 .num {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.3em;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--bg-soft);
+    border: 1px solid var(--bg-soft);
+    border-radius: 12px;
+    padding: 32px;
+    transition: all 0.2s;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .card .size {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.25em;
+    margin-bottom: 8px;
+  }
+  .card .name {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  .card .desc {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .card a {
+    display: inline-block;
+    padding: 12px 24px;
+    background: var(--accent);
+    color: var(--bg);
+    text-decoration: none;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    border-radius: 4px;
+  }
+
+  .brand-spec {
+    background: var(--bg-soft);
+    border-radius: 12px;
+    padding: 40px;
+    margin-top: 40px;
+  }
+  .brand-spec h3 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 18px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    letter-spacing: 0.1em;
+  }
+  .brand-spec .row { margin-bottom: 24px; }
+  .brand-spec code {
+    background: var(--bg);
+    padding: 4px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    border-radius: 3px;
+  }
+
+  .colors {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .color {
+    border-radius: 8px;
+    padding: 16px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .color .name { font-weight: 700; }
+  .color .hex { opacity: 0.8; }
+
+  .fonts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 16px;
+  }
+  .font-demo {
+    background: var(--bg);
+    padding: 20px;
+    border-radius: 8px;
+  }
+  .font-demo .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.2em;
+    margin-bottom: 12px;
+  }
+  .font-demo .sample { font-size: 24px; line-height: 1.2; }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 40px;
+    border-top: 2px solid var(--bg-soft);
+    text-align: center;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="hero">
+    <div class="logo">BBP <span class="accent">RADIO</span></div>
+    <div class="sub">Bauch · Beine · Po · 24/7</div>
+    <div class="tagline">Brand Kit · Version 1.0</div>
+  </div>
+
+  <h2><span class="num">01 · LOGOS</span>Logo-Set</h2>
+  <div class="grid">
+    <div class="card" style="grid-column: span 2;">
+      <div class="size">6 VARIANTEN · EINE DATEI</div>
+      <div class="name">Logo Set — alle Varianten auf einer Seite</div>
+      <div class="desc">Wortmarke voll, Stempel-Monogramm, Horizontal, Badge/Siegel, Minimal Signet, Vertikal gestapelt.</div>
+      <a href="bbp-radio-logo-set.html" target="_blank">→ Öffnen</a>
+    </div>
+  </div>
+
+  <h2><span class="num">02 · TEMPLATES</span>Banner & Cover</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="size">1920 × 1080</div>
+      <div class="name">Haupt-Banner</div>
+      <div class="desc">Twitch Offline Screen + YouTube Thumbnail. Volle DJ-Ankündigung mit Datum, Zeit, Collab-Partner.</div>
+      <a href="bbp-radio-banner-template.html" target="_blank">→ Öffnen</a>
+    </div>
+
+    <div class="card">
+      <div class="size">1200 × 480</div>
+      <div class="name">Twitch Profile Banner</div>
+      <div class="desc">Horizontal, kompakt. Logo + Tagline + Handle. Läuft oben auf dem Twitch-Profil.</div>
+      <a href="bbp-twitch-profile-banner.html" target="_blank">→ Öffnen</a>
+    </div>
+
+    <div class="card">
+      <div class="size">1080 × 1920</div>
+      <div class="name">Insta Reel Cover</div>
+      <div class="desc">Vertikal 9:16. Großer Titel, 3D-Render zentral, Live-Meta unten. Perfekt fürs Reel-Thumbnail.</div>
+      <a href="bbp-insta-reel-cover.html" target="_blank">→ Öffnen</a>
+    </div>
+
+    <div class="card">
+      <div class="size">1080 × 1080</div>
+      <div class="name">Insta Post 1:1</div>
+      <div class="desc">Quadratisch für Feed-Posts. Episode + Titel + DJ + Datum. Funktioniert auch auf Facebook.</div>
+      <a href="bbp-insta-post.html" target="_blank">→ Öffnen</a>
+    </div>
+
+    <div class="card" style="grid-column: span 2;">
+      <div class="size">1024 × 1024</div>
+      <div class="name">Mixcloud Show Cover</div>
+      <div class="desc">Quadratisch mit großem Titel-Overlay. Show-Nummer, 3D-Render, DJ-Name, Laufzeit.</div>
+      <a href="bbp-mixcloud-cover.html" target="_blank">→ Öffnen</a>
+    </div>
+  </div>
+
+  <h2><span class="num">03 · BRAND SYSTEM</span>Design-Spezifikation</h2>
+
+  <div class="brand-spec">
+    <div class="row">
+      <h3>BASIS-FARBEN (konstant)</h3>
+      <div class="colors">
+        <div class="color" style="background: #0D1220; color: #F4F0E8; border: 1px solid #151B2E;">
+          <div class="name">BG</div><div class="hex">#0D1220</div>
+        </div>
+        <div class="color" style="background: #151B2E; color: #F4F0E8;">
+          <div class="name">BG-SOFT</div><div class="hex">#151B2E</div>
+        </div>
+        <div class="color" style="background: #F4F0E8; color: #0D1220;">
+          <div class="name">TEXT</div><div class="hex">#F4F0E8</div>
+        </div>
+        <div class="color" style="background: #8A93A8; color: #0D1220;">
+          <div class="name">TEXT-DIM</div><div class="hex">#8A93A8</div>
+        </div>
+        <div class="color" style="background: #FF2D87; color: #0D1220;">
+          <div class="name">ACCENT</div><div class="hex">#FF2D87</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <h3>TAGESZEIT-AKZENTE (wechselnd)</h3>
+      <div class="colors">
+        <div class="color" style="background: #7EC8E3; color: #0D1220;"><div class="name">Arctic 06-09</div><div class="hex">#7EC8E3</div></div>
+        <div class="color" style="background: #7FB069; color: #0D1220;"><div class="name">Botanic 09-12</div><div class="hex">#7FB069</div></div>
+        <div class="color" style="background: #E6E6E6; color: #0D1220;"><div class="name">Minimal 12-15</div><div class="hex">#E6E6E6</div></div>
+        <div class="color" style="background: #2E86AB; color: #F4F0E8;"><div class="name">Ocean 15-18</div><div class="hex">#2E86AB</div></div>
+        <div class="color" style="background: #E8A33D; color: #0D1220;"><div class="name">Gold 18-20</div><div class="hex">#E8A33D</div></div>
+      </div>
+      <div class="colors" style="margin-top: 12px;">
+        <div class="color" style="background: #FF2D87; color: #0D1220;"><div class="name">Sunset 20-22</div><div class="hex">#FF2D87</div></div>
+        <div class="color" style="background: #D4A5A5; color: #0D1220;"><div class="name">Rose 22-00</div><div class="hex">#D4A5A5</div></div>
+        <div class="color" style="background: #4A6741; color: #F4F0E8;"><div class="name">Forest 00-02</div><div class="hex">#4A6741</div></div>
+        <div class="color" style="background: #00E5FF; color: #0D1220;"><div class="name">Tech 02-04</div><div class="hex">#00E5FF</div></div>
+        <div class="color" style="background: #7B2D8E; color: #F4F0E8;"><div class="name">Galaxy 04-06</div><div class="hex">#7B2D8E</div></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <h3>TYPOGRAFIE</h3>
+      <div class="fonts">
+        <div class="font-demo">
+          <div class="label">HEADLINES · LOGOS</div>
+          <div class="sample" style="font-family: 'Archivo Black'; font-size: 36px;">Archivo Black</div>
+        </div>
+        <div class="font-demo">
+          <div class="label">DISPLAY · TITEL</div>
+          <div class="sample" style="font-family: 'Anton'; font-size: 40px; text-transform: uppercase;">Anton</div>
+        </div>
+        <div class="font-demo">
+          <div class="label">META · CODE · TAGS</div>
+          <div class="sample" style="font-family: 'JetBrains Mono'; font-size: 20px; letter-spacing: 0.2em;">JETBRAINS MONO</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <h3>SO ÄNDERST DU EIN TEMPLATE</h3>
+      <p style="margin-top: 8px;">1. HTML-Datei im Browser öffnen (oder im Editor)</p>
+      <p>2. Oben im <code>:root</code>-Block die Variablen anpassen — z.B. <code>--dj-name: "NEUER NAME"</code></p>
+      <p>3. Für Tageszeit-Akzent die Zeile <code>--bbp-accent</code> auf den passenden Hex-Code setzen</p>
+      <p>4. 3D-Render einfügen: Platzhalter-Div durch <code>&lt;img class="render-image" src="deinRender.png"&gt;</code> ersetzen</p>
+      <p>5. Screenshot machen oder mit Browser-Plugin als PNG exportieren</p>
+    </div>
+
+    <div class="row">
+      <h3>MOTIV-REFERENZ</h3>
+      <p style="margin-top: 8px;">3D-Renders von Arms · Legs · Bodies (OBJ → PNG mit Alpha-Kanal).
+      Stil-Referenz: Eric Prydz "Call on Me" Video — Aerobic-Studio + Körperbetonung,
+      aber niemals Comic, kein Kaleidoskop, kein Glitter. Überleitung via Overlay Studio für Freistellung.</p>
+    </div>
+  </div>
+
+  <footer>
+    BBP RADIO · BRAND KIT v1.0 · ROBERT AMIN × SUENCHBAERDJ · 24/7 LIVESTREAM
+  </footer>
+
+</div>
+
+</body>
+</html>

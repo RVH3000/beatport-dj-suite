@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>BBP RADIO — Twitch Profile Banner 1200×480</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bbp-bg: #0D1220;
+    --bbp-bg-soft: #151B2E;
+    --bbp-text: #F4F0E8;
+    --bbp-text-dim: #8A93A8;
+    --bbp-accent: #FF2D87;     /* Wechseln: Tageszeit-Akzent */
+
+    /* Dynamischer Inhalt */
+    --tagline: "24/7 HOUSE · TECHNO · ELECTRO · DUB";
+    --handle: "twitch.tv/suenchbaerdj";
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px;
+    font-family: 'Inter', sans-serif;
+  }
+  .banner {
+    width: 1200px;
+    height: 480px;
+    background: var(--bbp-bg);
+    position: relative;
+    overflow: hidden;
+    color: var(--bbp-text);
+  }
+
+  /* Dot-Grid */
+  .banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--bbp-bg-soft) 1px, transparent 0);
+    background-size: 20px 20px;
+    opacity: 0.6;
+  }
+
+  /* Linker Glow */
+  .glow-left {
+    position: absolute;
+    left: -100px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, var(--bbp-accent) 0%, transparent 60%);
+    opacity: 0.2;
+    pointer-events: none;
+  }
+
+  /* Strahlen — dezent */
+  .rays {
+    position: absolute;
+    left: 200px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 500px;
+    height: 500px;
+    opacity: 0.08;
+    pointer-events: none;
+  }
+  .rays::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-conic-gradient(from 0deg,
+                var(--bbp-accent) 0deg 1deg,
+                transparent 1deg 15deg);
+    border-radius: 50%;
+  }
+
+  /* Layout */
+  .content {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    align-items: center;
+    padding: 50px 60px;
+    gap: 40px;
+  }
+
+  /* Linke Seite — 3D-Render Platzhalter */
+  .render-area {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .render-placeholder {
+    width: 340px;
+    height: 340px;
+    border: 2px dashed var(--bbp-text-dim);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0.5;
+  }
+  .render-placeholder .icon { font-size: 48px; }
+  .render-placeholder .txt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-align: center;
+    line-height: 1.8;
+  }
+  /* Ersetze mit: <img class="render-image" src="deinRender.png"> */
+  .render-image {
+    max-width: 420px;
+    max-height: 420px;
+    filter: drop-shadow(0 0 40px var(--bbp-accent));
+  }
+
+  /* Rechte Seite — Logo + Tagline */
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .logo {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 110px;
+    line-height: 0.85;
+    letter-spacing: -0.03em;
+  }
+  .logo .accent { color: var(--bbp-accent); }
+
+  .sub-line {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.4em;
+    color: var(--bbp-text-dim);
+    text-transform: uppercase;
+    padding-top: 12px;
+    border-top: 2px solid var(--bbp-bg-soft);
+  }
+  .sub-line::before { content: "Bauch · Beine · Po · 24/7"; }
+
+  .tagline {
+    font-family: 'Anton', sans-serif;
+    font-size: 28px;
+    line-height: 1.1;
+    color: var(--bbp-text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .tagline::before { content: var(--tagline); }
+
+  .handle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .handle-dot {
+    width: 12px;
+    height: 12px;
+    background: var(--bbp-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 16px var(--bbp-accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .handle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: var(--bbp-accent);
+    font-weight: 700;
+  }
+  .handle::before { content: var(--handle); }
+
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <div class="glow-left"></div>
+  <div class="rays"></div>
+
+  <div class="content">
+
+    <!-- Links: 3D Render -->
+    <div class="render-area">
+      <!-- <img class="render-image" src="arms-legs-render.png"> -->
+      <div class="render-placeholder">
+        <div class="icon">🤸</div>
+        <div class="txt">3D RENDER<br>PNG · ALPHA<br>ARMS · LEGS · BODIES</div>
+      </div>
+    </div>
+
+    <!-- Rechts: Logo + Info -->
+    <div class="info">
+      <div class="logo">BBP <span class="accent">RADIO</span></div>
+      <div class="sub-line"></div>
+      <div class="tagline"></div>
+      <div class="handle-row">
+        <div class="handle-dot"></div>
+        <div class="handle"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
