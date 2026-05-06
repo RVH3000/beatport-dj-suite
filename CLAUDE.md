@@ -3,10 +3,10 @@
 **Projekt:** Beatport DJ Suite (All-in-One Beatport Electron App)
 **Repository:** `~/Projects/_local/beatport-dj-suite`
 **Remote:** github.com/RVH3000/beatport-dj-suite (privat)
-**Version:** 4.0.0
-**Branch:** v4 (aktiv); daneben `main`, `release/v2.3-stable`, `feat/label-import-2026-04-08`, `merge-analysis`
+**Version:** 4.1.0 (Branch `feat/v4.1`); v4 noch auf 4.0.0
+**Branch:** v4 (führend); daneben `feat/v4.1` (Versions-Workflow + dyn. Badge), `main`, `release/v2.3-stable`, `feat/label-import-2026-04-08`, `merge-analysis`
 **Stack:** Electron 32 + Node.js + Python 3 (Engine-DB-Integration)
-**Letzte Aktualisierung:** 2026-04-20 (Bridge-Kontext + Sandbox-Strategie ergänzt)
+**Letzte Aktualisierung:** 2026-05-06 (App-Naming-Konvention, v4.1.0 Build)
 
 ---
 
@@ -93,6 +93,14 @@ Unter `/Users/roberth./FragmentIndex/reports/` liegen 145 Scan-Berichte vom 19. 
 ## Backup-Status
 
 GitHub-Remote ist eingerichtet (`RVH3000/beatport-dj-suite`, privat). Push via `git push origin v4` (bzw. den jeweils aktuellen Branch).
+
+## App-Installation: Versionsnummer im Namen
+
+Builds die nach `/Applications/` installiert werden, IMMER mit Versionsnummer benennen:
+- `/Applications/Beatport DJ Suite 4.1.0.app` ✓
+- `/Applications/Beatport DJ Suite.app` ✗ (nicht ohne Suffix)
+
+Grund: alte Builds bleiben parallel verfügbar (Rollback ohne Neu-Build). Ältere Versionen → in `~/.Trash/` verschieben, nicht überschreiben. Vor dem Ersetzen die laufende Instanz beenden (`osascript -e 'tell application "..." to quit'`).
 
 ## Session-Kontinuität (Pflicht)
 
