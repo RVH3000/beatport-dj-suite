@@ -1,18 +1,21 @@
 # LLM Handoff — Beatport DJ Suite
 
-**Stand:** 2026-04-19
+**Stand:** 2026-05-06
 **Erstellt von:** Claude Code CLI (Opus 4.7, 1M Kontext)
-**Vorherige Session:** 2026-04-13 (Engine-Analyse Tab)
+**Vorherige Session:** 2026-04-19 (Versions-Workflow + Dynamic Badge im Working Tree)
 **Nach:** Claude Code CLI / Dispatch / weitere Session
 
 ---
 
 ## Aktueller Stand
 
-- **Branch:** `v4` (⚠️ nicht mehr `main` — Haupt-Entwicklung läuft hier)
-- **Version:** `4.0.0` (in `package.json`)
-- **Letzter Commit:** `30dbd41 docs(changelog): split history into CHANGELOG-HISTORY.md, prepare for v4.1.0 workflow`
-- **Remote:** `github.com/RVH3000/beatport-dj-suite` (privat)
+- **Branch (Worktree):** `feat/v4.1` (HEAD = `61d3f9b`, Cherry-pick von `233a8ce` aus `v4` — Versions-Workflow + dyn. Badge)
+- **Branch (führend):** `v4` — noch auf `4.0.0`, hat Versions-Workflow committed (`233a8ce`), aber separat von `feat/v4.1`-Featurelinie (Fuzzy-Dupes, Drama-Score)
+- **Version (feat/v4.1):** `4.1.0` (in `package.json`)
+- **Tests:** 592/592 grün (8.25 s, Stand 2026-05-06)
+- **Build:** `dist-electron/mac-arm64/Beatport DJ Suite.app` v4.1.0, gerade frisch gebaut
+- **Installiert:** `/Applications/Beatport DJ Suite 4.1.0.app` (mit dynamischem Versions-Badge)
+- **Remote:** `github.com/RVH3000/beatport-dj-suite` (privat) — `feat/v4.1` lokal-only, ungepusht
 
 ### Weitere aktive Branches
 - `main` — veralteter Stand, nicht mehr führend
@@ -39,7 +42,29 @@ Dokumente in `.agents/merge-analysis/`:
 
 ---
 
-## Neu in dieser Session (2026-04-19)
+## Neu in dieser Session (2026-05-06)
+
+### Cherry-pick: dynamischer Versions-Badge in feat/v4.1
+
+- Commit `233a8ce` (`feat: add automatic version workflow`) aus Branch `v4` in `feat/v4.1` cherry-picked → neuer lokaler Commit `61d3f9b`.
+- Konflikt nur in `package-lock.json` — mit `--ours` aufgelöst (eigene 4.1.0-Lock behalten, `commit-and-tag-version` als DevDep nicht zwingend für Build nötig).
+- `package.json`: `"version": "4.1.0"` blieb erhalten (Auto-merge).
+- Ergebnis: Header zeigt jetzt zur Laufzeit `v4.1.0` (gefüllt durch `app.js:635-636`).
+
+### v4.1.0-Build erzeugt + installiert
+
+- `npm run desktop:dir:mac` → `dist-electron/mac-arm64/Beatport DJ Suite.app` (Version 4.1.0, frische `app.asar` mit Hash `81f0f7…`).
+- Nach `/Applications/Beatport DJ Suite 4.1.0.app` kopiert (mit Versionsnummer im Namen, neue Konvention — siehe Repo-CLAUDE.md), Quarantine entfernt, gestartet.
+- Vorherige `/Applications/Beatport DJ Suite.app` (v2.0.0 vom 2026-03-29) wanderte in `~/.Trash/`.
+
+### CLAUDE.md-Updates
+
+- **Global** (`~/.claude/CLAUDE.md`): Pauschal-Regel „_local/ = kein Backup" präzisiert auf „erst `git remote -v` prüfen".
+- **Repo-CLAUDE.md** (Branch `v4`): App-Installations-Konvention ergänzt (Versionsnummer im Namen).
+
+---
+
+## Vorherige Session (2026-04-19)
 
 ### Versions-Workflow eingeführt
 
@@ -70,11 +95,19 @@ Folgende Dateien sind vorbereitet, aber liegen uncommitted im Working Tree — *
 
 ---
 
-## Offene TODOs (aus vorheriger Session, weiterhin relevant)
+## Offene TODOs
 
-### Versions-Workflow — Abschluss
+### Release-Pfad v4.1.0 (priorisiert, „endlich fertig bauen")
+
+1. [ ] **`git push origin feat/v4.1`** — Cherry-pick-Commit `61d3f9b` ist nur lokal. Backup auf Remote, sonst bei Branch-Wechsel weg.
+2. [ ] **`feat/v4.1` → `v4` mergen** (im Hauptrepo, oder PR via `gh pr create --base v4`).
+3. [ ] **Trockenlauf:** `npx commit-and-tag-version --dry-run` — sehen was Release erzeugen würde.
+4. [ ] **Scharf:** `npm run release` — zieht 4.0.0 → 4.1.0 hoch, generiert CHANGELOG, taggt, pusht. (Hook-Fix von 2026-04-19 vorher prüfen.)
+5. [ ] **DMG/ZIP-Build** für Verteilung: `npm run desktop:dist:mac` (statt `:dir`).
+6. [ ] **Branch-Triage** (5 min): `git log v4..merge-analysis` und `…feat/label-import-2026-04-08` durchgehen — rein, weg oder warten?
+
+### Versions-Workflow — Restposten
 - [ ] Hook-Fix nach Schritt 9 (vom User angekündigt, Details folgen)
-- [ ] Erster echter Release `npm run release` durchführen (nach Abschluss von Schritt 9/10)
 
 ### Engine-Analyse Tab — Feinschliff
 - [ ] **Scoring-Data-Pfad:** Aktuell hardcoded leer (`""`) — aus Settings laden oder Dateiauswahl-Dialog
