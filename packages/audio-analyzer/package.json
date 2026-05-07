@@ -2,9 +2,18 @@
   "name": "@bpdjs/audio-analyzer",
   "version": "0.1.0",
   "private": true,
-  "description": "Audio-Analyse: BPM, Tonart, Duplikat-Erkennung und Performance-Klassifizierung.",
+  "type": "module",
+  "description": "Track-Analyse-Datenmodell + Performance-Score (Camelot/BPM/Energy). Reine Rechenlogik, keine Audio-Detection.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./scoring": "./src/scoring.mjs",
+    "./analysis": "./src/analysis.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@bpdjs/core": "*"
   }
 }

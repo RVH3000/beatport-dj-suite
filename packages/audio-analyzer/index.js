@@ -1,2 +1,12 @@
-// @bpdjs/audio-analyzer — Phase 0 Skelett
-module.exports = {};
+export {
+  computeBpmFitness,
+  computeKeyFitness,
+  computePerformanceScore,
+  rankByScore
+} from "./src/scoring.mjs";
+
+export {
+  ANALYSIS_SOURCES,
+  buildAnalysis,
+  mergeAnalyses
+} from "./src/analysis.mjs";
