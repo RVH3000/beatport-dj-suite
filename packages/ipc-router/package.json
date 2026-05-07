@@ -2,9 +2,18 @@
   "name": "@bpdjs/ipc-router",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "IPC-Bridge zwischen Electron-Main und Renderer. Zentrale Registrierung aller Handler nach Bereichen.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./wrapper": "./src/wrapper.mjs",
+    "./progress": "./src/progress.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@bpdjs/core": "*"
   }
 }
