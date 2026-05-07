@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@bpdjs/core": "*",
-    "@bpdjs/ipc-router": "*"
+    "@bpdjs/ipc-router": "*",
+    "@bpdjs/file-manager": "*"
   }
 }

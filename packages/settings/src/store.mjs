@@ -1,5 +1,5 @@
 import { ConfigStore, eventBus as defaultBus, logger as defaultLogger } from "@bpdjs/core";
-import { writeJsonAtomic, readJsonOptional } from "./persistence.mjs";
+import { writeJsonAtomic, readJsonOptional } from "@bpdjs/file-manager";
 
 export const SETTINGS_CHANGED = "settings:changed";
 export const SETTINGS_LOADED = "settings:loaded";
