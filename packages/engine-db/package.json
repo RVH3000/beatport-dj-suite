@@ -2,9 +2,20 @@
   "name": "@bpdjs/engine-db",
   "version": "0.1.0",
   "private": true,
-  "description": "Zugriff auf Engine-DJ-Datenbanken (m.db, hm.db) inklusive Multi-DB-Verwaltung, Backup und Vergleich.",
+  "type": "module",
+  "description": "Read-only Zugriff auf Engine-DJ-Datenbanken (m.db, hm.db, ...) plus Sandbox-Helper. Phase 5: Foundation, kein Schreibzugriff.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./sqlite-cli": "./src/sqlite-cli.mjs",
+    "./sandbox": "./src/sandbox.mjs",
+    "./library": "./src/library.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@bpdjs/core": "*",
+    "@bpdjs/file-manager": "*"
   }
 }
