@@ -2,9 +2,19 @@
   "name": "@bpdjs/playlist-manager",
   "version": "0.1.0",
   "private": true,
-  "description": "Playlist-Verwaltung: CRUD, Playlist Builder, Playlist WIZ und Camelot-Check.",
+  "type": "module",
+  "description": "Playlist-Verwaltung: Datenmodell, Camelot-Wheel-Logik, harmonischer Mix-Check und Playlist-Builder.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./camelot": "./src/camelot.mjs",
+    "./playlist": "./src/playlist.mjs",
+    "./builder": "./src/builder.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@bpdjs/core": "*"
   }
 }

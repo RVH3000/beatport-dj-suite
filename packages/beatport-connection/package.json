@@ -2,9 +2,15 @@
   "name": "@bpdjs/beatport-connection",
   "version": "1.0.0",
   "private": true,
-  "description": "Beatport-Anbindung (Scanner, Auth, API). Heiliger Code — wird nur gekapselt, nie geändert.",
+  "type": "module",
+  "description": "Beatport-Anbindung (Scanner, Auth, API). Heiliger Code — wird gekapselt via Lazy-Import aus v4.1, nicht verändert.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./api": "./src/api.mjs",
+    "./constants": "./src/constants.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
   }
 }
