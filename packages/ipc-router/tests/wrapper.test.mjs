@@ -59,6 +59,14 @@ test("handle(): mit buildConfig wird config injiziert", async () => {
   assert.equal(result.extra, "extra-arg");
 });
 
+test("handle(): event wird NICHT als Extra-Argument an fn weitergereicht", async () => {
+  const ipcMain = makeMockIpcMain();
+  const router = createIpcRouter({ ipcMain });
+  router.handle("count", async (...args) => args.length);
+  const result = await ipcMain.invoke("count", "a", "b");
+  assert.equal(result, 2, "Nur die explizit übergebenen Args, kein event-Objekt");
+});
+
 test("handle(): ohne buildConfig werden args 1:1 durchgereicht", async () => {
   const ipcMain = makeMockIpcMain();
   const router = createIpcRouter({ ipcMain });

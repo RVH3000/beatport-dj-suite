@@ -44,19 +44,19 @@ test("Logger: setLevel wirft bei unbekanntem Level", () => {
   assert.throws(() => log.setLevel("loud"), /Unknown log level/);
 });
 
-test("Logger: addFileSink schreibt in Datei", () => {
-  const tmp = path.join(os.tmpdir(), `bpdjs-log-${Date.now()}.log`);
+test("Logger: addFileSink schreibt in Datei", async () => {
+  const tmp = path.join(os.tmpdir(), `bpdjs-log-${Date.now()}-${Math.random().toString(36).slice(2)}.log`);
   const log = createLogger({ level: "info" }).addFileSink(tmp);
   captureConsole("info", () => log.info("disk-test"));
-  // sync flush via stream end
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const content = fs.readFileSync(tmp, "utf8");
-      assert.match(content, /disk-test/);
-      fs.unlinkSync(tmp);
-      resolve();
-    }, 50);
-  });
+  // Stream sauber schließen + bis zu 1s warten auf flush
+  await new Promise((resolve) => log._sinks[0].stream.end(resolve));
+  for (let i = 0; i < 20; i++) {
+    if (fs.existsSync(tmp) && fs.readFileSync(tmp, "utf8").includes("disk-test")) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  const content = fs.readFileSync(tmp, "utf8");
+  assert.match(content, /disk-test/);
+  fs.unlinkSync(tmp);
 });
 
 test("Logger: silent unterdrückt alle Levels", () => {

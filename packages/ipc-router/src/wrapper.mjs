@@ -18,7 +18,7 @@ export function createIpcRouter({ ipcMain, logger = null, buildConfig = null } =
   }
 
   function handle(channel, fn) {
-    ipcMain.handle(channel, async (event, ...rawArgs) => {
+    ipcMain.handle(channel, async (_event, ...rawArgs) => {
       try {
         let args = rawArgs;
         if (buildConfig) {
@@ -26,7 +26,7 @@ export function createIpcRouter({ ipcMain, logger = null, buildConfig = null } =
           const config = await buildConfig(rawConfig || {});
           args = [config, ...rest];
         }
-        return await fn(...args, { event });
+        return await fn(...args);
       } catch (error) {
         const msg = toErrorMessage(error);
         if (logger) logger.error(`ipc:${channel} → ${msg}`);
