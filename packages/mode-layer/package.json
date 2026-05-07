@@ -2,9 +2,19 @@
   "name": "@bpdjs/mode-layer",
   "version": "0.1.0",
   "private": true,
-  "description": "Standard- vs. Extended-Developer-Modus, Feature-Flags und Lizenz-Stub als Querschnitts-Layer.",
+  "type": "module",
+  "description": "Standard- vs. Developer-Mode, Feature-Flags und Lizenz-Stub als Querschnitts-Layer.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./modes": "./src/modes.mjs",
+    "./feature-flags": "./src/feature-flags.mjs",
+    "./license": "./src/license.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@bpdjs/core": "*"
   }
 }

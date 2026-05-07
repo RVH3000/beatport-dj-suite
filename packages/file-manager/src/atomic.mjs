@@ -7,9 +7,17 @@ import path from "node:path";
  */
 export async function writeFileAtomic(filePath, data, encoding = "utf8") {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  const tmp = `${filePath}.tmp`;
-  await fs.writeFile(tmp, data, encoding);
-  await fs.rename(tmp, filePath);
+  // Unique-Suffix damit parallele Writes auf denselben Pfad nicht über
+  // dieselbe .tmp-Datei rennen
+  const tmp = `${filePath}.${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
+  try {
+    await fs.writeFile(tmp, data, encoding);
+    await fs.rename(tmp, filePath);
+  } catch (err) {
+    // Aufräumen falls .tmp übrig blieb
+    try { await fs.unlink(tmp); } catch { /* noop */ }
+    throw err;
+  }
   return filePath;
 }
 

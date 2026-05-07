@@ -2,9 +2,18 @@
   "name": "@bpdjs/ui-shell",
   "version": "0.1.0",
   "private": true,
-  "description": "Renderer-Hülle: Tab-Routing, Boot-Sequenz, Mode-Filter und Layout der Beatport DJ Suite.",
+  "type": "module",
+  "description": "Pure-JS App-Shell: Tab-Routing mit Mode-Filter und strukturierte Boot-Sequenz. DOM-frei testbar.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./tab-router": "./src/tab-router.mjs",
+    "./boot": "./src/boot.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@bpdjs/core": "*"
   }
 }

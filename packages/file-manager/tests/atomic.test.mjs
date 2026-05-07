@@ -34,9 +34,13 @@ test("writeFileAtomic legt fehlende Verzeichnisse an", async () => {
 test("writeFileAtomic hinterlässt keine .tmp-Datei nach Erfolg", async () => {
   const file = tmp();
   await writeFileAtomic(file, "ok");
-  let tmpExists = true;
-  try { await fs.access(`${file}.tmp`); } catch { tmpExists = false; }
-  assert.equal(tmpExists, false);
+  // .tmp hat einen Unique-Suffix; wir prüfen, dass im Verzeichnis nur die
+  // Zieldatei liegt (keine fremden .tmp-Reste)
+  const dir = path.dirname(file);
+  const baseName = path.basename(file);
+  const entries = await fs.readdir(dir);
+  const tmpResidues = entries.filter((n) => n.startsWith(baseName + ".") && n.endsWith(".tmp"));
+  assert.equal(tmpResidues.length, 0, `unerwartete tmp-Reste: ${tmpResidues.join(", ")}`);
   await fs.unlink(file).catch(() => {});
 });
 
