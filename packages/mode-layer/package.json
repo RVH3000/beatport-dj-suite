@@ -1,0 +1,10 @@
+{
+  "name": "@bpdjs/mode-layer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standard- vs. Extended-Developer-Modus, Feature-Flags und Lizenz-Stub als Querschnitts-Layer.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests pending'"
+  }
+}

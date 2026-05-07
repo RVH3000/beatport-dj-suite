@@ -1,0 +1,10 @@
+{
+  "name": "@bpdjs/audio-analyzer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Audio-Analyse: BPM, Tonart, Duplikat-Erkennung und Performance-Klassifizierung.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests pending'"
+  }
+}

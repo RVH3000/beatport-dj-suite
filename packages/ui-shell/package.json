@@ -1,0 +1,10 @@
+{
+  "name": "@bpdjs/ui-shell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Renderer-Hülle: Tab-Routing, Boot-Sequenz, Mode-Filter und Layout der Beatport DJ Suite.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests pending'"
+  }
+}

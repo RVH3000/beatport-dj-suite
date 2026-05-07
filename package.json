@@ -1,11 +1,14 @@
 {
   "name": "beatport-dj-suite",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "private": true,
   "type": "module",
   "author": "Robert H.",
   "description": "Beatport DJ Suite — Scanner, Analyse, Playlist-Management & Automation (macOS)",
   "main": "electron-app/main.mjs",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "desktop:dev": "electron .",
     "browser-devtools:app": "electron plugins/browser-devtools-automation/app/main.mjs",

@@ -1,0 +1,10 @@
+{
+  "name": "@bpdjs/ipc-router",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IPC-Bridge zwischen Electron-Main und Renderer. Zentrale Registrierung aller Handler nach Bereichen.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests pending'"
+  }
+}

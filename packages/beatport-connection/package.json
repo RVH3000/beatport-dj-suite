@@ -1,0 +1,10 @@
+{
+  "name": "@bpdjs/beatport-connection",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Beatport-Anbindung (Scanner, Auth, API). Heiliger Code — wird nur gekapselt, nie geändert.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests pending'"
+  }
+}

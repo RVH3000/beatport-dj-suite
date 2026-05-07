@@ -1,0 +1,10 @@
+{
+  "name": "@bpdjs/dev-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Entwicklerwerkzeuge: Browser-DevTools-Automation, Smoke-Tests und Debug-Helfer.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests pending'"
+  }
+}

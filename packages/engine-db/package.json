@@ -1,0 +1,10 @@
+{
+  "name": "@bpdjs/engine-db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zugriff auf Engine-DJ-Datenbanken (m.db, hm.db) inklusive Multi-DB-Verwaltung, Backup und Vergleich.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests pending'"
+  }
+}
