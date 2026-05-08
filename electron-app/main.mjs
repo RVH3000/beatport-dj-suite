@@ -316,6 +316,8 @@ app.whenReady().then(() => {
   }
 
   // IPC-Grenze: Renderer darf nur über diese Handler auf Scanner-Funktionen zugreifen.
+  ipcMain.handle("app:get-version", () => app.getVersion());
+
   ipcMain.handle("scanner:get-defaults", async () => ({
     ...resolveConfig({}),
     confirmText: CONFIRM_TEXT,

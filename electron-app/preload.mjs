@@ -173,3 +173,7 @@ contextBridge.exposeInMainWorld("engineAnalyzeApi", {
   trackStats: (options) => ipcRenderer.invoke("engine-analyze:track-stats", options),
   saveAsPlaylist: (options) => ipcRenderer.invoke("engine:import-streaming", options),
 });
+
+contextBridge.exposeInMainWorld("appApi", {
+  getVersion: () => ipcRenderer.invoke("app:get-version"),
+});
