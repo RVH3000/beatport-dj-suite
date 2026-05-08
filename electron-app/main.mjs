@@ -212,14 +212,22 @@ async function getAppInfo() {
   const copies = discoverAppCopies();
   const warnings = [];
 
+  // Ab v4.2: parallele versionierte Builds in /Applications/ sind die
+  // gewünschte Installations-Konvention (Rollback-Option). Daher werden
+  // die alten "kanonischer Pfad"-Warnings nur noch ausgelöst, wenn der
+  // aktive Bundle NICHT der neuen Konvention entspricht.
+  const isVersionedSuiteBundle =
+    /\/Applications\/Beatport DJ Suite \d+\.\d+\.\d+\.app$/.test(appPath);
+
   if (
     app.isPackaged &&
     existsSync(appPath) &&
-    path.resolve(appPath) !== path.resolve(CANONICAL_APP_PATH)
+    path.resolve(appPath) !== path.resolve(CANONICAL_APP_PATH) &&
+    !isVersionedSuiteBundle
   ) {
     warnings.push("falsche/alte App-Kopie aktiv");
   }
-  if (copies.length > 1) {
+  if (copies.length > 1 && !isVersionedSuiteBundle) {
     warnings.push("mehrere Installationen gefunden");
   }
   if (appPath.startsWith("/Volumes/")) {

@@ -65,25 +65,58 @@ function renderGrid() {
   `).join("");
 }
 
+function renderError(message, detail) {
+  const grid = document.getElementById("labelsGrid");
+  const stats = document.getElementById("labelsStats");
+  if (stats) {
+    stats.classList.add("empty");
+    stats.innerHTML = `<strong style="color:var(--accent-warn,#E8A040);">⚠ ${esc(message)}</strong>`;
+  }
+  if (grid) {
+    grid.innerHTML = `
+      <div class="callout warn" style="grid-column:1/-1;padding:1rem;">
+        <p><strong>${esc(message)}</strong></p>
+        ${detail ? `<p style="opacity:.8;font-size:.9em;margin-top:.5rem;">${esc(detail)}</p>` : ""}
+        <p style="opacity:.7;font-size:.85em;margin-top:.75rem;">
+          Voraussetzung: <code>data/suite.db</code> mit der Tabelle <code>bp_labels</code>.
+          Re-Import via <code>python3 scripts/import_beatport_labels.py --db data/suite.db --input &lt;bp_labels.json&gt;</code>.
+          Im gepackten Build zusätzlich: <code>data/</code> + <code>scripts/</code> in
+          <code>build.files</code> + <code>asarUnpack</code> aufnehmen (BACKLOG-v4.3 Punkt 1).
+        </p>
+      </div>
+    `;
+  }
+}
+
 async function fetchAndRender() {
   const api = window.labelsApi;
   if (!api) {
-    console.error("[labels] labelsApi nicht verfügbar");
+    renderError("labelsApi nicht verfügbar", "Die Renderer-Bridge fehlt — App-Start fehlerhaft?");
     return;
   }
   try {
     const statsResult = await api.stats();
-    if (statsResult?.ok) renderStats(statsResult);
-
     const listResult = await api.list({ order: currentOrder, limit: 2000 });
+
+    if (!statsResult?.ok && !listResult?.ok) {
+      const errMsg = listResult?.error || statsResult?.error || "unbekannter Fehler";
+      renderError("Keine Labels-Daten verfügbar", String(errMsg));
+      return;
+    }
+
+    if (statsResult?.ok) renderStats(statsResult);
     if (listResult?.ok) {
       allLabels = listResult.labels || [];
-      renderGrid();
+      if (allLabels.length === 0) {
+        renderError("Labels-DB leer oder nicht initialisiert", "Tabelle bp_labels hat 0 Einträge.");
+      } else {
+        renderGrid();
+      }
     } else {
-      console.error("[labels] list fehlgeschlagen:", listResult?.error);
+      renderError("Labels-Liste konnte nicht geladen werden", String(listResult?.error || ""));
     }
   } catch (err) {
-    console.error("[labels] fetchAndRender fehler:", err);
+    renderError("Fehler beim Laden der Labels", String(err?.message || err));
   }
 }
 
