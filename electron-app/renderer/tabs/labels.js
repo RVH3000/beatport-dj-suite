@@ -78,10 +78,15 @@ function renderError(message, detail) {
         <p><strong>${esc(message)}</strong></p>
         ${detail ? `<p style="opacity:.8;font-size:.9em;margin-top:.5rem;">${esc(detail)}</p>` : ""}
         <p style="opacity:.7;font-size:.85em;margin-top:.75rem;">
-          Voraussetzung: <code>data/suite.db</code> mit der Tabelle <code>bp_labels</code>.
-          Re-Import via <code>python3 scripts/import_beatport_labels.py --db data/suite.db --input &lt;bp_labels.json&gt;</code>.
-          Im gepackten Build zusätzlich: <code>data/</code> + <code>scripts/</code> in
-          <code>build.files</code> + <code>asarUnpack</code> aufnehmen (BACKLOG-v4.3 Punkt 1).
+          Die App nutzt <code>~/Library/Application Support/beatport-dj-suite/suite.db</code>
+          (auto-initialisiert beim ersten Start). Tabelle <code>bp_labels</code> wird vom
+          Re-Import-Script angelegt:
+        </p>
+        <pre style="font-size:.8em;background:rgba(255,255,255,.05);padding:.5rem;border-radius:4px;margin-top:.5rem;overflow-x:auto;">python3 scripts/import_beatport_labels.py \\
+    --db "$HOME/Library/Application Support/beatport-dj-suite/suite.db" \\
+    --input ~/_handoff/bp_labels_response.json</pre>
+        <p style="opacity:.7;font-size:.8em;margin-top:.5rem;">
+          Quelle: <code>GET /v4/my/beatport/labels/</code> (eigener Account, Beatport-API).
         </p>
       </div>
     `;

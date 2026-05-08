@@ -1,6 +1,6 @@
 {
   "name": "beatport-dj-suite",
-  "version": "4.2.10",
+  "version": "4.2.11",
   "private": true,
   "type": "module",
   "author": "Robert H.",
@@ -42,13 +42,19 @@
     "appId": "com.roberth.beatport.djsuite",
     "productName": "Beatport DJ Suite",
     "asarUnpack": [
-      "electron-app/integrations/python/**/*.py"
+      "electron-app/integrations/python/**/*.py",
+      "scripts/**/*",
+      "data/**/*",
+      "config/**/*"
     ],
     "directories": {
       "output": "dist-electron"
     },
     "files": [
       "electron-app/**/*",
+      "scripts/**/*",
+      "data/**/*",
+      "config/**/*",
       "package.json"
     ],
     "icon": "assets/icon.icns",

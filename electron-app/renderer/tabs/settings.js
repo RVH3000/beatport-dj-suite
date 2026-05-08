@@ -99,14 +99,20 @@ function renderSettings(version) {
         <summary>📋 Bekannte Punkte & v4.3-Backlog</summary>
         <div class="acc-body manual-section">
           <p>User-Feedback aus dem v4.2.9-Review ist im Repo unter <code>BACKLOG-v4.3.md</code> strukturiert dokumentiert (~30 Punkte in drei Kategorien: Daten/Bug-Fixes, UX-Erklärungen/Tooltip-Welle, größere Refactors).</p>
-          <p>v4.2.10 hat als Sofort-Anzahlung erledigt:</p>
+          <p>Erledigt in v4.2.10:</p>
           <ul>
             <li>Labels-Tab zeigt klare Diagnose statt leerem Bildschirm wenn <code>data/suite.db</code> fehlt</li>
             <li>Warnings "falsche/alte Kopie aktiv" + "mehrere Installationen gefunden" wurden angepasst — die parallel installierten versionierten Bundles (<code>Beatport DJ Suite X.Y.Z.app</code>) sind ab v4.2 die gewünschte Konvention und triggern die Warnungen nicht mehr</li>
             <li>Settings-Handbuch dynamisch (zeigt aktuelle App-Version)</li>
           </ul>
-          <p>Für v4.2.11 vorgesehen: Tooltip-Welle für nicht-erklärte Buttons (Aktiver-Run-Knopf, Pipeline/Automation, Fuzzis-Button etc.), Genre-Breakdown-Schrift-Fix.</p>
-          <p>Für v4.3.0 vorgesehen: <code>data/suite.db</code> reaktivieren, Engine-Import-DB-Auswahl persistieren, Camelot-Wheel füllen, Playlist-Overlap-Bug, sortierbare Spalten überall.</p>
+          <p>Erledigt in v4.2.11 (Build-Konfig-Reparatur):</p>
+          <ul>
+            <li><code>scripts/</code>, <code>data/</code> und <code>config/</code> werden jetzt korrekt ins App-Bundle gepackt und aus der ASAR-Datei ausgepackt — Python-Skripte und SQLite-DBs sind dadurch zur Laufzeit erreichbar</li>
+            <li>Engine-Merge-Preview lädt wieder (vorher: <code>config/scoring-merge-rules.json</code> nicht gefunden)</li>
+            <li>Labels-Tab nutzt jetzt eine schreibbare DB unter <code>~/Library/Application Support/beatport-dj-suite/suite.db</code> (Auto-Init beim ersten Start; Re-Import-Befehl siehe Labels-Tab Diagnose)</li>
+          </ul>
+          <p>Für v4.2.12 vorgesehen: Tooltip-Welle für nicht-erklärte Buttons (Aktiver-Run-Knopf, Pipeline/Automation, Fuzzis-Button etc.), Genre-Breakdown-Schrift-Fix.</p>
+          <p>Für v4.3.0 vorgesehen: Engine-Import-DB-Auswahl persistieren, Camelot-Wheel füllen, Playlist-Overlap-Bug, sortierbare Spalten überall.</p>
         </div>
       </details>
 

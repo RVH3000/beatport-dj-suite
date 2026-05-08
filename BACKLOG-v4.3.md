@@ -8,11 +8,10 @@
 
 ## A. Daten- & Build-Probleme (kritisch)
 
-1. **Labels-Tab: keine Daten** — `data/suite.db` fehlt im Repo *und* im Build. Auch im v4.1-Bundle nicht enthalten. Doppelter Bug:
-   - Datenquelle muss neu importiert werden (`scripts/import_beatport_labels.py`)
-   - `package.json` `build.files` muss `data/**`, `scripts/**`, `config/**` einschließen, sonst funktioniert die DB im gepackten Build nicht
-   - `asarUnpack` muss SQLite-DBs + Python-Skripte umfassen
-   - ✓ v4.2.10: Labels-Tab zeigt jetzt klare Fehlermeldung statt stiller Leere
+1. **Labels-Tab + Engine-Merge: Build-Bundle-Lücke** — `data/suite.db`, `scripts/*.py` und `config/scoring-merge-*.json` fehlten im Bundle.
+   - ✓ v4.2.10: Labels-Tab zeigt klare Fehlermeldung statt stiller Leere
+   - ✓ v4.2.11: `scripts/`, `data/`, `config/` in `build.files` + `asarUnpack` aufgenommen. Engine-Merge-Preview lädt wieder. Labels-DB wird beim ersten Start nach `userData/suite.db` auto-initialisiert (leer; Re-Import via `scripts/import_beatport_labels.py` füllt sie)
+   - ⏳ Offen: tatsächlicher Daten-Reimport — die Beatport-API-JSON muss vom User vorgehalten werden (Quelle: GET /v4/my/beatport/labels/)
 
 2. **App-Warnungen "falsche/alte Kopie aktiv" + "mehrere Installationen gefunden"** — Heuristik passt nicht zur neuen Konvention `Beatport DJ Suite X.Y.Z.app` (parallele Versionen sind erwünscht).
    - ✓ v4.2.10: Warnings werden bei versionierten Suite-Bundles unterdrückt
@@ -85,7 +84,10 @@
 
 ## Priorisierungs-Vorschlag
 
-**v4.2.11 (nächster Patch):**
+**v4.2.11 (erledigt):**
+- Punkt 1 — Build-Konfig-Reparatur (scripts/data/config in Bundle + asarUnpack + suite.db auto-init nach userData)
+
+**v4.2.12 (nächster Patch):**
 - Punkte 7, 11, 15, 16 (Tooltip-Welle + Genre-Schrift-Fix + Pipeline-Automation-Doku)
 
 **v4.3.0 (eigener Branch):**

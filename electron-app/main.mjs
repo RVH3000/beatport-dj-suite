@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
 import fs from "node:fs/promises";
-import { existsSync } from "node:fs";
+import fsSync, { existsSync } from "node:fs";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -540,8 +540,34 @@ app.whenReady().then(() => {
     );
   });
 
-  // ── Labels (bp_labels in data/suite.db, read-only) ───────────────────────
-  const labelsDbPath = resolveBundledPath("data/suite.db");
+  // ── Labels (bp_labels in suite.db) ──────────────────────────────────────
+  // Resolver mit userData-Fallback. Bundle-DB ist im /Applications/-Pfad
+  // schreibgeschützt; Re-Imports schreiben in userData. Reihenfolge:
+  //   1. userData/suite.db (User-eigene Kopie, beschreibbar)
+  //   2. Bundle-Kopie (data/suite.db) → einmalig nach userData kopieren
+  //   3. Auto-Init: leere DB anlegen — der Python-Importer legt das
+  //      Schema bei erstem Lauf via CREATE TABLE IF NOT EXISTS selbst an
+  function resolveLabelsDbPath() {
+    const userDataDb = path.join(app.getPath("userData"), "suite.db");
+    if (existsSync(userDataDb)) return userDataDb;
+
+    const bundleDb = resolveBundledPath("data/suite.db");
+    try {
+      if (existsSync(bundleDb)) {
+        fsSync.copyFileSync(bundleDb, userDataDb);
+        return userDataDb;
+      }
+    } catch { /* fall through to auto-init */ }
+
+    try {
+      fsSync.mkdirSync(path.dirname(userDataDb), { recursive: true });
+      fsSync.writeFileSync(userDataDb, Buffer.alloc(0));
+    } catch (err) {
+      console.error("[labels] suite.db Auto-Init fehlgeschlagen:", err.message);
+    }
+    return userDataDb;
+  }
+  const labelsDbPath = resolveLabelsDbPath();
 
   ipcMain.handle("labels:list", async (_event, options = {}) => {
     const order = options.order || "count";
