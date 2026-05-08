@@ -2,9 +2,18 @@
   "name": "@bpdjs/dev-tools",
   "version": "0.1.0",
   "private": true,
-  "description": "Entwicklerwerkzeuge: Browser-DevTools-Automation, Smoke-Tests und Debug-Helfer.",
+  "type": "module",
+  "description": "Entwicklerwerkzeuge: Smoke-Test-Runner, Diagnostics-Collector, Debug-Helfer.",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./smoke": "./src/smoke.mjs",
+    "./diagnostics": "./src/diagnostics.mjs"
+  },
   "scripts": {
-    "test": "echo 'Tests pending'"
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@bpdjs/core": "*"
   }
 }
