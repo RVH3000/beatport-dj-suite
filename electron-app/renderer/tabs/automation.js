@@ -188,11 +188,11 @@ function renderAutomationTab() {
   container.innerHTML = `
     <section class="panel span-full">
       <div class="section-head">
-        <h2>Unified App Build</h2>
+        <h2>Unified App Build <span class="help-icon" tabindex="0" data-tip="Automation verbindet lokale Projektteile mit Engine-DJ-Analyse und Cache-Auswertung. Die Aktionen hier sind Diagnose- und Export-Hilfen, nicht der normale Beatport-Scanner.">?</span></h2>
         <div class="actions compact">
-          <button id="autoScanBtn" type="button">Projektteile scannen</button>
-          <button id="autoEngineSummaryBtn" type="button">Engine Status laden</button>
-          <button id="autoClassifierBtn" class="primary" type="button">Cache klassifizieren</button>
+          <button id="autoScanBtn" type="button" title="Durchsucht die konfigurierten Scan-Roots nach Beatport-, Engine-, Ableton- und Max/MSP-Projektteilen">Projektteile scannen</button>
+          <button id="autoEngineSummaryBtn" type="button" title="Liest die Engine-DJ-Datenbanken read-only und zeigt Anzahl von Playlists, History-Sessions und Tracks">Engine Status laden</button>
+          <button id="autoClassifierBtn" class="primary" type="button" title="Klassifiziert den lokalen Cache nach Energy, Danceability und Performance-Stufen">Cache klassifizieren</button>
         </div>
       </div>
       <p class="detail-summary">
@@ -207,9 +207,9 @@ function renderAutomationTab() {
     </section>
 
     <section class="panel">
-      <h2>Projekt-Discovery</h2>
+      <h2>Projekt-Discovery <span class="help-icon" tabindex="0" data-tip="Findet relevante lokale Ordner und Dateien. Das ist eine Inventur, damit die App vorhandene Tools wiederverwenden kann.">?</span></h2>
       <div class="field-grid">
-        <label class="wide">
+        <label class="wide" title="Eine Root-Zeile pro Suchbereich. Projekt-Discovery scannt nur diese Pfade.">
           Scan-Roots
           <textarea id="autoScanRoots" rows="4">${esc(settings.scanRoots)}</textarea>
         </label>
@@ -224,23 +224,23 @@ function renderAutomationTab() {
 
     <section class="panel">
       <div class="section-head">
-        <h2>Engine / Denon Tools</h2>
+        <h2>Engine / Denon Tools <span class="help-icon" tabindex="0" data-tip="Read-only Werkzeuge fuer Engine DJ: Playlists und History laden, M3U8 exportieren, zwei Datenbanken vergleichen oder History-Sessions vereinheitlichen.">?</span></h2>
         <div class="actions compact">
-          <button id="autoEnginePlaylistsBtn" type="button">Playlists laden</button>
-          <button id="autoEngineHistoryBtn" type="button">History laden</button>
-          <button id="autoExportM3uBtn" type="button">M3U8 exportieren</button>
-          <button id="autoDiffBtn" type="button">DB Diff</button>
-          <button id="autoUnifyHistoryBtn" type="button">History Merge</button>
+          <button id="autoEnginePlaylistsBtn" type="button" title="Playlists aus der ausgewählten Engine-DJ-Datenbank read-only laden">Playlists laden</button>
+          <button id="autoEngineHistoryBtn" type="button" title="History-Sessions aus der Engine-DJ-Datenbank laden">History laden</button>
+          <button id="autoExportM3uBtn" type="button" title="Ausgewählte Engine-Playlist als lokale M3U8-Datei exportieren">M3U8 exportieren</button>
+          <button id="autoDiffBtn" type="button" title="Zwei Engine-Datenbanken vergleichen und nur gemeinsame/fehlende Tracks anzeigen">DB Diff</button>
+          <button id="autoUnifyHistoryBtn" type="button" title="History-Sessions aus mehreren Quellen in eine konsolidierte Übersicht zusammenführen">History Merge</button>
         </div>
       </div>
       <div class="field-grid">
-        <label>
+        <label title="Ordner mit Engine-DJ-Datenbanken, normalerweise ~/Music/Engine Library/Database2 oder ein USB-Volume">
           Engine Database Folder
           <input id="autoEngineDatabaseFolder" type="text" value="${esc(
             settings.engineDatabaseFolder
           )}" placeholder="~/Music/Engine Library/Database2" />
         </label>
-        <label>
+        <label title="Python-Binary fuer die lokalen Engine-Tools, z.B. python3">
           Python Command
           <input id="autoPythonCommand" type="text" value="${esc(
             settings.pythonCommand
@@ -274,29 +274,29 @@ function renderAutomationTab() {
     </section>
 
     <section class="panel span-full">
-      <h2>Performance Classifier</h2>
+      <h2>Performance Classifier <span class="help-icon" tabindex="0" data-tip="Bewertet Cache-Tracks nach Performance-Merkmalen und zeigt Vorschläge fuer Energie, Stage und Intensität. Grundlage sind lokale Cache-Daten.">?</span></h2>
       ${renderClassifierSummary()}
     </section>
 
     <section class="panel">
       <div class="section-head">
-        <h2>OSC → Max/MSP / VJ</h2>
+        <h2>OSC → Max/MSP / VJ <span class="help-icon" tabindex="0" data-tip="Sendet eine kompakte Momentaufnahme der Analyse-/Cache-Daten per OSC an Max/MSP, VJ-Tools oder andere lokale Empfänger.">?</span></h2>
         <div class="actions compact">
-          <button id="autoSendOscBtn" type="button">Snapshot senden</button>
+          <button id="autoSendOscBtn" type="button" title="Aktuellen Cache-/Analyse-Snapshot per OSC an Host, Port und Address Prefix senden">Snapshot senden</button>
         </div>
       </div>
       <div class="field-grid">
-        <label>
+        <label title="Zielhost fuer OSC, meist 127.0.0.1 auf demselben Mac">
           Host
           <input id="autoOscHost" type="text" value="${esc(settings.oscHost)}" />
         </label>
-        <label>
+        <label title="UDP-Port des OSC-Empfängers">
           Port
           <input id="autoOscPort" type="number" min="1" max="65535" value="${esc(
             settings.oscPort
           )}" />
         </label>
-        <label class="wide">
+        <label class="wide" title="OSC-Adresspräfix, unter dem die App Nachrichten bündelt">
           Address Prefix
           <input id="autoOscAddressPrefix" type="text" value="${esc(
             settings.oscAddressPrefix

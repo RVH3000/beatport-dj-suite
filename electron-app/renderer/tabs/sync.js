@@ -111,7 +111,7 @@ function buildSyncTabHtml() {
   return `
     <!-- Pipeline-Visualisierung -->
     <section class="panel span-full pipeline-section">
-      <h2>Sync-Pipeline</h2>
+      <h2>Sync-Pipeline <span class="help-icon" tabindex="0" data-tip="Aktueller Zielpfad: Beatport-Playlist-URLs nach DJPlaylists.fm importieren, von dort mit vollständigen Metadaten nach Lexicon speichern und anschließend Richtung Engine DJ exportieren.">?</span></h2>
       <div class="pipeline-flow">
         ${buildPipelineNodesHtml()}
       </div>
@@ -122,7 +122,7 @@ function buildSyncTabHtml() {
       <div class="section-head">
         <h2>Verbindungsstatus</h2>
         <div class="actions compact">
-          <button id="syncRefreshStatusBtn" type="button">Status aktualisieren</button>
+          <button id="syncRefreshStatusBtn" type="button" title="Erreichbarkeit und Auth-Status der Pipeline-Dienste erneut prüfen">Status aktualisieren</button>
         </div>
       </div>
       <div id="sync-connection-details" class="meta-list-wrap">
@@ -132,7 +132,7 @@ function buildSyncTabHtml() {
 
     <!-- DJPlaylists.fm Authentifizierung -->
     <section class="panel">
-      <h2>DJPlaylists.fm Konfiguration</h2>
+      <h2>DJPlaylists.fm Konfiguration <span class="help-icon" tabindex="0" data-tip="DJPlaylists.fm ist die Import-Brücke zwischen Beatport-Streaming-Playlists und Lexicon. Die App kann Login-Session oder Token übernehmen und danach Playlists übertragen.">?</span></h2>
       <p class="callout info" style="margin-bottom:0.75rem">
         DJPlaylists.fm ist die Brücke für Beatport → Lexicon —
         <strong>einziger Weg mit vollständigen Metadaten.</strong><br>
@@ -142,8 +142,8 @@ function buildSyncTabHtml() {
       <div class="actions compact" style="margin-bottom:0.75rem">
         <button id="syncDjplLoginBtn" class="primary" type="button" title="Öffnet DJPlaylists.fm in einem App-Fenster. Einloggen → Session wird automatisch übernommen.">🔐 Bei DJPlaylists.fm einloggen</button>
         <button id="syncDjplSyncJwtBtn" type="button" title="Holt den aktuellen Auth-Token aus der DJPL.fm Session (falls bereits eingeloggt)">JWT synchronisieren</button>
-        <button id="syncSaveAuthBtn" type="button">Speichern &amp; testen</button>
-        <button id="syncExploreApiBtn" type="button">API erkunden</button>
+        <button id="syncSaveAuthBtn" type="button" title="Token/Cookie speichern und mit einem kleinen API-Check prüfen">Speichern &amp; testen</button>
+        <button id="syncExploreApiBtn" type="button" title="DJPlaylists.fm API-Endpunkte explorativ prüfen und Ergebnisse im Log anzeigen">API erkunden</button>
       </div>
       <div id="syncDjplLoginStatus" class="detail-summary empty"></div>
       <details style="margin-bottom:0.75rem">
@@ -165,10 +165,10 @@ function buildSyncTabHtml() {
     <!-- Soundiiz (optional) -->
     <section class="panel span-full">
       <div class="section-head">
-        <h2>Soundiiz (optional)</h2>
+        <h2>Soundiiz (optional) <span class="help-icon" tabindex="0" data-tip="Optionaler Monitoring- und Trigger-Layer. Der Hauptpfad bleibt Beatport zu DJPlaylists.fm zu Lexicon zu Engine DJ.">?</span></h2>
         <div class="actions compact">
-          <button id="syncSoundiizSaveBtn" type="button">Speichern &amp; testen</button>
-          <button id="syncSoundiizLoadBtn" type="button">Syncs laden</button>
+          <button id="syncSoundiizSaveBtn" type="button" title="Soundiiz API-Key speichern und Verbindung testen">Speichern &amp; testen</button>
+          <button id="syncSoundiizLoadBtn" type="button" title="Vorhandene Soundiiz-Syncs laden und in der Tabelle anzeigen">Syncs laden</button>
         </div>
       </div>
       <p class="callout info" style="margin-bottom:0.75rem">
@@ -203,7 +203,7 @@ function buildSyncTabHtml() {
     <!-- Beatport URL Import -->
     <section class="panel">
       <div class="section-head">
-        <h2>Beatport Playlists importieren</h2>
+        <h2>Beatport Playlists importieren <span class="help-icon" tabindex="0" data-tip="Eine oder mehrere Beatport-Playlist-URLs eintragen. Die App importiert sie nach DJPlaylists.fm und startet danach den konfigurierten Zielpfad.">?</span></h2>
         <div class="actions compact">
           <button id="syncImportBtn" class="primary" type="button" title="Importiert die eingetragenen Beatport-URLs nach DJPlaylists.fm und weiter nach Lexicon">Importieren &amp; Sync starten</button>
         </div>
@@ -232,7 +232,7 @@ function buildSyncTabHtml() {
     <!-- DJPL.fm Diff-Import — fehlende Beatport-Playlists nach DJPL.fm (Feature 4) -->
     <section class="panel span-full">
       <div class="section-head">
-        <h2>Beatport → DJPlaylists.fm (Diff-Import)</h2>
+        <h2>Beatport → DJPlaylists.fm (Diff-Import) <span class="help-icon" tabindex="0" data-tip="Vergleicht Beatport-Playlists mit DJPlaylists.fm. Fehlende Playlists können gezielt und mit Batch-Limit nachimportiert werden.">?</span></h2>
         <div class="actions compact">
           <button id="syncDiffLoadBtn" type="button" title="Vergleicht alle Beatport-Playlists mit DJPL.fm und zeigt welche fehlen">Diff laden</button>
           <button id="syncDiffImportBtn" class="primary" type="button" disabled title="Importiert ausgewählte Playlists einzeln nach DJPlaylists.fm">Ausgewählte importieren</button>
@@ -248,8 +248,8 @@ function buildSyncTabHtml() {
       </p>
       <div id="syncDiffTable" class="table-wrap" style="display:none">
         <div class="actions compact" style="margin-bottom:6px">
-          <button id="syncDiffSelAll" type="button" style="font-size:11px;padding:3px 8px">Alle fehlenden wählen</button>
-          <button id="syncDiffSelNone" type="button" style="font-size:11px;padding:3px 8px">Keine</button>
+          <button id="syncDiffSelAll" type="button" title="Alle im Diff als fehlend markierten Playlists auswählen" style="font-size:11px;padding:3px 8px">Alle fehlenden wählen</button>
+          <button id="syncDiffSelNone" type="button" title="Diff-Auswahl vollständig zurücksetzen" style="font-size:11px;padding:3px 8px">Keine</button>
           <span id="syncDiffSelCount" style="font-size:11px;color:var(--muted)"></span>
         </div>
         <table class="data-table">
@@ -269,7 +269,7 @@ function buildSyncTabHtml() {
     <!-- DJPlaylists.fm → Lexicon Batch-Automation -->
     <section class="panel span-full">
       <div class="section-head">
-        <h2>DJPlaylists.fm → Lexicon (Alle Playlisten)</h2>
+        <h2>DJPlaylists.fm → Lexicon (Alle Playlisten) <span class="help-icon" tabindex="0" data-tip="Lädt DJPlaylists.fm-Playlists und speichert sie sequenziell in Lexicon. Das erhält die Metadaten, die für spätere Engine-DJ-Exporte wichtig sind.">?</span></h2>
         <div class="actions compact">
           <button id="syncDjplScrapeBtn" type="button" title="Liest alle Playlists aus deinem DJPlaylists.fm-Account via Supabase aus">Playlisten laden</button>
           <button id="syncDjplToLexiconBtn" class="primary" type="button" disabled title="Speichert alle geladenen DJPL.fm-Playlists sequenziell in Lexicon DJ (POST /api/playlist/save)">
@@ -313,10 +313,10 @@ function buildSyncTabHtml() {
     <!-- Presets (gespeicherte Playlists) -->
     <section class="panel">
       <div class="section-head">
-        <h2>Gespeicherte Playlist-Presets</h2>
+        <h2>Gespeicherte Playlist-Presets <span class="help-icon" tabindex="0" data-tip="Presets merken wiederkehrende Beatport-URLs und Zielordner, damit häufige Pipeline-Runs nicht neu eingegeben werden müssen.">?</span></h2>
         <div class="actions compact">
-          <button id="syncSavePresetBtn" type="button">Aktuelle URLs als Preset speichern</button>
-          <button id="syncRunPresetBtn" type="button">Preset ausführen</button>
+          <button id="syncSavePresetBtn" type="button" title="Aktuelle Beatport-URLs und Zielordner als Preset speichern">Aktuelle URLs als Preset speichern</button>
+          <button id="syncRunPresetBtn" type="button" title="Ausgewähltes Preset laden und den Importpfad starten">Preset ausführen</button>
         </div>
       </div>
       <div id="syncPresetList" class="table-wrap empty">Keine Presets gespeichert.</div>
@@ -325,9 +325,9 @@ function buildSyncTabHtml() {
     <!-- Pipeline-Log -->
     <section class="panel span-full">
       <div class="section-head">
-        <h2>Pipeline-Log</h2>
+        <h2>Pipeline-Log <span class="help-icon" tabindex="0" data-tip="Laufende Aktionen, Fehler und API-Antworten der Sync-Pipeline. Bei Problemen ist das Log der erste Diagnosepunkt.">?</span></h2>
         <div class="actions compact">
-          <button id="syncClearLogBtn" type="button">Log leeren</button>
+          <button id="syncClearLogBtn" type="button" title="Pipeline-Log im UI leeren; gespeicherte Daten bleiben unverändert">Log leeren</button>
         </div>
       </div>
       <div id="syncLogWrap" class="sync-log" aria-live="polite">

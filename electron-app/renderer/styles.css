@@ -1667,11 +1667,11 @@ body.builder-open .tab-panel.active {
 
 /* ─── Tooltip-System (v3.5.5) ─── */
 .help-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--panel-hover);color:var(--text-secondary);font-size:10px;font-weight:700;margin-left:8px;cursor:help;vertical-align:middle;border:1px solid var(--line-strong);user-select:none;position:relative;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;transition:all .15s}
-.help-icon:hover{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
+.help-icon:hover,.help-icon:focus-visible{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
 .help-icon::after{content:attr(data-tip);position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%);background:#0a0b12;color:var(--text);padding:10px 14px;border-radius:8px;border:1px solid var(--primary);font-size:11px;font-weight:400;font-family:-apple-system,system-ui,sans-serif;letter-spacing:0;line-height:1.5;white-space:pre-line;width:max-content;max-width:360px;text-align:left;box-shadow:0 10px 30px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .15s;z-index:1000}
-.help-icon:hover::after{opacity:1}
+.help-icon:hover::after,.help-icon:focus-visible::after{opacity:1}
 .help-icon::before{content:"";position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);border:6px solid transparent;border-bottom-color:var(--primary);opacity:0;transition:opacity .15s;z-index:1001}
-.help-icon:hover::before{opacity:1}
+.help-icon:hover::before,.help-icon:focus-visible::before{opacity:1}
 /* Tooltip rechts positionieren wenn am rechten Rand */
 .help-icon.tip-right::after{left:auto;right:-4px;transform:none}
 .help-icon.tip-right::before{left:auto;right:4px;transform:none}

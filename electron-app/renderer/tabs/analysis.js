@@ -18,15 +18,15 @@ let lastConfigJson = "";
 // ─── Farben (passend zum bestehenden Design) ────────────────────────────────────
 
 const COLORS = {
-  primary: "#0e6b5f",
-  primaryLight: "rgba(14, 107, 95, 0.7)",
-  accent: "#f29f05",
-  accentLight: "rgba(242, 159, 5, 0.6)",
-  danger: "#9b2c23",
-  muted: "#665f52",
-  text: "#1f1d18",
-  line: "#d8c8ab",
-  panelBg: "rgba(255, 252, 246, 0.96)",
+  primary: "#4ecdc4",
+  primaryLight: "rgba(78, 205, 196, 0.7)",
+  accent: "#f59e0b",
+  accentLight: "rgba(245, 158, 11, 0.6)",
+  danger: "#ef4444",
+  muted: "#a8adbd",
+  text: "#e0e0e8",
+  line: "rgba(255, 255, 255, 0.18)",
+  panelBg: "#1c2031",
   white: "#fff",
   // Camelot-Wheel Palette (12 Tonarten × 2 Modi)
   keys: [
@@ -544,7 +544,7 @@ function drawGenreChart() {
     ctx.fillText(label, pad.left - 10, y + barH / 2);
 
     // Count (rechts vom Balken)
-    ctx.fillStyle = COLORS.muted;
+    ctx.fillStyle = COLORS.text;
     ctx.font = "bold 11px 'Avenir Next', sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(String(count), pad.left + barW + 8, y + barH / 2);

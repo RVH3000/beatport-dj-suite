@@ -58,9 +58,9 @@ Pipeline: Beatport → DJPL.fm → Lexicon → Engine DJ → USB / Prime 4+
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-engine-analyze" data-tab="engine-analyze" title="Engine-DJ-Playlisten laden, gegen Beatport matchen und klassifizieren">Engine-Analyse</button>
       <button class="tab"        role="tab" data-group="build"    aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
-      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-sync"       data-tab="sync">Sync</button>
+      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-sync"       data-tab="sync" title="Sync-Pipeline: Beatport-Playlists nach DJPlaylists.fm, Lexicon und Engine DJ weiterreichen">Sync</button>
       <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-export"     data-tab="export">Export</button>
-      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-automation" data-tab="automation">Automation</button>
+      <button class="tab"        role="tab" data-group="pipeline" aria-selected="false" aria-controls="tab-automation" data-tab="automation" title="Automation: Projektteile finden, Engine-Daten lesen, Cache klassifizieren und OSC-Snapshots senden">Automation</button>
       <button class="tab"        role="tab" data-group="settings" aria-selected="false" aria-controls="tab-settings"   data-tab="settings">Einstellungen</button>
       <button id="builderToggle" class="builder-toggle" type="button" title="Playlist Builder ein-/ausblenden">Builder <span id="builderToggleBadge" class="badge">0</span></button>
     </nav>
@@ -141,16 +141,16 @@ Wichtig:
 
 Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</span></h2>
               <div class="actions compact">
-                <button id="refreshRunsBtn" type="button" title="Runs neu laden">⟳</button>
+                <button id="refreshRunsBtn" type="button" title="Aktiven Run und Run-History neu einlesen. Nutze das nach Scan, Resume, Migration oder wenn eine andere App-Version Runs geschrieben hat." aria-label="Aktiven Run und Run-History neu laden">⟳</button>
               </div>
             </div>
 
             <div class="field-grid">
-              <label class="wide">
+              <label class="wide" title="Run-Snapshot auswählen. Analyse, Resume, Pfade und Ergebnis-Tab beziehen sich auf diesen Run.">
                 Run
                 <select id="runSelect"></select>
               </label>
-              <label>
+              <label title="Run-Liste eingrenzen: aktive, alte Legacy-Runs, migrierte oder abgeschlossene Snapshots.">
                 Filter
                 <select id="runFilter">
                   <option value="all">Alle</option>
@@ -174,10 +174,10 @@ Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</s
               <div class="acc-body">
                 <div id="runMeta" class="detail-meta empty">Noch kein Run ausgewählt</div>
                 <div class="actions compact">
-                  <button id="openArchiveDirBtn" type="button">📂 Archiv</button>
-                  <button id="openExportDirBtn" type="button">📂 Export</button>
-                  <button id="exportZipBtn" type="button">ZIP</button>
-                  <button id="migrateLegacyBtn" type="button">Legacy migrieren</button>
+                  <button id="openArchiveDirBtn" type="button" title="Archiv-Ordner des ausgewählten Runs im Finder öffnen">📂 Archiv</button>
+                  <button id="openExportDirBtn" type="button" title="Export-Ordner des ausgewählten Runs im Finder öffnen">📂 Export</button>
+                  <button id="exportZipBtn" type="button" title="Ausgewählten Run als ZIP-Paket exportieren">ZIP</button>
+                  <button id="migrateLegacyBtn" type="button" title="Alte Run-Dateien in das aktuelle Run-Archivschema übernehmen">Legacy migrieren</button>
                 </div>
                 <div id="outputFiles" class="file-list"></div>
                 <div id="migrationResult" class="table-wrap empty">Noch keine Migration ausgeführt</div>
@@ -297,10 +297,10 @@ Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</s
           <div class="section-head">
             <h2>Schneller Arbeitsbestand</h2>
             <div class="actions compact">
-              <button id="selectionAllBtn" type="button">Alle</button>
-              <button id="selectionNoneBtn" type="button">Keine</button>
-              <button id="selectionDuplicatesBtn" type="button">Nur Duplikate</button>
-              <button id="selectionPendingBtn" type="button">Nur offene</button>
+              <button id="selectionAllBtn" type="button" title="Alle Playlists im Arbeitsbestand für die nächste Tiefenanalyse markieren">Alle</button>
+              <button id="selectionNoneBtn" type="button" title="Alle Markierungen im Arbeitsbestand entfernen">Keine</button>
+              <button id="selectionDuplicatesBtn" type="button" title="Nur Playlists markieren, die im aktuellen Run Duplikat-Kandidaten enthalten">Nur Duplikate</button>
+              <button id="selectionPendingBtn" type="button" title="Nur Playlists markieren, die noch keine Tiefenanalyse oder offene Cache-Arbeit haben">Nur offene</button>
             </div>
           </div>
 
@@ -327,12 +327,12 @@ Du kannst zwischen Runs wechseln, um historische Snapshots zu vergleichen.">?</s
 
       <div class="sub-content" data-libsub="results">
         <section class="panel span-full">
-          <h2>Ergebnis</h2>
-          <h3>Duplikate</h3>
-          <div id="duplicateTableWrap" class="table-wrap empty">Noch kein Run — <button type="button" class="inline-cta" onclick="document.getElementById('discoverBtn')?.click()">Delta-Sync starten</button></div>
+          <h2>Ergebnis <span class="help-icon" tabindex="0" data-tip="Dieser Reiter zeigt die Ergebnisse des ausgewählten Runs: Duplikate, Tiefenanalyse je Playlist und den Inhalt der angeklickten Playlist. Wenn du den Run oben wechselst, wechseln auch diese Tabellen.">?</span></h2>
+          <h3>Duplikate <span class="help-icon" tabindex="0" data-tip="Duplikate sind Tracks, die im aktiven Run in mehreren Playlists vorkommen. Anklicken zeigt die betroffene Playlist und den Track-Kontext.">?</span></h3>
+          <div id="duplicateTableWrap" class="table-wrap empty">Noch kein Run — <button type="button" class="inline-cta" title="Neuen Delta-Sync starten und danach Duplikate für diesen Run anzeigen" onclick="document.getElementById('discoverBtn')?.click()">Delta-Sync starten</button></div>
 
           <h3>Tiefenanalyse je Playlist</h3>
-          <div id="analysisTableWrap" class="table-wrap empty">Noch keine Analyse — <button type="button" class="inline-cta" onclick="document.getElementById('analyzeBtn')?.click()">Auswahl analysieren</button></div>
+          <div id="analysisTableWrap" class="table-wrap empty">Noch keine Analyse — <button type="button" class="inline-cta" title="Markierte Playlists im Arbeitsbestand tief analysieren und Ergebnis hier anzeigen" onclick="document.getElementById('analyzeBtn')?.click()">Auswahl analysieren</button></div>
 
           <h3>Playlist-Inhalt</h3>
           <div id="playlistDetailSummary" class="detail-summary empty">
@@ -517,7 +517,7 @@ Sicherheit:
     <main id="tab-analyse" class="tab-panel" role="tabpanel" hidden>
       <div class="layout" id="analysis-content">
         <section class="panel span-full placeholder-panel">
-          <h2>Analyse</h2>
+          <h2>Analyse <span class="help-icon" tabindex="0" data-tip="Visualisiert den aktuellen Analyse-Datensatz: BPM-Verteilung, Camelot-Wheel, Genre-Breakdown und Playlist-Overlap. Daten kommen aus dem Scanner-Run oder dem Search-Tab-Fallback.">?</span></h2>
           <p class="placeholder-text">
             Wechsle zu diesem Tab, um BPM-Verteilung, Key-Kompatibilität,
             Genre-Breakdown und Playlist-Overlap zu sehen.
@@ -529,11 +529,11 @@ Sicherheit:
       <div class="layout" id="duplicates-content" style="margin-top:14px">
         <section class="panel span-full">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-            <h2 style="margin:0;font-size:15px">Duplikate (Fuzzy)</h2>
-            <button id="dupFuzzyScanBtn" type="button" class="primary-btn" style="font-size:12px;padding:4px 12px">
+            <h2 style="margin:0;font-size:15px">Duplikate (Fuzzy) <span class="help-icon tip-right" tabindex="0" data-tip="Fuzzy findet wahrscheinlich doppelte Tracks ohne Schreibzugriff: exakte Fingerprints, ähnliche Titel/Artists und Cross-Playlist-Vorkommen. Ergebnis ist nur Diagnose, keine Löschung.">?</span></h2>
+            <button id="dupFuzzyScanBtn" type="button" class="primary-btn" title="Read-only Fuzzy-Duplikat-Scan über den lokalen Trackbestand starten" aria-label="Fuzzy-Duplikat-Scan starten" style="font-size:12px;padding:4px 12px">
               Scan starten
             </button>
-            <label style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px">
+            <label title="Ähnlichkeitsschwelle für Fuzzy-Treffer: höher = strenger, niedriger = mehr Verdachtsfälle" style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:4px">
               Schwellenwert
               <input id="dupThreshold" type="number" min="0.5" max="1" step="0.05" value="0.85"
                      style="width:56px;font-size:11px;padding:2px 4px" />
@@ -575,7 +575,7 @@ Sicherheit:
     <main id="tab-sync" class="tab-panel" role="tabpanel" hidden>
       <div class="layout" id="sync-content">
         <section class="panel span-full placeholder-panel">
-          <h2>Sync-Pipeline</h2>
+          <h2>Sync-Pipeline <span class="help-icon" tabindex="0" data-tip="Pipeline beschreibt die Weitergabe von Beatport-Playlists: DJPlaylists.fm hält Metadaten, Lexicon bereitet DJ-Library-Daten auf, Engine DJ/USB ist das Zielsystem. Der Sync-Tab lädt die produktiven Controls.">?</span></h2>
           <p class="placeholder-text">
             Beatport Streaming → DJPlaylists.fm → Lexicon DJ → Engine DJ → USB / Prime 4+
           </p>
@@ -589,7 +589,7 @@ Sicherheit:
     <main id="tab-automation" class="tab-panel" role="tabpanel" hidden>
       <div class="layout" id="automation-content">
         <section class="panel span-full placeholder-panel">
-          <h2>Automation</h2>
+          <h2>Automation <span class="help-icon" tabindex="0" data-tip="Automation bündelt lokale Hilfsaktionen: Projekt-Discovery, Engine-Daten lesen, Cache klassifizieren, History/Diff auswerten und optional OSC-Snapshots senden.">?</span></h2>
           <p class="placeholder-text">
             Geplante Scans, Auto-Sync, Regel-basierte Playlist-Updates
             und Benachrichtigungen.

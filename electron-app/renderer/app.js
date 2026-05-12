@@ -936,7 +936,7 @@ function renderRunOverview() {
   const activeCard = cards.pop(); // letztes Element = "Aktiver Run"
   const activeEl = document.getElementById("activeRunSummary");
   if (activeEl) {
-    activeEl.innerHTML = `<article class="run-card active"><h3>${activeCard.label}</h3><p>${activeCard.value}</p></article>`;
+    activeEl.innerHTML = `<article class="run-card active" title="Der aktuell ausgewählte Run. Alle Ergebnis-, Analyse-, Resume- und Pfad-Aktionen beziehen sich auf diesen Snapshot."><h3>${activeCard.label}</h3><p>${activeCard.value}</p></article>`;
   }
 
   // History-Karten ins Accordion

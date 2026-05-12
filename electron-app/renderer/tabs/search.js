@@ -216,11 +216,11 @@ function buildSearchTabHtml() {
   return `
     <!-- Sub-Tab Navigation -->
     <div class="srch-subtabs">
-      <button class="srch-subtab active" data-stab="srch-dashboard">Dashboard</button>
-      <button class="srch-subtab" data-stab="srch-search">Suche & Filter</button>
-      <button class="srch-subtab" data-stab="srch-duplicates">Duplikate</button>
-      <button class="srch-subtab" data-stab="srch-builder">Playlist Builder</button>
-      <button class="srch-subtab" data-stab="srch-data">Daten</button>
+      <button class="srch-subtab active" data-stab="srch-dashboard" title="Schnellüberblick: Genres, BPM-Cluster und Tonarten als Sprungpunkte in die Suche">Dashboard</button>
+      <button class="srch-subtab" data-stab="srch-search" title="Trackdaten durchsuchen, filtern, sortieren und als Playlist vorbereiten">Suche & Filter</button>
+      <button class="srch-subtab" data-stab="srch-duplicates" title="Tracks anzeigen, die in mehreren Playlists vorkommen">Duplikate</button>
+      <button class="srch-subtab" data-stab="srch-builder" title="Playlist aus gefiltertem Track-Pool bauen und harmonisch/BPM-basiert sortieren">Playlist Builder</button>
+      <button class="srch-subtab" data-stab="srch-data" title="scoring-data.json laden und Datenstatus prüfen">Daten</button>
     </div>
 
     <!-- SUB-TAB: DATEN -->
@@ -271,7 +271,7 @@ function buildSearchTabHtml() {
           <label class="srch-toggle"><input type="checkbox" id="srchBpmNormToggle"><span class="slider"></span></label>
           <span>BPM Norm</span>
         </div>
-        <button class="primary" id="srchResetBtn" type="button" style="padding:6px 12px;font-size:12px">Reset</button>
+        <button class="primary" id="srchResetBtn" type="button" title="Alle Suchfilter, Suchbegriff und Ergebnis-Auswahl zurücksetzen" style="padding:6px 12px;font-size:12px">Reset</button>
       </div>
       <div class="srch-filters">
         <div class="srch-fg srch-fg-wide"><label title="Multi-Select: Klick aktiviert/deaktiviert. Mehrere gleichzeitig moeglich. Sub-Genres filtern automatisch nach gewaehlten Genres.">Genre <span id="srchGenreCount" class="srch-chip-count"></span></label><div id="srchGenreChips" class="srch-chips"></div><select id="srchGenre" hidden><option value="">Alle</option></select></div>
@@ -298,16 +298,16 @@ function buildSearchTabHtml() {
       </div>
       <div class="srch-lock-bar">
         <span style="font-weight:700;color:var(--text)">Fixierung:</span>
-        <button class="srch-lock-btn" data-lock="bpm"><span class="lk"></span> BPM</button>
-        <button class="srch-lock-btn" data-lock="camelot"><span class="lk"></span> Camelot</button>
-        <button class="srch-lock-btn" data-lock="drama"><span class="lk"></span> Dramaturgie</button>
-        <button class="srch-lock-btn" data-lock="year"><span class="lk"></span> Jahr</button>
-        <button class="srch-lock-btn" data-lock="genre"><span class="lk"></span> Genre</button>
-        <button class="srch-lock-btn" data-lock="label"><span class="lk"></span> Label</button>
+        <button class="srch-lock-btn" data-lock="bpm" title="BPM als Sortierpriorität fixieren"><span class="lk"></span> BPM</button>
+        <button class="srch-lock-btn" data-lock="camelot" title="Camelot-Kompatibilität als Sortierpriorität fixieren"><span class="lk"></span> Camelot</button>
+        <button class="srch-lock-btn" data-lock="drama" title="Dramaturgie-Score als Sortierpriorität fixieren"><span class="lk"></span> Dramaturgie</button>
+        <button class="srch-lock-btn" data-lock="year" title="Release-Jahr als Sortierpriorität fixieren"><span class="lk"></span> Jahr</button>
+        <button class="srch-lock-btn" data-lock="genre" title="Genre als Sortierpriorität fixieren"><span class="lk"></span> Genre</button>
+        <button class="srch-lock-btn" data-lock="label" title="Label als Sortierpriorität fixieren"><span class="lk"></span> Label</button>
         <span style="margin-left:12px;border-left:1px solid var(--line-strong);padding-left:12px">Scope:</span>
-        <button class="srch-scope-btn" id="srchScopeGlobal">Global</button>
-        <button class="srch-scope-btn active" id="srchScopePage">Pro Seite</button>
-        <button class="srch-lock-btn" id="srchLocksReset" style="margin-left:auto;border-color:var(--danger);color:var(--danger)">Locks Reset</button>
+        <button class="srch-scope-btn" id="srchScopeGlobal" title="Sortierung auf alle Treffer anwenden">Global</button>
+        <button class="srch-scope-btn active" id="srchScopePage" title="Sortierung nur innerhalb der aktuell verteilten Ergebnis-Seite anwenden">Pro Seite</button>
+        <button class="srch-lock-btn" id="srchLocksReset" title="Alle fixierten Sortierprioritäten löschen" style="margin-left:auto;border-color:var(--danger);color:var(--danger)">Locks Reset</button>
       </div>
       <div class="srch-result-bar">
         <span id="srchResultCount">0 Treffer</span>
@@ -376,8 +376,8 @@ function buildSearchTabHtml() {
       </div>
       <div class="srch-stats" id="srchDupStats"></div>
       <div class="srch-bar" style="margin-bottom:12px">
-        <input type="text" id="srchDupQ" placeholder="Duplikate durchsuchen...">
-        <select id="srchDupSort" style="padding:8px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:12px">
+        <input type="text" id="srchDupQ" placeholder="Duplikate durchsuchen..." title="Duplikate nach Track, Artist oder Genre filtern">
+        <select id="srchDupSort" title="Duplikat-Liste sortieren" style="padding:8px;background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-size:12px">
           <option value="pls-desc">Meiste PLs zuerst</option><option value="pls-asc">Wenigste</option>
           <option value="bpm-asc">BPM aufsteigend</option><option value="bpm-desc">BPM absteigend</option>
           <option value="title-asc">Titel A-Z</option>
@@ -419,9 +419,9 @@ function buildSearchTabHtml() {
           <input type="text" id="srchPlName" value="Neue Playlist" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--line-strong);border-radius:4px;color:var(--text);font-size:13px;font-weight:600;margin-bottom:8px">
           <div class="srch-pl-meta" id="srchPlMeta"><b>0</b> Tracks &middot; <b>0:00</b> Laufzeit</div>
           <div style="display:flex;gap:6px;margin-bottom:8px">
-            <button type="button" id="srchSortCamelot" style="padding:4px 10px;font-size:11px">Sort: Camelot</button>
-            <button type="button" id="srchSortBpm" style="padding:4px 10px;font-size:11px">Sort: BPM</button>
-            <button type="button" id="srchClearPl" class="danger" style="padding:4px 10px;font-size:11px">Leeren</button>
+            <button type="button" id="srchSortCamelot" title="Playlist nach Camelot-Reihenfolge für harmonischere Übergänge sortieren" style="padding:4px 10px;font-size:11px">Sort: Camelot</button>
+            <button type="button" id="srchSortBpm" title="Playlist nach BPM aufsteigend sortieren" style="padding:4px 10px;font-size:11px">Sort: BPM</button>
+            <button type="button" id="srchClearPl" class="danger" title="Aktuelle Builder-Playlist leeren; Quelldaten bleiben unverändert" style="padding:4px 10px;font-size:11px">Leeren</button>
           </div>
           <div class="srch-pl-list" id="srchPlList"></div>
           <svg class="srch-bpm-flow" id="srchBpmFlow" viewBox="0 0 400 60" preserveAspectRatio="none"></svg>
