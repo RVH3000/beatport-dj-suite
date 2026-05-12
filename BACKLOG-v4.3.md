@@ -87,18 +87,26 @@
 **v4.2.11 (erledigt):**
 - Punkt 1 — Build-Konfig-Reparatur (scripts/data/config in Bundle + asarUnpack + suite.db auto-init nach userData)
 
-**v4.2.12 (nächster Patch):**
-- Punkte 7, 11, 15, 16 (Tooltip-Welle + Genre-Schrift-Fix + Pipeline-Automation-Doku)
+**Bridge-Track (parallel — eigenes Repo `engine-dj-manager`):**
+- ⚠️ Schritt 6 — Live-Verifikation am 2026-05-13 durchgeführt: **partial pass + Doku-Fehler** (siehe `docs/bridge/06-engine-live-validation.md`).
+  - Session erscheint in Engine DJ, aber Tracks darin werden nicht zugeordnet — wahrscheinlich `originDriveName = NULL` + falsche `originDatabaseUuid`.
+  - Test-Anweisung „Playlist Techno id 35" war irreführend (Tracks nicht in dieser Playlist).
+- 🔜 Schritt 7 — Schema-Verfeinerung (`originDriveName`, `originDatabaseUuid` an aktive Library binden, sinnvollen Visual-Test-Fall wählen).
+- Konsequenz für v4.2-Monorepo: `@bpdjs/engine-bridge` NICHT als M1 jetzt; Bridge-Reparatur läuft als eigener Paket-Track parallel zum Monorepo-Merge mit `engine-dj-manager`. Nach Schritt-7-Erfolg kann das Paket im Monorepo landen.
 
-**v4.3.0 (eigener Branch):**
-- Punkte 1, 3, 4, 5 (echte Bug-Fixes mit Daten-Reload)
-- Punkt 8, 9, 13 (Sortable-Tables-Pass)
+**v4.2.12 (nächster Patch — kosmetisch):**
+- Punkt 11 (Genre-Breakdown-Schrift-Fix, ~5 Zeilen CSS)
+- Optional Punkte 7, 15, 16 — verschoben, falls v4.3 als "M5 zuerst" gefahren wird
+
+**v4.3.0 (Entscheidung offen — siehe Bridge-Ergebnis):**
+- Variante A (Plan halten): Punkte 1, 3, 4, 5 (echte Bug-Fixes), 8, 9, 13 (Sortable-Tables-Pass)
+- Variante B (M5 vorziehen): Punkt 29 — main.mjs auf @bpdjs/* migrieren, schrittweise pro IPC-Handler
 
 **v4.4.0:**
 - Punkte 14, 24 (Build-Konsolidierung + Pipeline modular)
 - Punkte 22, 23 (Visualisierungen)
+- UX-Pass (7, 15, 16) auf migrierter Codebasis, falls Variante B gefahren wurde
 
 **Später:**
 - Punkte 18, 19, 20, 21 (Daten-Features)
 - Punkt 26 (globales Layout)
-- Punkt 29 (M5)
