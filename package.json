@@ -1,6 +1,6 @@
 {
   "name": "beatport-dj-suite",
-  "version": "4.2.17",
+  "version": "4.3.0",
   "private": true,
   "type": "module",
   "author": "Robert H.",
@@ -12,6 +12,9 @@
   "scripts": {
     "desktop:dev": "electron .",
     "browser-devtools:app": "electron plugins/browser-devtools-automation/app/main.mjs",
+    "build:ts-packages": "npm run build --workspace=@bpdjs/engine-db-core",
+    "build:main": "node esbuild.config.mjs",
+    "prebuild": "npm run build:ts-packages && npm run build:main",
     "desktop:dist:mac": "./scripts/build-mac.sh",
     "desktop:dist:mac:raw": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
     "desktop:dir:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir",
@@ -39,16 +42,21 @@
     "commit-and-tag-version": "^12.7.1",
     "electron": "^32.2.0",
     "electron-builder": "^25.1.8",
-    "electron-reload": "^2.0.0-alpha.1"
+    "electron-reload": "^2.0.0-alpha.1",
+    "esbuild": "^0.25.12"
   },
   "build": {
     "appId": "com.roberth.beatport.djsuite",
     "productName": "Beatport DJ Suite",
+    "extraMetadata": {
+      "main": "electron-app/main.bundle.mjs"
+    },
     "asarUnpack": [
       "electron-app/integrations/python/**/*.py",
       "scripts/**/*",
       "data/**/*",
-      "config/**/*"
+      "config/**/*",
+      "node_modules/better-sqlite3/**/*"
     ],
     "directories": {
       "output": "dist-electron"
@@ -59,11 +67,7 @@
       "data/**/*",
       "config/**/*",
       "package.json",
-      "packages/*/package.json",
-      "packages/*/index.js",
-      "packages/*/src/**/*",
-      "packages/engine-db-core/dist/**/*",
-      "node_modules/@bpdjs/**/*"
+      "packages/engine-db-core/dist/**/*"
     ],
     "icon": "assets/icon.icns",
     "mac": {

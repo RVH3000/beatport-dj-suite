@@ -19,3 +19,7 @@ config/scoring-merge-log.jsonl
 # Python
 __pycache__/
 *.pyc
+
+# esbuild-Bundle (v4.3.0+): wird vor electron-builder generiert
+electron-app/main.bundle.mjs
+electron-app/main.bundle.mjs.map

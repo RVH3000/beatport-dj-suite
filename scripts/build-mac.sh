@@ -1,33 +1,25 @@
 #!/bin/bash
-# build-mac.sh — Wrapper um electron-builder, der die @bpdjs/*-Workspace-Symlinks
-# vor dem Build durch echte Kopien ersetzt und danach wieder Symlinks herstellt.
+# build-mac.sh — Wrapper um electron-builder mit esbuild-Pre-Build.
 #
-# Hintergrund: electron-builder packt Symlinks zu Verzeichnissen ausserhalb
-# von node_modules/<name>/ nicht ins asar-Bundle. Workspace-Symlinks
-# (node_modules/@bpdjs/X -> ../../packages/X) werden daher übersprungen,
-# und die gebaute App findet '@bpdjs/core' beim Start nicht.
+# Ablauf:
+#   1. npm run prebuild    -> tsc (engine-db-core) + esbuild (main.bundle.mjs)
+#   2. electron-builder    -> packt das Bundle in DMG + ZIP
+#
+# Hintergrund: Workspace-Symlinks unter node_modules/@bpdjs/ wuerden vom
+# electron-builder nicht ins asar-Bundle gepackt. esbuild bundelt main.mjs
+# zusammen mit allen @bpdjs/*-Imports in eine einzige Datei
+# (electron-app/main.bundle.mjs), die ueber build.extraMetadata.main als
+# Entry-Point des packaged App-Bundles dient. Der Dev-Modus (npm run
+# desktop:dev) nutzt weiterhin Root-main = electron-app/main.mjs ohne Bundle.
+#
+# Ersetzt den frueheren Symlink-Deref-Workaround (v4.2.15 - v4.2.17). Die
+# Workspace-Symlinks unter node_modules/@bpdjs/ bleiben jetzt unangetastet.
 set -e
 cd "$(dirname "$0")/.."
 
-BPDJS_DIR="node_modules/@bpdjs"
+echo "[build-mac] Pre-Build: tsc (engine-db-core) + esbuild (main bundle)..."
+npm run prebuild
 
-echo "[build-mac] Dereferenziere @bpdjs/* Symlinks..."
-DEREF_COUNT=0
-for link in "$BPDJS_DIR"/*; do
-  [ -e "$link" ] || continue
-  if [ -L "$link" ]; then
-    target=$(readlink -f "$link")
-    name=$(basename "$link")
-    rm "$link"
-    cp -RL "$target" "$BPDJS_DIR/$name"
-    DEREF_COUNT=$((DEREF_COUNT + 1))
-  fi
-done
-echo "[build-mac] $DEREF_COUNT Symlinks dereferenziert."
-
-# Restore-Trap: auch bei Build-Fehler zurück zu Symlinks
-trap 'echo "[build-mac] Stelle Symlinks wieder her..."; rm -rf "$BPDJS_DIR"/*; npm install --no-audit --no-fund --prefer-offline --silent >/dev/null 2>&1 || npm install --no-audit --no-fund --silent; echo "[build-mac] Symlinks wiederhergestellt."' EXIT
-
-echo "[build-mac] electron-builder läuft..."
+echo "[build-mac] electron-builder laeuft..."
 CSC_IDENTITY_AUTO_DISCOVERY=false ./node_modules/.bin/electron-builder --mac dmg zip
 echo "[build-mac] Build erfolgreich."
