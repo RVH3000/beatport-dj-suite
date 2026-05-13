@@ -1,8 +1,26 @@
 # BACKLOG v4.3 — Brain-Dump 2026-05-08 strukturiert
 
 **Quelle:** User-Brain-Dump nach Sichtung von v4.2.9 (Settings-Doku-Update).
-**Stand:** 2026-05-08
-**Format:** Kategorisiert nach Prio + Aufwand. ✓ = bereits in v4.2.10 erledigt.
+**Stand:** 2026-05-13 (Update nach v4.3.1)
+**Format:** Kategorisiert nach Prio + Aufwand. ✓ = bereits erledigt.
+
+## Update 2026-05-13
+
+- ✓ **v4.3.0** — Build-Pipeline-Refactor (esbuild Pre-Build-Bundler ersetzt
+  Symlink-Deref-Workaround). Tag gepusht. Plan-Schritte 1–4 aus
+  `.agents/v4.3-build-pipeline-plan.md` umgesetzt; Schritt 5 (`main.mjs`
+  von `../packages/core/index.js` auf `@bpdjs/core` umstellen) bleibt
+  separater Patch und ist Voraussetzung fuer M5 Phase B (Punkt 29).
+- ✓ **v4.3.1** — `query_beatport_labels.py` faengt fehlende `bp_labels`-
+  Tabelle ab (`missing_table: true`-Flag statt Crash). User-Bestaetigung
+  2026-05-13: "Label hat geklappt".
+- ✓ **Sofort-Import bp_labels** — 511 Labels via
+  `scripts/import_beatport_labels.py` mit
+  `~/_handoff/bp_labels_response.json` (192 KB, 2026-04-08) in
+  `~/Library/Application Support/beatport-dj-suite/suite.db` befuellt.
+
+**Neue Punkte 30–32** (Robert 2026-05-13, nach v4.3.1-Bestaetigung):
+praezisieren Punkte 8 und 18, erweitern Label-Tab um Cover-Anzeige.
 
 ---
 
@@ -80,6 +98,12 @@
 
 29. **M5 — main.mjs auf @bpdjs/* migrieren** — der eigentliche v4.2-Refactor-Höhepunkt. Nach v4.3-UX-Pass.
 
+30. **Label-Cover anzeigen** (Robert 2026-05-13) — die Cover-Bilder der gefolgten Labels sollen im Labels-Tab dargestellt werden. Daten liegen bereits in `bp_labels.image_uri`, `image_id`, `image_dynamic` vor (Re-Import 2026-05-13: 511 von 511 Labels haben `with_images`). Aufgabe ist reines Frontend: Image-Lazy-Load + Fallback bei 404. Tipp: `query_beatport_labels.py list` liefert `image_uri` bereits mit aus.
+
+31. **Library/Artists: eigener Tab "Meine Artists"** (Robert 2026-05-13, präzisiert Punkt 18) — sortierbare Tabelle mit allen Metadaten, analog Aufbau zum Labels-Tab. Datenquelle: Beatport-API `GET /v4/my/beatport/artists/` (Endpoint-Pfad spiegelbildlich zu `/v4/my/beatport/labels/`). Erfordert: eigenes `bp_artists`-Schema in `suite.db`, eigenes `import_beatport_artists.py`-Script (Vorlage: `import_beatport_labels.py`), eigenes `query_beatport_artists.py` mit `missing_table`-Defensiv-Pattern (siehe v4.3.1), Renderer-Komponente mit Sort-Logik.
+
+32. **Library/Tracks: eigener Tab "Meine Tracks"** (Robert 2026-05-13) — sortierbare Tabelle aller eigenen Tracks mit allen verfügbaren Metadaten (Title, Artist, Label, BPM, Key, Genre, Release-Date, Play-Count, etc.). Konzeptionell parallel zu Punkt 31, aber Beatport-API-Endpoint klären (`/v4/my/beatport/tracks/` falls existiert, sonst aus dem Scanner-Output ableiten). Wichtig: Abgrenzung zu Punkt 8 (Library/Arbeitsbestand-Spalten-Erweiterung) — Punkt 8 ist Scanner-zentrisch (Ergebnisse des letzten Scans), Punkt 32 ist Account-zentrisch (komplette persönliche Library, persistent). Falls Beatport keinen eigenen `/my/tracks/`-Endpoint hat: Scanner-DB als Quelle plus Beatport-Detail-Lookup für Metadaten-Anreicherung.
+
 ---
 
 ## Priorisierungs-Vorschlag
@@ -109,3 +133,8 @@
 **Später:**
 - Punkte 18, 19, 20, 21 (Daten-Features)
 - Punkt 26 (globales Layout)
+
+**v4.4.x oder v5 — neue Label/Artist/Track-Welle (Robert 2026-05-13):**
+- Punkt 30 (Label-Cover) — klein, kann auch in einen 4.3.x-Patch
+- Punkt 31 (Meine Artists Tab) — präzisierte Variante von Punkt 18
+- Punkt 32 (Meine Tracks Tab) — neu, klar abgegrenzt von Punkt 8
