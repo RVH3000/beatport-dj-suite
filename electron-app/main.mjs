@@ -3,9 +3,15 @@ import fs from "node:fs/promises";
 import fsSync, { existsSync } from "node:fs";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  toErrorMessage,
+  deriveAppBundlePath,
+  createBundledPathResolver,
+  createBuildIdComputer,
+} from "@bpdjs/core";
 
 // EPIPE-Schutz: verhindert Uncaught Exception wenn stderr/stdout Pipe bricht
 process.stderr?.on?.("error", () => {});
@@ -105,26 +111,11 @@ function createWindow() {
   return win;
 }
 
-function toErrorMessage(error) {
-  if (!error) return "Unbekannter Fehler";
-  return String(error.message || error);
-}
-
-function deriveAppBundlePath(execPath) {
-  const marker = ".app/Contents/MacOS/";
-  const index = execPath.indexOf(marker);
-  if (index === -1) {
-    return path.dirname(execPath);
-  }
-  return execPath.slice(0, index + 4);
-}
-
-function resolveBundledPath(relativePath) {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, "app.asar.unpacked", relativePath);
-  }
-  return path.join(REPO_ROOT, relativePath);
-}
+const resolveBundledPath = createBundledPathResolver({
+  isPackaged: app.isPackaged,
+  resourcesPath: process.resourcesPath,
+  repoRoot: REPO_ROOT,
+});
 
 function runPythonJson(relativeScriptPath, args = [], options = {}) {
   const pythonCommand = String(options.pythonCommand || "python3");
@@ -156,23 +147,10 @@ function runPythonJson(relativeScriptPath, args = [], options = {}) {
   return JSON.parse(stdout);
 }
 
-async function computeBuildId() {
-  const candidates = [
-    path.join(process.resourcesPath, "app.asar"),
-    app.getAppPath(),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      if (!candidate || !existsSync(candidate)) continue;
-      const buffer = await fs.readFile(candidate);
-      return createHash("sha256").update(buffer).digest("hex").slice(0, 12);
-    } catch {
-      continue;
-    }
-  }
-  return "dev-build";
-}
+const computeBuildId = createBuildIdComputer({
+  resourcesPath: process.resourcesPath,
+  appPath: app.getAppPath(),
+});
 
 function discoverAppCopies() {
   const copies = new Set();

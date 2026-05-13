@@ -310,13 +310,20 @@ describe("Preload API-Struktur", () => {
 
 describe("main.mjs Hilfsfunktionen (Source-Analyse)", () => {
   describe("toErrorMessage", () => {
-    // Wir extrahieren die Funktion aus dem Source und evaluieren sie
-    const fnSource = mainSource.match(
-      /function toErrorMessage\(error\)\s*\{[^}]+\}/
+    // Seit M5 Phase A wird die Funktion aus @bpdjs/core importiert
+    // statt lokal in main.mjs definiert.
+    const isImported = /toErrorMessage[\s,}][\s\S]{0,200}from\s+["']@bpdjs\/core["']/.test(
+      mainSource
+    );
+    const isLocallyDefined = /function toErrorMessage\(error\)\s*\{[^}]+\}/.test(
+      mainSource
     );
 
-    it("Funktion existiert im Source", () => {
-      assert.ok(fnSource, "toErrorMessage nicht gefunden in main.mjs");
+    it("Funktion ist im Source verfügbar (Import oder lokal)", () => {
+      assert.ok(
+        isImported || isLocallyDefined,
+        "toErrorMessage nicht gefunden in main.mjs (weder als Import aus @bpdjs/core noch als lokale function)"
+      );
     });
 
     // Funktion nachbauen für Tests (gleiche Logik)
@@ -342,12 +349,19 @@ describe("main.mjs Hilfsfunktionen (Source-Analyse)", () => {
   });
 
   describe("deriveAppBundlePath", () => {
-    const fnSource = mainSource.match(
-      /function deriveAppBundlePath\(execPath\)\s*\{[\s\S]*?^}/m
+    // Seit M5 Phase A wird die Funktion aus @bpdjs/core importiert.
+    const isImported = /deriveAppBundlePath[\s,}][\s\S]{0,200}from\s+["']@bpdjs\/core["']/.test(
+      mainSource
+    );
+    const isLocallyDefined = /function deriveAppBundlePath\(execPath\)\s*\{[\s\S]*?^}/m.test(
+      mainSource
     );
 
-    it("Funktion existiert im Source", () => {
-      assert.ok(fnSource, "deriveAppBundlePath nicht gefunden in main.mjs");
+    it("Funktion ist im Source verfügbar (Import oder lokal)", () => {
+      assert.ok(
+        isImported || isLocallyDefined,
+        "deriveAppBundlePath nicht gefunden in main.mjs (weder als Import aus @bpdjs/core noch als lokale function)"
+      );
     });
 
     // Nachgebaut aus dem Source
