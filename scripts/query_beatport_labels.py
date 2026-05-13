@@ -28,7 +28,18 @@ def emit(payload: dict) -> None:
     print(json.dumps(payload, ensure_ascii=False))
 
 
+def table_exists(conn: sqlite3.Connection, name: str) -> bool:
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        (name,),
+    ).fetchone()
+    return row is not None
+
+
 def cmd_list(conn: sqlite3.Connection, order: str, limit: int) -> dict:
+    if not table_exists(conn, "bp_labels"):
+        return {"ok": True, "count": 0, "labels": [], "missing_table": True}
+
     order_sql = {
         "name":  "name COLLATE NOCASE ASC",
         "count": "release_count DESC",
@@ -48,6 +59,18 @@ def cmd_list(conn: sqlite3.Connection, order: str, limit: int) -> dict:
 
 
 def cmd_stats(conn: sqlite3.Connection) -> dict:
+    if not table_exists(conn, "bp_labels"):
+        return {
+            "ok": True,
+            "total": 0,
+            "followed": 0,
+            "with_images": 0,
+            "zero_release_count": 0,
+            "total_releases": 0,
+            "last_synced_at": None,
+            "missing_table": True,
+        }
+
     total = conn.execute("SELECT COUNT(*) FROM bp_labels").fetchone()[0]
     followed = conn.execute("SELECT COUNT(*) FROM bp_labels WHERE is_followed = 1").fetchone()[0]
     with_images = conn.execute(
