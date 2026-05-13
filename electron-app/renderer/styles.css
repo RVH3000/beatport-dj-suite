@@ -1675,6 +1675,12 @@ body.builder-open .tab-panel.active {
 /* Tooltip rechts positionieren wenn am rechten Rand */
 .help-icon.tip-right::after{left:auto;right:-4px;transform:none}
 .help-icon.tip-right::before{left:auto;right:4px;transform:none}
+/* Tooltip links positionieren wenn am linken Rand (selten, aber sauber) */
+.help-icon.tip-left::after{left:-4px;right:auto;transform:none}
+.help-icon.tip-left::before{left:4px;right:auto;transform:none}
+/* Tooltip nach oben statt nach unten, falls unten kein Platz */
+.help-icon.tip-up::after{top:auto;bottom:calc(100% + 10px)}
+.help-icon.tip-up::before{top:auto;bottom:calc(100% + 4px);border-bottom-color:transparent;border-top-color:var(--primary)}
 .srch-subtabs,.sub-tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
 .srch-subtab,.sub-tab{padding:6px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--line-strong);color:var(--muted);background:transparent;transition:all .15s;font-family:inherit}
 .srch-subtab:hover,.sub-tab:hover{border-color:var(--muted);color:var(--text);filter:none}
