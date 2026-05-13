@@ -310,9 +310,9 @@ describe("Preload API-Struktur", () => {
 
 describe("main.mjs Hilfsfunktionen (Source-Analyse)", () => {
   describe("toErrorMessage", () => {
-    // Seit M5 Phase A wird die Funktion aus @bpdjs/core importiert
-    // statt lokal in main.mjs definiert.
-    const isImported = /toErrorMessage[\s,}][\s\S]{0,200}from\s+["']@bpdjs\/core["']/.test(
+    // Seit M5 Phase A wird die Funktion aus @bpdjs/core (oder relativ aus
+    // ../packages/core/index.js) importiert statt lokal in main.mjs definiert.
+    const isImported = /toErrorMessage[\s,}][\s\S]{0,200}from\s+["'](?:@bpdjs\/core|\.\.?\/packages\/core[^"']*)["']/.test(
       mainSource
     );
     const isLocallyDefined = /function toErrorMessage\(error\)\s*\{[^}]+\}/.test(
@@ -322,7 +322,7 @@ describe("main.mjs Hilfsfunktionen (Source-Analyse)", () => {
     it("Funktion ist im Source verfügbar (Import oder lokal)", () => {
       assert.ok(
         isImported || isLocallyDefined,
-        "toErrorMessage nicht gefunden in main.mjs (weder als Import aus @bpdjs/core noch als lokale function)"
+        "toErrorMessage nicht gefunden in main.mjs (weder als Import aus @bpdjs/core / packages/core noch als lokale function)"
       );
     });
 
@@ -349,8 +349,9 @@ describe("main.mjs Hilfsfunktionen (Source-Analyse)", () => {
   });
 
   describe("deriveAppBundlePath", () => {
-    // Seit M5 Phase A wird die Funktion aus @bpdjs/core importiert.
-    const isImported = /deriveAppBundlePath[\s,}][\s\S]{0,200}from\s+["']@bpdjs\/core["']/.test(
+    // Seit M5 Phase A wird die Funktion aus @bpdjs/core (oder relativ aus
+    // ../packages/core/index.js) importiert.
+    const isImported = /deriveAppBundlePath[\s,}][\s\S]{0,200}from\s+["'](?:@bpdjs\/core|\.\.?\/packages\/core[^"']*)["']/.test(
       mainSource
     );
     const isLocallyDefined = /function deriveAppBundlePath\(execPath\)\s*\{[\s\S]*?^}/m.test(
@@ -360,7 +361,7 @@ describe("main.mjs Hilfsfunktionen (Source-Analyse)", () => {
     it("Funktion ist im Source verfügbar (Import oder lokal)", () => {
       assert.ok(
         isImported || isLocallyDefined,
-        "deriveAppBundlePath nicht gefunden in main.mjs (weder als Import aus @bpdjs/core noch als lokale function)"
+        "deriveAppBundlePath nicht gefunden in main.mjs (weder als Import aus @bpdjs/core / packages/core noch als lokale function)"
       );
     });
 

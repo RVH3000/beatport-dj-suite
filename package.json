@@ -1,6 +1,6 @@
 {
   "name": "beatport-dj-suite",
-  "version": "4.2.15",
+  "version": "4.2.16",
   "private": true,
   "type": "module",
   "author": "Robert H.",
@@ -12,7 +12,8 @@
   "scripts": {
     "desktop:dev": "electron .",
     "browser-devtools:app": "electron plugins/browser-devtools-automation/app/main.mjs",
-    "desktop:dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
+    "desktop:dist:mac": "./scripts/build-mac.sh",
+    "desktop:dist:mac:raw": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
     "desktop:dir:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir",
     "test": "node --test $(find tests packages/*/tests -name '*.test.mjs' 2>/dev/null)",
     "test:packages": "node --test $(find packages/*/tests -name '*.test.mjs' 2>/dev/null)",

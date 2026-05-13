@@ -11,7 +11,7 @@ import {
   deriveAppBundlePath,
   createBundledPathResolver,
   createBuildIdComputer,
-} from "@bpdjs/core";
+} from "../packages/core/index.js";
 
 // EPIPE-Schutz: verhindert Uncaught Exception wenn stderr/stdout Pipe bricht
 process.stderr?.on?.("error", () => {});
