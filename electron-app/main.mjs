@@ -571,6 +571,65 @@ app.whenReady().then(() => {
     );
   });
 
+  // ── Artists (Backlog-Punkt 31 / v4.5.0) ─────────────────────────────────
+  // Wiederverwendung des labels-DB-Pfads (gleiche suite.db).
+  ipcMain.handle("artists:list", async (_event, options = {}) => {
+    const order = options.order || "release_count";
+    const limit = Math.min(Number(options.limit) || 2000, 5000);
+    const allFlag = options.includeUnfollowed ? ["--all"] : [];
+    return runPythonJson(
+      "scripts/query_beatport_artists.py",
+      ["--db", labelsDbPath, "list", "--order", order, "--limit", String(limit), ...allFlag],
+    );
+  });
+
+  ipcMain.handle("artists:stats", async () => {
+    return runPythonJson(
+      "scripts/query_beatport_artists.py",
+      ["--db", labelsDbPath, "stats"],
+    );
+  });
+
+  // artists:sync — IPC-Sync: ruft Beatport-API via XHR-Client, schreibt
+  // direkt nach suite.db via import_beatport_artists.py.
+  // Bei 404 wirft die XHR-Methode `endpoint-not-found` — der Caller (Renderer)
+  // zeigt dann die manuelle JSON-Import-Anleitung an.
+  ipcMain.handle("artists:sync", async (_event, options = {}) => {
+    try {
+      const client = await createXhrClient();
+      const { endpoint, total, results } = await client.fetchMyArtists();
+      // Schreib JSON nach Temp-Datei und ruf das Python-Import-Script auf
+      // (statt direkter DB-Schreibe von Node — Konsistenz mit Labels-Pipeline,
+      // weitere Vorteile: Backup-Logik, Drift-Detection via --diff).
+      const tmpJsonPath = path.join(os.tmpdir(), `bp_artists_sync_${Date.now()}.json`);
+      await fs.writeFile(tmpJsonPath, JSON.stringify({ results }), "utf-8");
+      const importArgs = options.driftDetect
+        ? ["--db", labelsDbPath, "--input", tmpJsonPath, "--diff"]
+        : ["--db", labelsDbPath, "--input", tmpJsonPath];
+      const importResult = runPythonJson("scripts/import_beatport_artists.py", importArgs);
+      // Temp-Datei aufraeumen
+      try {
+        await fs.unlink(tmpJsonPath);
+      } catch { /* nicht kritisch */ }
+      return {
+        ok: true,
+        endpoint,
+        fetched: total,
+        importResult,
+      };
+    } catch (error) {
+      if (error?.code === "endpoint-not-found") {
+        return {
+          ok: false,
+          code: "endpoint-not-found",
+          message: error.message,
+          candidates: error.candidates,
+        };
+      }
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
   // ── Scoring-Data ↔ Engine DB Merge (non-destruktiv, Preview → Apply) ───────
   const scoringMergeRulesPath = resolveBundledPath("config/scoring-merge-rules.json");
   const scoringMergePreviewPath = resolveBundledPath("config/scoring-merge-preview.json");

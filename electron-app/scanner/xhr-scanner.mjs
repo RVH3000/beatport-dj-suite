@@ -222,6 +222,99 @@ export class BeatportXhrClient {
     return await this.fetch(url);
   }
 
+  // ─── My Beatport: Artists / Tracks (Backlog-Punkt 31 / v4.5.0) ──────────
+  //
+  // Holt gefolgte Artists oder eigene Tracks aus dem myBeatport-Bereich.
+  // Probiert primaer den /v4/my/beatport/-Endpoint, faellt bei 404 zurueck
+  // auf /v4/my/. Paginiert automatisch via per_page + next-Link bis alle
+  // Ergebnisse geholt sind.
+  //
+  // Throws bei Netzfehlern / Auth-Problemen. Bei 404 auf BEIDEN Endpoints
+  // wird ein Error mit code="endpoint-not-found" geworfen — Caller kann
+  // dann die manuelle JSON-Import-Anleitung anzeigen.
+  async fetchMyEntity(resource, options = {}) {
+    if (!["artists", "tracks"].includes(resource)) {
+      throw new Error(`fetchMyEntity: ungueltige resource "${resource}"`);
+    }
+    const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
+    const candidatePaths = [
+      `${API_BASE}/my/beatport/${resource}/`,
+      `${API_BASE}/my/${resource}/`,
+    ];
+
+    let workingBase = null;
+    for (const candidate of candidatePaths) {
+      try {
+        const probeUrl = `${candidate}?per_page=1&page=1`;
+        const probe = await this.fetch(probeUrl);
+        // Endpoint existiert wenn fetch ohne Throw zurueckkommt — auch wenn
+        // results leer ist (User folgt nichts) ist die URL gueltig.
+        if (probe && typeof probe === "object") {
+          workingBase = candidate;
+          // Wenn Probe-Response schon alle results enthaelt (kein next), kurzschluss
+          if (Array.isArray(probe.results) && !probe.next && probe.results.length <= 1) {
+            // weiter zum vollen Paginierungs-Loop, ggf. mit per_page=100
+          }
+          break;
+        }
+      } catch (error) {
+        // 404 oder andere Server-Errors → naechsten Kandidaten probieren
+        log(`Endpoint-Probe ${candidate} fehlgeschlagen: ${error.message}`);
+      }
+    }
+
+    if (!workingBase) {
+      const err = new Error(
+        `Kein gueltiger Endpoint fuer /my/${resource}/ gefunden. ` +
+        `Pruefe Beatport-Auth oder verwende manuellen JSON-Import.`
+      );
+      err.code = "endpoint-not-found";
+      err.candidates = candidatePaths;
+      throw err;
+    }
+
+    log(`fetchMyEntity ${resource}: aktiver Endpoint ${workingBase}`);
+
+    const rows = [];
+    let page = 1;
+    let hasMore = true;
+    let totalCount = null;
+
+    while (hasMore) {
+      const url = `${workingBase}?per_page=${PER_PAGE}&page=${page}`;
+      const payload = await this.fetch(url);
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      rows.push(...results);
+
+      if (totalCount === null && typeof payload?.count === "number") {
+        totalCount = payload.count;
+      }
+      if (onProgress) {
+        onProgress({ fetched: rows.length, total: totalCount, page });
+      }
+
+      if (payload?.next) {
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return {
+      endpoint: workingBase,
+      total: totalCount ?? rows.length,
+      results: rows,
+    };
+  }
+
+  async fetchMyArtists(options = {}) {
+    return this.fetchMyEntity("artists", options);
+  }
+
+  async fetchMyTracks(options = {}) {
+    return this.fetchMyEntity("tracks", options);
+  }
+
   async addTracksToPlaylist(playlistId, trackIds) {
     const url = `${API_BASE}/my/playlists/${playlistId}/tracks/`;
     const results = [];

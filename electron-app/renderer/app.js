@@ -7,6 +7,7 @@ let searchModule = null;
 let automationModule = null;
 let settingsModule = null;
 let labelsModule = null;
+let artistsModule = null;
 let engineAnalyzeModule = null;
 const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
 
@@ -56,6 +57,8 @@ const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
       loadAutomationTab();
     } else if (targetId === "tab-labels") {
       loadLabelsTab();
+    } else if (targetId === "tab-artists") {
+      loadArtistsTab();
     } else if (targetId === "tab-engine-analyze") {
       loadEngineAnalyzeTab();
     } else if (targetId === "tab-settings") {
@@ -2684,6 +2687,17 @@ async function loadLabelsTab() {
     await labelsModule.initLabelsTab();
   } catch (err) {
     console.error("[labels] Laden fehlgeschlagen:", err);
+  }
+}
+
+async function loadArtistsTab() {
+  try {
+    if (!artistsModule) {
+      artistsModule = await import("./tabs/artists.js");
+    }
+    await artistsModule.initArtistsTab();
+  } catch (err) {
+    console.error("[artists] Laden fehlgeschlagen:", err);
   }
 }
 

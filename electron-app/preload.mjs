@@ -104,6 +104,13 @@ contextBridge.exposeInMainWorld("labelsApi", {
   stats: () => ipcRenderer.invoke("labels:stats"),
 });
 
+// Backlog-Punkt 31 (v4.5.0): Meine Artists
+contextBridge.exposeInMainWorld("artistsApi", {
+  list: (options) => ipcRenderer.invoke("artists:list", options || {}),
+  stats: () => ipcRenderer.invoke("artists:stats"),
+  sync: (options) => ipcRenderer.invoke("artists:sync", options || {}),
+});
+
 contextBridge.exposeInMainWorld("authApi", {
   getStatus: (config) => ipcRenderer.invoke("auth:get-status", config),
   openLoginWindow: (config) => ipcRenderer.invoke("auth:open-login-window", config),
