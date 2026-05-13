@@ -1,7 +1,8 @@
 # LLM Handoff — Beatport DJ Suite v4.2
-**Erstellt:** 2026-05-08
-**Von:** Claude Code CLI (Opus 4.7, deutscher Mode)
-**Nach:** beliebige LLM-Umgebung — Standard: Claude Code CLI
+**Erstellt:** 2026-05-13 12:03 CEST
+**Von:** Claude Code CLI (Opus 4.7, 1M Context)
+**Nach:** Dispatch (Cowork)
+**Thema:** v4.3.0 Build-Pipeline-Refactor + M5 Phase B-E
 
 ---
 
@@ -9,62 +10,79 @@
 
 - **Worktree:** `~/Projects/_local/beatport-dj-suite.worktrees/v4.2`
 - **Branch:** `feat/v4.2`
-- **Letzter Commit:** `9e0c5ff fix(v4.2.11): Build-Konfig — scripts/data/config korrekt im Bundle`
-- **Tags auf origin:** `v4.2.0` bis `v4.2.11`
-- **PRs:**
-  - #9 (open) — `feat/v4.2 → v4` — Monorepo-Refactor
-  - #8 (draft) — `claude/elegant-allen-e08439 → v4` — `.claude/launch.json` fix
+- **Letzter Commit:** `650f4b8 docs(v4.3): Build-Pipeline-Plan via code-architect Agent`
+- **Aktuelle Version:** `v4.2.17` (gepusht auf origin)
+- **Installierte App:** `/Applications/Beatport DJ Suite 4.2.17.app` — läuft sauber
+- **Tests:** 905/905 grün
+- **PR:** #9 (offen) — `feat/v4.2 → v4`, Monorepo-Refactor + Bridge + M5-Mapping
 
-## Was läuft / wo wir stehen
+## Was diese Session geleistet hat
 
-**13/13 @bpdjs/ Pakete sind komplett befüllt + getestet:**
+### 7 neue Commits seit Session-Start
 
-| # | Paket | Inhalt |
+| Tag | Commit | Inhalt |
 |---|---|---|
-| 1 | `@bpdjs/core` | errors, logger (4 Levels + Tags + FileSink), eventbus, config (ConfigStore) |
-| 2 | `@bpdjs/ipc-router` | createIpcRouter (ersetzt v4.1-`ipcHandle`), sendProgress, bridgeEventToIpc |
-| 3 | `@bpdjs/settings` | SettingsStore mit IPC-Handlern + Persistenz |
-| 4 | `@bpdjs/file-manager` | Paths (Electron-Wrapper), atomic write/read, Disk-Helper |
-| 5 | `@bpdjs/engine-db` | sqlite-cli (read-only), Sandbox-Helper, EngineLibrary |
-| 6 | `@bpdjs/playlist-manager` | Camelot-Wheel, Playlist-Modell, validateMixOrder + suggestNextTracks |
-| 7 | `@bpdjs/beatport-connection` v1.0.0 | Constants + Lazy-Import-Wrapper (heiliger Code bleibt in v4.1) |
-| 8 | `@bpdjs/mode-layer` | STANDARD/DEVELOPER, FeatureFlags, LicenseStub |
-| 9 | `@bpdjs/ui-components` | escapeHtml, Toast, SandboxBanner, Table (DOM-frei testbar) |
-| 10 | `@bpdjs/ui-shell` | TabRouter mit Mode-Filter, BootSequence (5 Phasen) |
-| 11 | `@bpdjs/audio-analyzer` | scoring (Performance-Score), analysis (Datenmodell + merge) |
-| 12 | `@bpdjs/dev-tools` | smoke-runner + diagnostics |
-| 13 | `@bpdjs/updater` | version + channels + check |
+| v4.2.13 | `571ae44` | `mainWindow`-Bugfix |
+| v4.2.14 | `af76522` | M5 Phase A — 4 Helper aus main.mjs nach @bpdjs/core |
+| v4.2.15 | `230762c` | fix(build): packages/* + @bpdjs-Symlinks ins .app-Bundle |
+| v4.2.16 | `d337433` | fix(main): @bpdjs/core via relativem Pfad (Workaround) |
+| v4.2.17 | `3fcc894` | fix(ui): Tooltip-Auto-Positionierung (`tooltip-positioner.js`) |
+| — | `650f4b8` | docs(v4.3): Build-Pipeline-Plan |
+| — | `1aeeb60` | docs(bridge): Schritt 7 Live-Test 3/3 ✗ + Schritt 8 Skizze |
 
-**Tests:** zuletzt verifiziert 848/848 grün (Stand v4.2.6, vor Phase 12+13). Re-Verify mit `npm test` empfohlen.
+### Bridge-Track 2026-05-13
 
-## Bridge-Track Status (2026-05-13)
+Schritt 6 + Schritt 7 live in Engine DJ Release v4.3.4 getestet — beide **3/3 ✗**.
+Diagnose-Befund: `playedIndicator` ist ein Session-Cluster-Stempel aus
+`m.db.Information.currentPlayedIndiciator`, kein Random-Wert pro Bridge-Lauf.
+Schritt 8 (`sync_history_v8.py` mit Information-gelesenem Indicator) ist in
+`docs/bridge/08-played-indicator.md` skizziert, aber **nicht implementiert**.
 
-Schritt 6 Live-Verifikation durchgeführt — **partial pass + Doku-Fehler**.
-- Session erscheint in Engine DJ, aber Tracks darin nicht zugeordnet (`originDriveName = NULL` + falsche `originDatabaseUuid` als wahrscheinliche Ursache).
-- Test-Anweisung „Playlist Techno id 35" war irreführend (Tracks gehörten nicht zu Playlist 35).
-- Voller Befund: `docs/bridge/06-engine-live-validation.md`.
-- **Schritt 7** (Schema-Verfeinerung) folgt als parallel laufender Paket-Track zur Monorepo-Verschmelzung mit `engine-dj-manager`.
-- **Konsequenz:** `@bpdjs/engine-bridge` kommt NICHT als M1; stattdessen Plain-Copy-Merge von `engine-dj-manager/src/lib/*` nach `packages/engine-db-core/` als nächster Schritt nach v4.2.12.
+**Wichtiger Befund von Robert:** Engine DJ Desktop kann Beatport-LINK-Streaming-Tracks
+**nicht abspielen**. Der USP-Test muss auf Hardware (Denon SC6000) oder via USB-Sync
+erfolgen, nicht im Desktop. Bisherige Tests sind strukturell ungeeignet.
 
-## Offene TODOs
+**Alternativer konzipierter Bridge-Weg** laut `~/MASTER_CONTEXT.md` Z.97-99:
+M3U8 mit `#EXTBEATPORTID` ohne Playback — wurde diese Session NICHT geprüft.
+Vor Schritt 8 erst klären: SQL-Weg oder M3U8-Weg.
 
-- [ ] **Monorepo-Merge (M2):** `engine-dj-manager/src/lib/*` + `tools/*` als Plain-Copy nach `packages/engine-db-core/` + `packages/engine-manager-app/`. Reihenfolge nach Live-Test-Befund festgelegt (Merge zuerst, M5 danach).
-- [ ] **Bridge Schritt 7:** Schema-Verfeinerung (originDriveName, originDatabaseUuid an aktive Library binden, sinnvollen Visual-Test wählen). Sandbox bleibt unter `~/Music/Engine Library SANDBOX-claude/` erhalten.
-- [ ] **M5 (FINAL):** `electron-app/main.mjs` (1946 Zeilen) Stück für Stück auf alle Pakete (13 + neue aus Merge) migrieren
-  - Mapping-Bericht liegt in `.agents/v4.2-phase1-2-map.md`
-  - Empfohlener Agent: `feature-dev:code-explorer` → Migrations-Plan, dann `feature-dev:code-architect` für Schritt-Plan
-- [ ] PR #9 Body ggf. nochmal aktualisieren (sagt jetzt „Phase 0-11", muss „13/13" sagen)
-- [ ] Tests nach M5 erneut grün stellen
-- [ ] `desktop:dist:mac` Build verifizieren
+## ⚠️ Uncommitted
+
+```
+M  package-lock.json
+```
+
+Modifiziert durch npm install nach Symlink-Restore in `build-mac.sh`.
+**Empfehlung:** committen als `chore: package-lock.json sync nach build-mac.sh restore`.
+
+## Offene TODOs (Priorität top-down)
+
+- [ ] **v4.3.0 Build-Pipeline-Refactor** umsetzen — Plan liegt in `.agents/v4.3-build-pipeline-plan.md`
+  - Strategie 1 (esbuild Pre-Build-Bundler) wird empfohlen
+  - 6 Schritte, geschätzt 6–8h
+  - Minor-Bump, weil Build-Pipeline ändert sich
+  - **Erst nach Abschluss** kann M5 Phase B mit echten `@bpdjs/*`-Imports starten
+- [ ] **M5 Phase B** (nach v4.3.0): `@bpdjs/ipc-router`-Extraction, 27 `ipcHandle`-Aufrufe
+- [ ] **M5 Phase C** (nach Phase B): ~30 Lese-Handler migrieren
+- [ ] **Bridge Schritt 8 oder M3U8-Pfad?** Vor Implementierung Kontrollraum-Entscheidung holen
+- [ ] **PR #9 Body** ist auf v4.2.12-Stand, müsste auf v4.2.17 + v4.3-Plan aktualisiert werden
+- [ ] **`engine-analyzer`** hat kein Git — Backup-Empfehlung offen (laut `~/AI-Context/OPEN-LOOPS.md`)
 
 ## Wichtige Dateipfade
 
-- `packages/*/` — alle 13 `@bpdjs/`-Pakete
-- `electron-app/main.mjs` — Hauptziel von M5 (heilig bis dahin)
-- `electron-app/scanner/xhr-scanner.mjs` — heiliger Beatport-Code (NIEMALS ändern)
-- `electron-app/auth/session-manager.mjs` — heiliger Auth-Code
-- `.agents/v4.2-phase1-2-map.md` — Mapping v4.1 → v4.2 für Phase 1+2
-- `BACKLOG-v4.3.md` — was später kommt
+- `.agents/v4.3-build-pipeline-plan.md` — **Plan für den nächsten Patch**, 376 Zeilen
+- `.agents/v4.2-m5-mapping.md` — Mapping aller 98 IPC-Handler in main.mjs auf 14 Pakete
+- `electron-app/main.mjs` (1968 Zeilen) — Hauptdatei, M5-Migrations-Ziel
+- `electron-app/renderer/tooltip-positioner.js` — Auto-Positioner (heute neu, v4.2.17)
+- `scripts/build-mac.sh` — Build-Wrapper mit Symlink-Deref + trap-Restore (wird in v4.3 ersetzt)
+- `docs/bridge/06-engine-live-validation.md` — Schritt 6 Doku + 2026-05-13-Befund (partial pass)
+- `docs/bridge/07-bridge-repair.md` — Schritt 7 Doku + 2026-05-13-Befund (3/3 ✗) + playedIndicator-Befund
+- `docs/bridge/08-played-indicator.md` — Schritt-8-Skizze (nicht implementiert)
+- `packages/engine-db-core/` — Plain-Copy aus engine-dj-manager, TS-Build via `tsc → dist/`
+- `BACKLOG-v4.3.md` — Bridge-Track-Status + v4.3-Themen
+- `~/AI-Context/SESSION-RECAP-2026-05-13.md` — strukturelle Selbstkritik dieser Session
+- `~/MASTER_CONTEXT.md` — globaler Kontext, Signal-Chain, Aktive Projekte (7)
+- `~/AI-Context/MODEL-ROLES.md` — Pingpong: ChatGPT=Kontrollraum, Claude=Werkbank, Codex=Spezialwerkzeug
 
 ## Geschützte Dateien (NIEMALS umbenennen / löschen)
 
@@ -73,34 +91,56 @@ Schritt 6 Live-Verifikation durchgeführt — **partial pass + Doku-Fehler**.
 - `*.db` in `Engine Library/` (Engine DJ — Sandbox-First!)
 - `.als`, `.maxpat`, `.vstpreset` (Ableton/Max-Assets)
 
+## Sandboxen (Engine DJ) — bleiben erhalten
+
+- `~/Music/Engine Library SANDBOX-claude/` — v5-Bridge-Daten
+- `~/Music/Engine Library SANDBOX-v7/` — v7-Bridge-Daten (Schritt 7, partial)
+- `~/Music/Engine Library SANDBOX-v8/` — frisch, unbenutzt (Reverse-Engineering verworfen)
+- `~/Music/Engine Library/` — Produktiv, MAX historylist.id=51 unverändert
+
 ## Startbefehle
 
 ```bash
 cd ~/Projects/_local/beatport-dj-suite.worktrees/v4.2
 npm install                    # Workspaces synchronisieren
-npm test                       # Full Suite (v4.1 Bestand + Phase 1-13)
-npm run test:packages          # Nur die @bpdjs/* Pakete
-npm run desktop:dev            # Electron-App starten
+npm test                       # Full Suite (erwartet 905 grün)
+npm run desktop:dev            # Dev-Modus (Workspace-Symlinks direkt)
+npm run desktop:dist:mac       # Build via scripts/build-mac.sh (Symlink-Deref + trap-Restore)
 git status                     # Uncommitted-Lage prüfen
 ```
 
-## Heilige Regeln (aus CLAUDE.md)
+## Heilige Regeln (aus `~/.claude/CLAUDE.md` + `MODEL-ROLES.md`)
 
-1. **v4.1-Branch unangetastet** — feat/v4.1 und Hauptpfad nicht ändern. Im v4.2-Worktree DARF main.mjs umgebaut werden (das ist v4.2-Working-Copy)
-2. **Sandbox-First** für alle Engine-DB-Schreibzugriffe (ganzen Library-Ordner kopieren, nicht einzelne .db)
-3. **Patch-Version-Bumps** nach jedem Paket-Schritt
+1. **v4.1-Branch unangetastet** — feat/v4.1 und main nicht ändern
+2. **Sandbox-First** für alle Engine-DB-Schreibzugriffe (ganzen Library-Ordner kopieren)
+3. **Patch-Version-Bumps** nach jedem Paket-Schritt; Minor-Bump für Build-Pipeline-Änderung
 4. **Deutsch** für Doku + Kommentare
-5. **Bypass-Mode-Memory:** Nicht ständig fragen, durchziehen — `feedback_bypass_mode_no_questions.md`
-6. **3-Strike-Memory:** Bei Trigger-Phrasen ("hooks weg" etc.) sofort Hook-Diagnose anbieten
+5. **AI-Context lesen zu Session-Beginn** (siehe SESSION-RECAP, strukturelle Selbstkritik)
+6. **Pingpong-Rolle:** Werkbank setzt um, Kontrollraum priorisiert. Strategie kommt nicht aus der Werkbank.
+7. **Vor Änderungen an aktiven Code-/Doku-Dateien:** Backup unter `~/.claude/backups/<projekt>/<TS>-<phase>/`
 
-## Kontext für den nächsten Agent
+## Kontext für den nächsten Agent (Dispatch)
 
-Du übernimmst eine fertige Foundation: 13 sauber strukturierte npm-Workspace-Pakete mit insgesamt ~250 grünen Tests. Die ECHTE Arbeit beginnt jetzt: **`electron-app/main.mjs` (1946 Zeilen)** muss Stück für Stück die neuen `@bpdjs/*`-Pakete importieren statt der bisherigen relativen Pfade.
+Du übernimmst v4.3.0 — Build-Pipeline-Refactor. Plan steht. Implementierung kommt:
 
-**Erste Schritte für Migration (M5):**
-1. Mapping-Bericht lesen: `cat .agents/v4.2-phase1-2-map.md`
-2. `feature-dev:code-explorer` Agent starten mit Auftrag: „Liste alle Stellen in `electron-app/main.mjs` die durch `@bpdjs/*`-Imports ersetzt werden können — mit Datei:Zeile + Ziel-Paket"
-3. Pro Migrations-Block: backup → ändern → `npm test` → committen → Patch-Tag bumpen
-4. Beatport-Code (xhr-scanner, session-manager) wird via `@bpdjs/beatport-connection` lazy importiert — NICHT direkt ersetzen!
+1. **Pflichtlektüre vor Start:**
+   - `.agents/v4.3-build-pipeline-plan.md` — Implementierungs-Plan (6 Schritte)
+   - `~/AI-Context/SESSION-RECAP-2026-05-13.md` — was die letzte Session strukturell falsch gemacht hat
+   - `~/AI-Context/MODEL-ROLES.md` — Pingpong-Rolle (Werkbank ≠ Kontrollraum)
 
-**Risiko:** main.mjs hat 95 IPC-Handler. Davon sind 34 mit `ipcHandle`-Wrapper (sauber abgekapselt → kann generisch über `@bpdjs/ipc-router` laufen). 61 sind `direct ipcMain.handle` — vorsichtiger.
+2. **Erste Schritte (DECISIONS §6 — Inventur → Plan → Backup → Freigabe → Ausführung → Bericht):**
+   - `git status` + `npm test` + `npm run desktop:dist:mac` Smoke (sollte heute alles grün sein)
+   - Plan-Mode aktivieren mit Plan aus `.agents/v4.3-build-pipeline-plan.md`
+   - Robert um explizite Freigabe bitten **bevor** Build-Pipeline-Änderungen committen
+   - Backup vor Änderung an `package.json`, `scripts/build-mac.sh`, `electron-app/main.mjs`
+
+3. **Was NICHT machen:**
+   - Bridge Schritt 8 ohne Kontrollraum-Entscheidung (M3U8 vs SQL)
+   - M5 Phase B–E vor Abschluss v4.3.0
+   - Engine-DB-Schreibzugriffe ohne Sandbox-Switch
+   - Goals selbst erfinden — Werkbank setzt um, was Kontrollraum priorisiert
+
+4. **Falls Robert „ohne fragen" sagt:**
+   - DECISIONS §6 trotzdem einhalten (Backup, Bericht)
+   - Aber kein zwischengeschaltetes „OK?" pro Tool-Call
+   - Plan-Mode-Freigabe einmal am Anfang reicht
