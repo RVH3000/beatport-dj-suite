@@ -50,19 +50,22 @@ function renderGrid() {
     return;
   }
 
-  grid.innerHTML = filtered.map((l) => `
+  grid.innerHTML = filtered.map((l) => {
+    const initial = esc((l.name || "?")[0]);
+    return `
     <div class="label-card" data-id="${l.id}">
       <div class="label-thumb">
         ${l.image_dynamic || l.image_uri
-          ? `<img src="${esc(thumbUrl(l, 120))}" alt="${esc(l.name)}" loading="lazy" />`
-          : `<div class="label-thumb-empty">${esc((l.name || "?")[0])}</div>`}
+          ? `<img src="${esc(thumbUrl(l, 120))}" alt="${esc(l.name)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=&quot;label-thumb-empty&quot;>${initial}</div>'" />`
+          : `<div class="label-thumb-empty">${initial}</div>`}
       </div>
       <div class="label-meta">
         <div class="label-name" title="${esc(l.name)}">${esc(l.name)}</div>
         <div class="label-count">${fmt(l.release_count)} Releases</div>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function renderError(message, detail) {
