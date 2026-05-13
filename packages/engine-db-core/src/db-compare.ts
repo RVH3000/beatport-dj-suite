@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import Database from 'better-sqlite3';
-import { getDbDir } from './engine-paths';
+import { getDbDir } from './engine-paths.js';
 
 export interface TrackSummary {
     id: number;

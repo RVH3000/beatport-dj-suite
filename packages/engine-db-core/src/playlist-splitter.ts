@@ -1,4 +1,4 @@
-import type { ResolvedTrack } from './auto-history-playlist';
+import type { ResolvedTrack } from './auto-history-playlist.js';
 
 export type SplitMode = 'none' | 'byMonth' | 'byYear' | 'byCount' | 'byBpmRange' | 'byLabel' | 'byGenre';
 

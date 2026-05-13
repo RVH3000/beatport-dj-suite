@@ -1,5 +1,5 @@
 import path from 'path';
-import { Track } from './engine-db';
+import { Track } from './engine-db.js';
 
 function escapeXml(s: string | null | undefined): string {
     if (s === null || s === undefined) return '';

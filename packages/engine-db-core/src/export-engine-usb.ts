@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
-import { Track } from './engine-db';
+import { Track } from './engine-db.js';
 
 export interface UsbExportResult {
     targetDir: string;

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
-import { getEngineDbPath } from './engine-paths';
+import { getEngineDbPath } from './engine-paths.js';
 
 export interface Track {
     id: number;

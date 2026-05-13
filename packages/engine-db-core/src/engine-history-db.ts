@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
-import { getHistoryDbPath } from './engine-paths';
+import { getHistoryDbPath } from './engine-paths.js';
 
 export interface HistorySession {
     id: number;
@@ -94,7 +94,7 @@ export class EngineHistoryDB {
         let mergedCount = 0;
         let deletedCount = 0;
 
-        const transaction = this.db.transaction((dupes) => {
+        const transaction = this.db.transaction((dupes: any[]) => {
             for (const group of dupes) {
                 const ids = this.db.prepare(`
                     SELECT id FROM Historylist

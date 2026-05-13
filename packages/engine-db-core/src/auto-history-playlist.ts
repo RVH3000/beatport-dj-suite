@@ -1,8 +1,8 @@
 import path from 'path';
 import fs from 'fs';
-import { EngineDB, Track } from './engine-db';
-import { EngineHistoryDB, HistoryTrack } from './engine-history-db';
-import { trackDedupKey, MatchType } from './streaming-uri';
+import { EngineDB, Track } from './engine-db.js';
+import { EngineHistoryDB, HistoryTrack } from './engine-history-db.js';
+import { trackDedupKey, MatchType } from './streaming-uri.js';
 
 export interface HistoryScanStats {
     sourceDbDir: string;

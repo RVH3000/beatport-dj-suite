@@ -1,5 +1,5 @@
-import { Track } from './engine-db';
-import { engineKeyToTonality } from './export-rekordbox';
+import { Track } from './engine-db.js';
+import { engineKeyToTonality } from './export-rekordbox.js';
 
 const BOM = '﻿';
 const SEP = ',';
