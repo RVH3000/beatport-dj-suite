@@ -521,8 +521,18 @@ function bindEvents(container) {
 
   container.querySelector("#wiz-filter")?.addEventListener("input", (event) => {
     filterText = event.target.value;
+    // Cursor-Position vor dem re-render speichern. render() ersetzt das
+    // gesamte Panel-innerHTML, das <input>-Element wird neu erstellt;
+    // ohne setSelectionRange landet der Cursor am Anfang.
+    const cursorPos = event.target.selectionStart;
     render();
-    document.getElementById("wiz-filter")?.focus();
+    const restoredInput = document.getElementById("wiz-filter");
+    if (restoredInput) {
+      restoredInput.focus();
+      try {
+        restoredInput.setSelectionRange(cursorPos, cursorPos);
+      } catch { /* setSelectionRange wirft bei manchen Input-Types, hier irrelevant */ }
+    }
   });
 
   container
