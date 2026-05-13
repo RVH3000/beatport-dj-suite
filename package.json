@@ -1,6 +1,6 @@
 {
   "name": "beatport-dj-suite",
-  "version": "4.2.14",
+  "version": "4.2.15",
   "private": true,
   "type": "module",
   "author": "Robert H.",
@@ -57,7 +57,12 @@
       "scripts/**/*",
       "data/**/*",
       "config/**/*",
-      "package.json"
+      "package.json",
+      "packages/*/package.json",
+      "packages/*/index.js",
+      "packages/*/src/**/*",
+      "packages/engine-db-core/dist/**/*",
+      "node_modules/@bpdjs/**/*"
     ],
     "icon": "assets/icon.icns",
     "mac": {
