@@ -22,54 +22,19 @@ let _onSave = null;        // callback(playlistName, tracks)
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
 function $(id) { return document.getElementById(id); }
 
-function camelotCompat(c1, c2) {
-  if (!c1 || !c2) return "none";
-  const n1 = parseInt(c1), l1 = c1.slice(-1), n2 = parseInt(c2), l2 = c2.slice(-1);
-  if (isNaN(n1) || isNaN(n2)) return "none";
-  if (c1 === c2) return "perfect";
-  if (l1 === l2) { const d = Math.abs(n1 - n2); if (d === 1 || d === 11) return "good"; }
-  if (n1 === n2 && l1 !== l2) return "good";
-  if (l1 === l2) { const d = Math.abs(n1 - n2); if (d === 2 || d === 10) return "ok"; }
-  return "bad";
-}
-
-function camelotSortVal(cam) {
-  if (!cam) return 999;
-  const n = parseInt(cam);
-  const l = cam.slice(-1).toUpperCase();
-  return (isNaN(n) ? 99 : n) * 2 + (l === "B" ? 1 : 0);
-}
-
-// ─── Dramaturgie (portiert aus PL WIZ v5) ──────────────────────────────────
-// @experimental — Algorithmus noch nicht durch Hoertests validiert
-
-function normBpm(bpm) {
-  if (!bpm) return 0;
-  let b = bpm;
-  while (b < 80 && b > 0) b *= 2;
-  while (b > 170) b /= 2;
-  return Math.round(b * 10) / 10;
-}
-
-function dramaScore(bpm, camelot) {
-  if (!bpm && !camelot) return 0;
-  const effectiveBpm = normBpm(bpm) || bpm;
-  const bpmN = effectiveBpm ? Math.max(0, Math.min(100, ((effectiveBpm - 80) / 80) * 100)) : 50;
-  const camVal = camelot ? camelotSortVal(camelot) : 12;
-  const camN = (camVal / 24) * 100;
-  return Math.round(bpmN * 0.6 + camN * 0.4);
-}
-
-function dramaColor(score) {
-  if (score >= 75) return "var(--danger, #dc2626)";
-  if (score >= 55) return "#f59e0b";
-  if (score >= 35) return "#eab308";
-  if (score >= 15) return "var(--primary, #0e6b5f)";
-  return "#3b82f6";
-}
+// Helpers + Camelot/Drama aus konsolidierter Lib. dramaScore wird ohne
+// DOM-Toggle-Parameter aufgerufen — Default useNorm=true entspricht
+// vorherigem playlist-builder-Verhalten (normBpm(bpm) || bpm).
+import {
+  esc,
+  normBpm,
+  camelotSortVal,
+  camelotCompat,
+  dramaScore,
+  dramaColor,
+} from "../lib/track-utils.js";
 
 const KEY_TO_CAMELOT = {
   "Ab min": "1A", "G# min": "1A", "B maj": "1B", "Eb min": "2A", "D# min": "2A",

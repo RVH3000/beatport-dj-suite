@@ -1,8 +1,31 @@
 # PLAN — Backlog-Punkt 33: Playlist WIZ (Live) Filter/Sort/Lock-UI
 
-**Status:** Multi-Agent-Cross-Check abgeschlossen, Implementation **pausiert** —
-**starke Divergenz zwischen Implementer und Reviewer**, Kontrollraum-Entscheidung
-zur Architektur erforderlich.
+**Status:** 3-Agent-Cross-Check abgeschlossen + User-Entscheidung 2026-05-13:
+**Inkrementell (Reviewer-Pfad) bestätigt.** Phase 1 (Pure-Funktionen-Lib) geht
+los. Helper-Konsolidierung pro Helper im Commit-Body dokumentiert.
+
+## Update 2026-05-13 nach 3. Agent (code-explorer)
+
+Verifizierte Zahlen (Agent a11479fe0a2d07282):
+- 54 Top-Level-Funktionen
+- 19 Module-Scope-States (selectedGenres, selectedSubGenres fehlten in der ersten Inventur)
+- 21 einzigartige Mutations-Stellen (nicht "30+" wie Reviewer schätzte)
+- ~95 State-Zugriffe gesamt (= mechanische `this.`-Stellen bei Klassen-Refactor)
+- `audioEl` ist tote State-Variable
+
+Kritische Befunde:
+- `dramaScore` ist NICHT pure — ruft `bpmNormActive()` auf (DOM-Lookup)
+- `getSortVal` auch nicht pure (DOM-Lookup via dramaScore-Aufrufkette)
+- `multiSort` mutiert das übergebene Array (`.sort()` ist in-place)
+- Helper-Duplikate zwischen search.js, playlist-builder.js, engine-analyze.js
+  sind DIVERGENT:
+  - `camelotSortVal`: Fallback 999 (search.js) vs 99 (andere)
+  - `dramaScore`: DOM-abhängig (search.js) vs DOM-frei (playlist-builder.js)
+  - `dramaColor`: zwei verschiedene Farbpaletten
+
+User-Entscheidungen 2026-05-13:
+- Architektur: Inkrementell (Reviewer-Pfad)
+- Helper-Konsolidierung: pro Helper bei der Implementation, mit Begründung im Commit-Body
 **Erstellt:** 2026-05-13 (Werkbank, nach Pilot-Punkt 30 und Plan-Punkt 31)
 **Goal-Datei:** `.agents/GOAL-2026-05-13-multi-agent-features.md`
 

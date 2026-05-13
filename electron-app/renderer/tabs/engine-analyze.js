@@ -57,14 +57,9 @@ function addRecentPath(path) {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+// esc + camelotSortVal aus konsolidierter Lib (Phase 1 Backlog-Punkt 33).
 
-function esc(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import { esc, camelotSortVal } from "../lib/track-utils.js";
 
 function setMessage(text, tone = "info") {
   state.message = text;
@@ -109,13 +104,6 @@ function toCamelot(key) {
   // Schon Camelot-Format (z.B. "8A", "11B")
   if (/^\d{1,2}[AB]$/i.test(k)) return k.toUpperCase();
   return KEY_TO_CAMELOT[k] || k;
-}
-
-function camelotSortVal(cam) {
-  if (!cam) return 999;
-  const n = parseInt(cam);
-  const l = cam.slice(-1).toUpperCase();
-  return (isNaN(n) ? 99 : n) * 2 + (l === "B" ? 1 : 0);
 }
 
 // ─── Result Columns ─────────────────────────────────────────────────────────

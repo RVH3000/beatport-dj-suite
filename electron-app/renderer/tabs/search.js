@@ -31,21 +31,23 @@ let audioEl = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt = (n) => (n != null ? n.toLocaleString("de-DE") : "—");
-const esc = (s) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+import {
+  fmt,
+  esc,
+  debounce,
+  badgeCls,
+  normBpm,
+  camelotSortVal,
+  camelotCompat,
+  dramaScore as _dramaScorePure,
+  dramaColor,
+  buildQueryMatcher,
+} from "../lib/track-utils.js";
+
 const q = (s) => '"' + (s || "").replace(/"/g, '""') + '"';
-function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
-function badgeCls(c) { return c >= 20 ? "srch-b-red" : c >= 11 ? "srch-b-orange" : c >= 6 ? "srch-b-cyan" : "srch-b-blue"; }
 
 // ─── BPM Normalisierung ──────────────────────────────────────────────────────
-
-function normBpm(bpm) {
-  if (!bpm) return 0;
-  let b = bpm;
-  while (b < 80 && b > 0) b *= 2;
-  while (b > 170) b /= 2;
-  return Math.round(b * 10) / 10;
-}
+// bpmNormActive bleibt hier (DOM-gebunden, kann nicht in track-utils.js).
 
 function bpmNormActive() {
   return document.getElementById("srchBpmNormToggle")?.checked ?? false;
@@ -58,42 +60,9 @@ function bpmDisplay(bpm) {
   return `<span style="color:#ff6b35;font-weight:700">${bpm}</span> <span class="srch-bpm-norm">(&rarr;${Math.round(norm)})</span>`;
 }
 
-// ─── Camelot & Drama ─────────────────────────────────────────────────────────
-
-function camelotSortVal(cam) {
-  if (!cam) return 999;
-  const n = parseInt(cam);
-  const l = cam.slice(-1);
-  if (isNaN(n)) return 999;
-  return (n - 1) * 2 + (l === "B" ? 1 : 0);
-}
-
+// dramaScore-Wrapper: reicht aktuellen DOM-Toggle-Status durch.
 function dramaScore(bpm, camelot) {
-  if (!bpm && !camelot) return 0;
-  const effectiveBpm = bpmNormActive() ? normBpm(bpm) : bpm;
-  const bpmNorm = effectiveBpm ? Math.max(0, Math.min(100, ((effectiveBpm - 80) / 80) * 100)) : 50;
-  const camVal = camelot ? camelotSortVal(camelot) : 12;
-  const camNorm = (camVal / 24) * 100;
-  return Math.round(bpmNorm * 0.6 + camNorm * 0.4);
-}
-
-function dramaColor(score) {
-  if (score >= 75) return "var(--danger)";
-  if (score >= 55) return "#ff6b35";
-  if (score >= 35) return "#fbbf24";
-  if (score >= 15) return "var(--primary)";
-  return "#74c0fc";
-}
-
-function camelotCompat(c1, c2) {
-  if (!c1 || !c2) return "none";
-  const n1 = parseInt(c1), l1 = c1.slice(-1), n2 = parseInt(c2), l2 = c2.slice(-1);
-  if (isNaN(n1) || isNaN(n2)) return "none";
-  if (c1 === c2) return "perfect";
-  if (l1 === l2) { const d = Math.abs(n1 - n2); if (d === 1 || d === 11) return "good"; }
-  if (n1 === n2 && l1 !== l2) return "good";
-  if (l1 === l2) { const d = Math.abs(n1 - n2); if (d === 2 || d === 10) return "ok"; }
-  return "bad";
+  return _dramaScorePure(bpm, camelot, { useNorm: bpmNormActive() });
 }
 
 function getSearchSource() {
@@ -1239,30 +1208,10 @@ function setSortScope(scope) {
 
 // ─── Search & Render ─────────────────────────────────────────────────────────
 
-// Wildcard-Suche: * → beliebig viele Zeichen, ? → ein Zeichen.
-// Ohne Wildcards: normales substring-includes (wie bisher).
-function _buildQueryMatcher(raw) {
-  const q = raw.toLowerCase().trim();
-  if (!q) return null;
-  if (!q.includes("*") && !q.includes("?")) {
-    return (s) => s.toLowerCase().includes(q);
-  }
-  // Wildcard → Regex: escape alles außer * und ?
-  const pattern = q.replace(/[.+^${}()|[\]\\]/g, "\\$&")
-                    .replace(/\*/g, ".*")
-                    .replace(/\?/g, ".");
-  try {
-    const re = new RegExp(pattern);
-    return (s) => re.test(s.toLowerCase());
-  } catch {
-    return (s) => s.toLowerCase().includes(q);
-  }
-}
-
 function doSearch() {
   if (!allTracks) return;
   const qVal = ($("srchQ")?.value ?? "");
-  const qMatch = _buildQueryMatcher(qVal);
+  const qMatch = buildQueryMatcher(qVal);
   const genre = $("srchGenre")?.value ?? "";
   const subGenre = $("srchSubGenre")?.value ?? "";
   const useGenreSet = selectedGenres.size > 0;
