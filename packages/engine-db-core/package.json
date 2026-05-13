@@ -1,0 +1,15 @@
+{
+  "name": "@bpdjs/engine-db-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Engine-DJ Core Library: read-only DB-Layer, History, Rating, Streaming-URI, Exporter (Rekordbox, CSV, Engine-USB), Lexicon-Client, Playlist-Splitter. Plain-Copy aus engine-dj-manager (MIT-License, siehe LICENSE.engine-dj-manager).",
+  "source": "engine-dj-manager@master b0aea62 / 839aac0 — Stand 2026-05-13",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "echo 'tests folgen nach TS-Build-Setup' && exit 0"
+  },
+  "license": "MIT"
+}
