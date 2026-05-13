@@ -98,7 +98,7 @@ praezisieren Punkte 8 und 18, erweitern Label-Tab um Cover-Anzeige.
 
 29. **M5 — main.mjs auf @bpdjs/* migrieren** — der eigentliche v4.2-Refactor-Höhepunkt. Nach v4.3-UX-Pass.
 
-30. **Label-Cover anzeigen** (Robert 2026-05-13) — die Cover-Bilder der gefolgten Labels sollen im Labels-Tab dargestellt werden. Daten liegen bereits in `bp_labels.image_uri`, `image_id`, `image_dynamic` vor (Re-Import 2026-05-13: 511 von 511 Labels haben `with_images`). Aufgabe ist reines Frontend: Image-Lazy-Load + Fallback bei 404. Tipp: `query_beatport_labels.py list` liefert `image_uri` bereits mit aus.
+30. **Label-Cover anzeigen** ✓ (v4.3.2, Commit `f9666fa`, User-Bestätigung 2026-05-13: „Cover sichtbar") — CSP-Erweiterung in `index.html` Z.5 (`https://*.beatport.com`) + `onerror`-Fallback in `labels.js`. Multi-Agent-Cross-Check-Pilot war konvergent.
 
 31. **Library/Artists: eigener Tab "Meine Artists"** (Robert 2026-05-13, präzisiert Punkt 18) — sortierbare Tabelle mit allen Metadaten, analog Aufbau zum Labels-Tab. Datenquelle: Beatport-API `GET /v4/my/beatport/artists/` (Endpoint-Pfad spiegelbildlich zu `/v4/my/beatport/labels/`). Erfordert: eigenes `bp_artists`-Schema in `suite.db`, eigenes `import_beatport_artists.py`-Script (Vorlage: `import_beatport_labels.py`), eigenes `query_beatport_artists.py` mit `missing_table`-Defensiv-Pattern (siehe v4.3.1), Renderer-Komponente mit Sort-Logik.
 
