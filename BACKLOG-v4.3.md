@@ -89,10 +89,9 @@
 
 **Bridge-Track (parallel — eigenes Repo `engine-dj-manager`):**
 - ⚠️ Schritt 6 — Live-Verifikation am 2026-05-13 durchgeführt: **partial pass + Doku-Fehler** (siehe `docs/bridge/06-engine-live-validation.md`).
-  - Session erscheint in Engine DJ, aber Tracks darin werden nicht zugeordnet — wahrscheinlich `originDriveName = NULL` + falsche `originDatabaseUuid`.
-  - Test-Anweisung „Playlist Techno id 35" war irreführend (Tracks nicht in dieser Playlist).
-- 🔜 Schritt 7 — Schema-Verfeinerung (`originDriveName`, `originDatabaseUuid` an aktive Library binden, sinnvollen Visual-Test-Fall wählen).
-- Konsequenz für v4.2-Monorepo: `@bpdjs/engine-bridge` NICHT als M1 jetzt; Bridge-Reparatur läuft als eigener Paket-Track parallel zum Monorepo-Merge mit `engine-dj-manager`. Nach Schritt-7-Erfolg kann das Paket im Monorepo landen.
+- ✗ Schritt 7 — Live-Test am 2026-05-13: **3/3 fehlgeschlagen**. Engine DJ akzeptiert die Historylist SQL-mäßig, zeigt aber Tracks nicht als gespielt. Neue Diagnose: `playedIndicator` ist ein Session-Cluster-Stempel, kein Random-Wert. Detaillierter Befund in `docs/bridge/07-bridge-repair.md`.
+- 🔜 Schritt 8 — `playedIndicator` aus `m.db.Information.currentPlayedIndiciator` lesen statt random. Skript `sync_history_v8.py` zu erstellen. Plan in `docs/bridge/08-played-indicator.md`.
+- Konsequenz für v4.2-Monorepo: `@bpdjs/engine-bridge` weiterhin NICHT als M1; Bridge-Reparatur läuft als eigener Paket-Track. Nach Schritt-8-Erfolg kann das Paket im Monorepo landen.
 
 **v4.2.12 (nächster Patch — kosmetisch):**
 - Punkt 11 (Genre-Breakdown-Schrift-Fix, ~5 Zeilen CSS)

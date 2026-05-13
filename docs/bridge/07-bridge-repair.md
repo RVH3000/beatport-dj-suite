@@ -98,8 +98,64 @@ Hypothesen für Schritt 8:
 
 | Check | Erwartung | Status |
 |---|---|---|
-| Test 1 — History-Session sichtbar **mit Tracks darin** | Klick auf Session zeigt 5 Track-Zeilen | ⏳ |
-| Test 2 — Playlist „Techno" zeigt Tracks als gespielt | Graue Schrift oder „last played" Datum | ⏳ |
-| Test 3 — Streaming-Tracks rendern in Playlist | Cover, Metadaten, BPM ohne manuelle Wiedergabe | ⏳ |
+| Test 1 — History-Session sichtbar **mit Tracks darin** | Klick auf Session zeigt 5 Track-Zeilen | ✗ |
+| Test 2 — Playlist „Techno" zeigt Tracks als gespielt | Graue Schrift oder „last played" Datum | ✗ |
+| Test 3 — Streaming-Tracks rendern in Playlist | Cover, Metadaten, BPM ohne manuelle Wiedergabe | ✗ |
 
 Mindestens Test 1 muss ✓ sein, damit Schritt 7 den USP-Bridge-Pfad belegt. Test 2 + 3 belegen den vollen Workflow.
+
+---
+
+## Live-Test-Ergebnis 2026-05-13 (Schritt 7)
+
+**Umgebung:** Engine DJ Release v4.3.4 auf macOS, Sandbox `~/Music/Engine Library SANDBOX-v7/`.
+
+**Ergebnis: 3/3 ✗ — Bridge mit korrigierter UUID reicht nicht aus.**
+
+Engine DJ akzeptiert die Historylist 52 zwar SQL-technisch (`originDatabaseUuid = 9673391e-...` aus lokaler `m.db.Information.uuid`), zeigt sie aber visuell:
+- gar nicht als sichtbare Session, oder
+- als leere Session ohne Track-Zeilen, je nach Engine-DJ-Internals.
+
+Tracks in Playlist „Techno" (id=35, enthält die fünf Bridge-Tracks) erscheinen NICHT als bereits gespielt.
+
+### Neuer Diagnose-Befund
+
+`m.db.Track.playedIndicator` ist **kein Random-Wert pro Bridge-Lauf**, sondern ein **Session-Cluster-Stempel**. Echte abgespielte Tracks gruppieren sich in zehn-bis-mehreren-Cluster-Gruppen:
+
+| `playedIndicator` | Anzahl Tracks |
+|---|---|
+| `-1899843733750016754` | 72 |
+| `5470028426066301947` | 46 |
+| `4079607101303720443` | 29 |
+| `3887199396630747180` | 27 |
+| `6035029910894948479` | 20 |
+| `2116261555979156265` | 20 |
+| `-4206290780020589339` | 11 |
+| `-6706403036556899232` | **5 (= unsere Bridge-Tracks)** |
+| … | … |
+
+Aktueller Wert in `m.db.Information.currentPlayedIndiciator`: `-495385552299043113` (Typo „Indiciator" liegt im Schema selbst).
+
+### Folgerung
+
+Engine DJ erkennt einen Track wahrscheinlich als „bereits abgespielt" wenn `Track.playedIndicator` zu einem bekannten History-Cluster passt. Unser Random-Wert taucht in keinem echten Cluster auf und ist nicht der aktuelle `currentPlayedIndiciator`. Daher zeigt Engine die Tracks weiterhin als ungespielt an.
+
+**Sandbox-v7-Zustand bleibt erhalten** unter `~/Music/Engine Library SANDBOX-v7/` mit den fehlgeschlagenen Bridge-Daten — als Diagnose-Referenz für Schritt 8.
+
+---
+
+## Schritt 8 — `currentPlayedIndiciator`-Bindung
+
+Nächste Iteration (`sync_history_v8.py`):
+
+1. **`playedIndicator` aus `Information` lesen** (`SELECT currentPlayedIndiciator FROM Information LIMIT 1`) — diesen Wert für alle Track-Updates der Bridge-Session nutzen.
+2. **`Information.currentPlayedIndiciator` rotieren** — neuen Random-int64 generieren, in `Information` schreiben, sodass die NÄCHSTE echte Engine-Session beim Start nicht denselben Indicator wiederverwendet (vermutliches Engine-Verhalten beim App-Start).
+3. **Sandbox-Pfad-Marker bleibt** (`SANDBOX` im Pfad erzwungen).
+4. **Test-Setup identisch zu Schritt 7** — frische `Engine Library SANDBOX-v8/`, Sandbox-Switch, Engine DJ Release.
+
+Wenn Schritt 8 immer noch fehlschlägt, sind weitere Hypothesen:
+
+- `m.db.Track.lastEditTime` aktualisieren (`PerformanceData`-Trigger feuert nur bei Spalten-Updates an `trackData`/`isAnalyzed`/`overviewWaveFormData`/…)
+- `albumArtSourceHash` setzen (`CHAR(40)`)
+- `Information.lastRekordBoxLibraryImportReadCounter` oder `Information`-Felder in `hm.db` synchronisieren
+- Engine bei lokaler `originDatabaseUuid` zusätzlich `originDriveName` verlangen (z.B. `"Macintosh HD"` aus `diskutil info /`)
