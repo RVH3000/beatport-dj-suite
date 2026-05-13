@@ -78,6 +78,8 @@ function getLiveStatusPath() {
   return path.join(app.getPath("userData"), "live-status.json");
 }
 
+let mainWindow = null;
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1320,
@@ -94,7 +96,13 @@ function createWindow() {
     },
   });
 
+  mainWindow = win;
+  win.on("closed", () => {
+    if (mainWindow === win) mainWindow = null;
+  });
+
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
+  return win;
 }
 
 function toErrorMessage(error) {
