@@ -136,19 +136,18 @@ Nach dem Switch:
 - Vergleich mit echter Session #51: `originDriveName = MOVESPEED` (externe Drive), `originDatabaseUuid = 16e16436-933e-4735-87e9-8e390b32cf90` (passend zur aktiven Library).
 - Engine DJ scheint die Session-Tracks über `(originDriveName, originDatabaseUuid, trackId)` aufzulösen. Wenn `originDriveName` fehlt und/oder `originDatabaseUuid` nicht zur aktiven Library passt, findet Engine die Tracks der Session nicht.
 
-### Test 2 — ✗ Doku-Fehler in Schritt 6, kein Bridge-Bug
+### Test 2 — ✗ Tracks in Playlist nicht als gespielt markiert (Bridge-Lücke)
 
-Die Anweisung „In Engine DJ zur Playlist „Techno" navigieren (id 35)" war irreführend. Nachträgliche SQL-Prüfung:
+**Korrektur des Erstbefunds:** Eine spätere SQL-Prüfung gegen die Sandbox zeigt, dass Playlist 35 tatsächlich „Techno" heißt (318 Tracks) und alle fünf Bridge-Tracks (26888, 26966, 26976, 27069, 27114) enthält. Der ursprüngliche LIMIT-10-Check hatte die ersten 10 Einträge (Track-IDs 2043, 2045, 2052, …) gezeigt und falsch geschlossen, die Bridge-Tracks seien nicht enthalten.
 
-```sql
--- Playlist 35 enthält Track-IDs 2043, 2045, 2052, ... mit
--- databaseUuid = 03399503-d22d-47b9-aff9-752231bdd75b
--- Die Bridge-Tracks (26888, 26966, 26976, 27069, 27114) sind NICHT in Playlist 35.
--- Es gibt keine Playlist namens exakt „Techno"; nur Genre-Varianten wie
--- „1994–1999 Genre Techno MP3", „Melodic House & Techno", …
-```
+Echter Befund:
+- Track-Status auf m.db-Ebene ist korrekt (`isPlayed = 1`, `playedIndicator` gesetzt, `timeLastPlayed`).
+- Engine DJ markiert die Tracks dennoch nicht visuell als „bereits abgespielt", wenn die Playlist geöffnet wird.
 
-Der Test-Track-Status (`isPlayed = 1`, `playedIndicator` gesetzt, `timeLastPlayed`) ist auf m.db-Ebene korrekt — aber die Visual-Verifikation braucht eine Playlist, in der diese Tracks tatsächlich enthalten sind.
+**Wahrscheinliche Ursache (Hypothese für Schritt 7):**
+- Engine DJ liest `isPlayed`/`playedIndicator` nicht direkt aus der `Track`-Tabelle, sondern aus der `PerformanceData`-Tabelle (oder verknüpft beides).
+- Die Bridge schreibt `PerformanceData` nicht — möglich, dass dort ein zusätzlicher Stamp fehlt (z.B. `dataLastModified`, `analysisVersion`, `bouncesAnalyzedCount` o.ä.).
+- Alternativ: Engine cached den „played"-Zustand pro Library-Session und re-evaluiert ihn nicht, wenn die DB unter laufender Engine-Session geändert wird (Sandbox-Switch wurde vor Engine-Start gemacht — daran lag's nicht).
 
 ### Test 3 — nicht testbar
 
