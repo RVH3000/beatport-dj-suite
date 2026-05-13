@@ -34,24 +34,8 @@ import {
   camelotCompat,
   dramaScore,
   dramaColor,
+  toCamelot,
 } from "../lib/track-utils.js";
-
-const KEY_TO_CAMELOT = {
-  "Ab min": "1A", "G# min": "1A", "B maj": "1B", "Eb min": "2A", "D# min": "2A",
-  "F# maj": "2B", "Gb maj": "2B", "Bb min": "3A", "A# min": "3A", "Db maj": "3B",
-  "C# maj": "3B", "F min": "4A", "Ab maj": "4B", "G# maj": "4B", "C min": "5A",
-  "Eb maj": "5B", "D# maj": "5B", "G min": "6A", "Bb maj": "6B", "A# maj": "6B",
-  "D min": "7A", "F maj": "7B", "A min": "8A", "C maj": "8B", "E min": "9A",
-  "G maj": "9B", "B min": "10A", "D maj": "10B", "F# min": "11A", "Gb min": "11A",
-  "A maj": "11B", "Db min": "12A", "C# min": "12A", "E maj": "12B",
-};
-
-function toCamelot(key) {
-  if (!key && key !== 0) return "";
-  const k = String(key).trim();
-  if (/^\d{1,2}[AB]$/i.test(k)) return k.toUpperCase();
-  return KEY_TO_CAMELOT[k] || k;
-}
 
 /**
  * Konvertiert Engine-Analyse-Track-Format zum Kurzformat.

@@ -16,6 +16,8 @@ import {
   dramaScore,
   dramaColor,
   buildQueryMatcher,
+  toCamelot,
+  BEATPORT_KEY_TO_CAMELOT,
 } from "../electron-app/renderer/lib/track-utils.js";
 
 // ─── fmt ─────────────────────────────────────────────────────────────────────
@@ -85,6 +87,47 @@ test("normBpm: gibt 0 für falsy", () => {
 
 test("normBpm: rundet auf 1 Nachkommastelle", () => {
   assert.equal(normBpm(125.55), 125.6);
+});
+
+// ─── toCamelot ───────────────────────────────────────────────────────────────
+
+test("toCamelot: Beatport-Format → Camelot", () => {
+  assert.equal(toCamelot("A min"), "8A");
+  assert.equal(toCamelot("C maj"), "8B");
+  assert.equal(toCamelot("F# min"), "11A");
+  assert.equal(toCamelot("Gb min"), "11A"); // enharmonisches Aequivalent
+  assert.equal(toCamelot("E maj"), "12B");
+});
+
+test("toCamelot: Camelot-Input wird normalisiert (uppercase)", () => {
+  assert.equal(toCamelot("8A"), "8A");
+  assert.equal(toCamelot("11b"), "11B");
+  assert.equal(toCamelot("1a"), "1A");
+});
+
+test("toCamelot: leere/null/undefined → leerer String", () => {
+  assert.equal(toCamelot(""), "");
+  assert.equal(toCamelot(null), "");
+  assert.equal(toCamelot(undefined), "");
+});
+
+test("toCamelot: unbekannter Key → leerer String (kein Durchsickern)", () => {
+  assert.equal(toCamelot("Xmin"), "");
+  assert.equal(toCamelot("foo"), "");
+  assert.equal(toCamelot("13A"), "13A"); // numerisch+B nur via Regex, 13 ist out-of-range aber Regex matcht
+});
+
+test("toCamelot: customMap fuer Engine-Format", () => {
+  const engineMap = { "C": "8B", "Am": "8A", "0": "8B", "5": "7A" };
+  assert.equal(toCamelot("C", engineMap), "8B");
+  assert.equal(toCamelot("Am", engineMap), "8A");
+  assert.equal(toCamelot("0", engineMap), "8B");
+  assert.equal(toCamelot("notInMap", engineMap), "");
+});
+
+test("BEATPORT_KEY_TO_CAMELOT: deckt 24 Camelot-Positionen ab", () => {
+  const values = new Set(Object.values(BEATPORT_KEY_TO_CAMELOT));
+  assert.equal(values.size, 24); // 12 A + 12 B
 });
 
 // ─── camelotSortVal ──────────────────────────────────────────────────────────

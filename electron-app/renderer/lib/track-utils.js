@@ -56,6 +56,41 @@ export function normBpm(bpm) {
 }
 
 // ─── Camelot-Helpers ────────────────────────────────────────────────────────
+
+// Beatport-Key-Format → Camelot. Format aus Beatport-API: "<Note> <Major|Minor>"
+// z.B. "A min", "C maj". Diese Map wird von playlist-builder.js und
+// analysis.js bereits genutzt (identisch); Konsolidierung Phase 1+ (Punkt 33).
+export const BEATPORT_KEY_TO_CAMELOT = {
+  "Ab min": "1A", "G# min": "1A", "B maj": "1B",
+  "Eb min": "2A", "D# min": "2A", "F# maj": "2B", "Gb maj": "2B",
+  "Bb min": "3A", "A# min": "3A", "Db maj": "3B", "C# maj": "3B",
+  "F min": "4A", "Ab maj": "4B", "G# maj": "4B",
+  "C min": "5A", "Eb maj": "5B", "D# maj": "5B",
+  "G min": "6A", "Bb maj": "6B", "A# maj": "6B",
+  "D min": "7A", "F maj": "7B",
+  "A min": "8A", "C maj": "8B",
+  "E min": "9A", "G maj": "9B",
+  "B min": "10A", "D maj": "10B",
+  "F# min": "11A", "Gb min": "11A", "A maj": "11B",
+  "Db min": "12A", "C# min": "12A", "E maj": "12B",
+};
+
+// toCamelot: konvertiert einen Key-String in Camelot-Notation.
+// - Wenn key bereits Camelot-Format hat (z.B. "8A", "11b"): wird normalisiert
+//   (uppercase) zurueckgegeben.
+// - Sonst: Lookup in customMap (Default: BEATPORT_KEY_TO_CAMELOT).
+// - Bei unbekanntem Key oder leerem Input: gibt "" zurueck (nicht null oder
+//   den rohen Key — verhindert ungemappte Strings im Camelot-Filter).
+// Engine-analyze.js nutzt diese Funktion mit eigener Engine-Numeric-Map als
+// customMap-Argument.
+export function toCamelot(key, customMap = null) {
+  if (!key && key !== 0) return "";
+  const k = String(key).trim();
+  if (/^\d{1,2}[AB]$/i.test(k)) return k.toUpperCase();
+  const map = customMap || BEATPORT_KEY_TO_CAMELOT;
+  return map[k] || "";
+}
+
 // camelotSortVal: search.js-Variante übernommen (0-basierte 0-23-Range passt
 // zu dramaScore-Normierung durch 24). Plus defensive .toUpperCase() aus
 // playlist-builder.js für Robustheit.

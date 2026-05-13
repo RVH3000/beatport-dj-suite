@@ -57,9 +57,12 @@ function addRecentPath(path) {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-// esc + camelotSortVal aus konsolidierter Lib (Phase 1 Backlog-Punkt 33).
+// esc + camelotSortVal + toCamelot aus konsolidierter Lib (Phase 1+ Punkt 33).
+// engine-analyze hat eine eigene Engine-spezifische Key-Map (Kurzform "C"/"Am"
+// statt Beatport "C maj"/"A min" + numerisch 0-23) — wird als customMap an
+// toCamelot uebergeben.
 
-import { esc, camelotSortVal } from "../lib/track-utils.js";
+import { esc, camelotSortVal, toCamelot as _toCamelotGeneric } from "../lib/track-utils.js";
 
 function setMessage(text, tone = "info") {
   state.message = text;
@@ -98,12 +101,12 @@ const KEY_TO_CAMELOT = {
   "18": "11B", "19": "10A", "20": "6B", "21": "3A", "22": "1B", "23": "10A",
 };
 
+// Wrapper: liefert Engine-spezifische Map an die generische toCamelot.
+// Fallback-Verhalten gegenueber vorher: bei unbekanntem Key gibt die
+// generische Funktion "" zurueck statt den rohen Key — verhindert
+// ungemappte Strings im Camelot-Filter. Aufrufstellen pruefen Falsy.
 function toCamelot(key) {
-  if (!key && key !== 0) return "";
-  const k = String(key).trim();
-  // Schon Camelot-Format (z.B. "8A", "11B")
-  if (/^\d{1,2}[AB]$/i.test(k)) return k.toUpperCase();
-  return KEY_TO_CAMELOT[k] || k;
+  return _toCamelotGeneric(key, KEY_TO_CAMELOT);
 }
 
 // ─── Result Columns ─────────────────────────────────────────────────────────

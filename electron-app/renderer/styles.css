@@ -1724,3 +1724,155 @@ tr.diff-missing{background:var(--warning-soft)}
 .dup-pls-list li{font-size:11px;padding:3px 8px;background:var(--panel-hover);border-radius:4px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .manual-section p{margin:4px 0 8px;font-size:12px;line-height:1.6;color:var(--text)}
 .manual-section h3{margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--primary)}
+
+/* ─── WIZ Filter Panel (Backlog-Punkt 33, v4.4.0) ───────────────────────── */
+
+.wiz-filter-panel {
+  background: var(--panel, #1a1a1a);
+  border: 1px solid var(--line, #2a2a2a);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wiz-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wiz-filter-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  background: var(--bg, #0d0d0d);
+  border: 1px solid var(--line-strong, #333);
+  border-radius: 4px;
+  color: var(--text, #e0e0e0);
+  font-size: 12px;
+}
+
+.wiz-filter-input:focus {
+  outline: none;
+  border-color: var(--primary, #0e6b5f);
+}
+
+.wiz-filter-num {
+  width: 72px;
+  padding: 4px 6px;
+  background: var(--bg, #0d0d0d);
+  border: 1px solid var(--line-strong, #333);
+  border-radius: 4px;
+  color: var(--text, #e0e0e0);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.wiz-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+}
+
+.wiz-filter-count {
+  font-size: 11px;
+  color: var(--muted, #888);
+  white-space: nowrap;
+}
+
+.wiz-filter-reset {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--line-strong, #333);
+  border-radius: 4px;
+  color: var(--text, #e0e0e0);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.wiz-filter-reset:hover {
+  background: var(--panel-hover, #222);
+  border-color: var(--primary, #0e6b5f);
+}
+
+.wiz-filter-chip-label {
+  font-size: 11px;
+  color: var(--muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  min-width: 56px;
+}
+
+.wiz-filter-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.wiz-filter-chip {
+  padding: 3px 10px;
+  background: var(--bg, #0d0d0d);
+  border: 1px solid var(--line-strong, #333);
+  border-radius: 12px;
+  color: var(--text, #e0e0e0);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.wiz-filter-chip:hover {
+  border-color: var(--primary, #0e6b5f);
+}
+
+.wiz-filter-chip.active {
+  background: var(--primary, #0e6b5f);
+  color: white;
+  border-color: var(--primary, #0e6b5f);
+}
+
+.wiz-filter-hint {
+  font-size: 10px;
+  color: var(--muted, #888);
+  font-style: italic;
+  flex: 1;
+}
+
+.wiz-filter-locks {
+  border-top: 1px dashed var(--line, #2a2a2a);
+  padding-top: 6px;
+}
+
+/* Sortier-fähige Spalten-Header (Lock-System) */
+.wiz-sort-th {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.wiz-sort-th:hover {
+  background: var(--panel-hover, #222);
+}
+
+.wiz-sort-th.locked {
+  color: var(--primary, #0e6b5f);
+  background: rgba(14, 107, 95, 0.08);
+}
+
+.wiz-lock-indicator {
+  font-size: 10px;
+  color: var(--primary, #0e6b5f);
+  font-weight: 700;
+  margin-left: 2px;
+}

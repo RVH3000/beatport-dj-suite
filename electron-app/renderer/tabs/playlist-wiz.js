@@ -5,14 +5,28 @@
  * Playlists anzeigen, erstellen, umbenennen, löschen.
  * Tracks anzeigen, hinzufügen, entfernen.
  *
+ * Backlog-Punkt 33 (v4.4.0): Track-Filter mit Suche, Genre-Chips, BPM-Range,
+ * Camelot-Chips, Jahr-Range und mehrstufiger Lock-Sortierung. Adapter aus
+ * lib/wiz-track-adapter.js liefert Explore-kompatibles Schema. Inkrementelles
+ * Re-Render der Track-Tabelle vermeidet Cursor-Sprung in den Filter-Inputs.
+ *
  * Benötigt gültigen API-Kontext (im Scanner-Tab exportieren).
  */
+
+import {
+  camelotSortVal,
+  buildQueryMatcher,
+  dramaColor,
+} from "../lib/track-utils.js";
+import { wizTracksToFilterable } from "../lib/wiz-track-adapter.js";
 
 const PLAYLIST_WIZ_MUTATION_EVENT = "beatport-suite:playlist-wiz-mutated";
 
 let playlists = [];
 let selectedPlaylist = null;
-let tracks = [];
+let tracks = [];                  // Rohe Tracks aus Beatport-API
+let adaptedTracks = [];           // Via Adapter Explore-kompatibel gemacht
+let wizFilteredTracks = [];       // Aktuell sichtbare nach Filter+Sort
 let selectedTrackIds = new Set();
 let loading = false;
 let tracksLoading = false;
@@ -21,9 +35,33 @@ let forceReloadRequested = false;
 let staleReason = "";
 let error = "";
 let tracksError = "";
-let filterText = "";
+let filterText = "";              // Playlist-Suche in der Sidebar
 let actionMessage = "";
 let actionLevel = "";
+
+// Track-Filter-States (werden bei loadTracks() resettet)
+let wizQuery = "";                // Wildcards * ?
+let wizBpmMin = "";               // String fuer Input, parseInt bei Anwendung
+let wizBpmMax = "";
+let wizYearMin = "";
+let wizYearMax = "";
+let wizSelectedGenres = new Set();
+let wizSelectedCamelot = new Set();
+let wizLockedSorts = [];          // [{col:'bpm', dir:1}, {col:'camelot', dir:1}]
+
+// Sortier-Spalten (eingaengig fuer Lock-System)
+const WIZ_SORT_COLS = ["title", "artists", "genre", "bpm", "key", "camelot", "drama", "year", "label"];
+
+function resetWizFilters() {
+  wizQuery = "";
+  wizBpmMin = "";
+  wizBpmMax = "";
+  wizYearMin = "";
+  wizYearMax = "";
+  wizSelectedGenres = new Set();
+  wizSelectedCamelot = new Set();
+  wizLockedSorts = [];
+}
 
 export async function initPlaylistWiz() {
   render();
@@ -95,9 +133,16 @@ async function loadTracks(playlist, options = {}) {
 
   selectedPlaylist = playlist;
   selectedTrackIds.clear();
+  // Pflicht-Condition (Reviewer): Filter-States zuruecksetzen bei jedem
+  // Playlist-Wechsel, sonst landen Locks/Filter aus alter Playlist auf den
+  // neuen Tracks (z.B. Camelot-Filter "8A" zeigt 0 Tracks weil neue Playlist
+  // andere Tonarten hat).
+  resetWizFilters();
   tracksLoading = true;
   tracksError = "";
   tracks = [];
+  adaptedTracks = [];
+  wizFilteredTracks = [];
   if (!options.silent) {
     render();
   }
@@ -105,9 +150,13 @@ async function loadTracks(playlist, options = {}) {
   try {
     const nextTracks = await window.playlistApi.tracks(playlist.id);
     tracks = Array.isArray(nextTracks) ? nextTracks : [];
+    adaptedTracks = wizTracksToFilterable(tracks);
+    wizFilteredTracks = applyWizFilters();
   } catch (err) {
     tracksError = err.message || "Tracks konnten nicht geladen werden.";
     tracks = [];
+    adaptedTracks = [];
+    wizFilteredTracks = [];
   } finally {
     tracksLoading = false;
     if (!options.silent) {
@@ -268,6 +317,155 @@ function setAction(msg, level) {
   actionLevel = level;
 }
 
+// ─── Filter + Sort (Backlog-Punkt 33) ──────────────────────────────────────
+
+function applyWizFilters() {
+  if (!adaptedTracks.length) return [];
+
+  const qMatch = wizQuery ? buildQueryMatcher(wizQuery) : null;
+  const bpmMin = parseInt(wizBpmMin, 10);
+  const bpmMax = parseInt(wizBpmMax, 10);
+  const yearMin = parseInt(wizYearMin, 10);
+  const yearMax = parseInt(wizYearMax, 10);
+  const useGenre = wizSelectedGenres.size > 0;
+  const useCamelot = wizSelectedCamelot.size > 0;
+
+  const filtered = adaptedTracks.filter((t) => {
+    if (qMatch) {
+      const haystack = `${t.title} ${t.mix_name} ${t.artists} ${t.label} ${t.genre}`;
+      if (!qMatch(haystack)) return false;
+    }
+    if (useGenre && !wizSelectedGenres.has(t.genre)) return false;
+    if (useCamelot && !wizSelectedCamelot.has(t.camelot)) return false;
+    if (Number.isFinite(bpmMin) && t.bpm < bpmMin) return false;
+    if (Number.isFinite(bpmMax) && bpmMax > 0 && t.bpm > bpmMax) return false;
+    if (Number.isFinite(yearMin) && (t.year == null || t.year < yearMin)) return false;
+    if (Number.isFinite(yearMax) && yearMax > 0 && (t.year == null || t.year > yearMax)) return false;
+    return true;
+  });
+
+  return sortWizTracks(filtered);
+}
+
+function sortWizTracks(arr) {
+  if (!wizLockedSorts.length) return arr;
+  const chain = wizLockedSorts;
+  return [...arr].sort((a, b) => {
+    for (const { col, dir } of chain) {
+      const av = getWizSortVal(a, col);
+      const bv = getWizSortVal(b, col);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+    }
+    return 0;
+  });
+}
+
+function getWizSortVal(t, col) {
+  switch (col) {
+    case "title":   return (t.title || "").toLowerCase();
+    case "artists": return (t.artists || "").toLowerCase();
+    case "genre":   return (t.genre || "").toLowerCase();
+    case "bpm":     return t.bpm || 0;
+    case "key":     return (t.key || "").toLowerCase();
+    case "camelot": return camelotSortVal(t.camelot);
+    case "drama":   return t.drama || 0;
+    case "year":    return t.year || 0;
+    case "label":   return (t.label || "").toLowerCase();
+    default:        return 0;
+  }
+}
+
+function toggleWizLock(col) {
+  if (!WIZ_SORT_COLS.includes(col)) return;
+  const existing = wizLockedSorts.findIndex((entry) => entry.col === col);
+  if (existing >= 0) {
+    // Toggle ASC → DESC → entfernt
+    if (wizLockedSorts[existing].dir === 1) {
+      wizLockedSorts[existing].dir = -1;
+    } else {
+      wizLockedSorts.splice(existing, 1);
+    }
+  } else {
+    wizLockedSorts.push({ col, dir: 1 });
+  }
+}
+
+function clearWizLocks() {
+  wizLockedSorts = [];
+}
+
+// Sammelt alle in den geladenen Tracks vorhandenen Genres bzw. Camelot-Werte
+// — Filter-Chips zeigen nur Werte die tatsaechlich in der Playlist vorkommen.
+function getWizGenreOptions() {
+  const set = new Set();
+  for (const t of adaptedTracks) {
+    if (t.genre) set.add(t.genre);
+  }
+  return [...set].sort();
+}
+
+function getWizCamelotOptions() {
+  const set = new Set();
+  for (const t of adaptedTracks) {
+    if (t.camelot) set.add(t.camelot);
+  }
+  return [...set].sort((a, b) => camelotSortVal(a) - camelotSortVal(b));
+}
+
+// Inkrementelles Re-Render: tauscht NUR die Track-Tabelle aus, laesst die
+// Filter-Inputs und alle anderen DOM-Elemente unangetastet. Verhindert
+// Cursor-Sprung der bei v4.3.4 nur fuer #wiz-filter (Playlist-Suche) gefixt
+// wurde — Track-Filter-Inputs brauchen kein per-Input setSelectionRange,
+// weil sie nicht neu erstellt werden.
+function rerenderWizTrackArea() {
+  wizFilteredTracks = applyWizFilters();
+  const tbody = document.getElementById("wiz-tracks-tbody");
+  if (tbody) {
+    tbody.innerHTML = renderWizTrackRows();
+  }
+  const countEl = document.getElementById("wiz-filter-count");
+  if (countEl) {
+    countEl.textContent = `${wizFilteredTracks.length} von ${adaptedTracks.length}`;
+  }
+  // Lock-Indikatoren auf den th-Headern aktualisieren
+  updateWizLockUI();
+  // Select-All-Checkbox-Status
+  const selectAll = document.getElementById("wiz-select-all");
+  if (selectAll) {
+    const visibleIds = new Set(wizFilteredTracks.map((t) => t.track_id));
+    const visibleSelectedCount = [...selectedTrackIds].filter((id) => visibleIds.has(id)).length;
+    selectAll.checked = visibleSelectedCount === wizFilteredTracks.length && wizFilteredTracks.length > 0;
+  }
+  // Remove-Button Beschriftung
+  const removeBtn = document.getElementById("wiz-remove-tracks");
+  if (removeBtn) {
+    removeBtn.textContent = selectedTrackIds.size > 0
+      ? `${selectedTrackIds.size} entfernen`
+      : "Entfernen";
+    removeBtn.disabled = selectedTrackIds.size === 0 || mutationBusy || tracksLoading;
+  }
+}
+
+function updateWizLockUI() {
+  const ths = document.querySelectorAll("[data-wiz-sort]");
+  ths.forEach((th) => {
+    const col = th.dataset.wizSort;
+    const idx = wizLockedSorts.findIndex((entry) => entry.col === col);
+    const indicator = th.querySelector(".wiz-lock-indicator");
+    if (indicator) {
+      if (idx >= 0) {
+        const { dir } = wizLockedSorts[idx];
+        indicator.textContent = ` ${idx + 1}${dir === 1 ? " ↑" : " ↓"}`;
+        th.classList.add("locked");
+      } else {
+        indicator.textContent = "";
+        th.classList.remove("locked");
+      }
+    }
+  });
+}
+
 function render() {
   const container = document.getElementById("playlist-wiz-content");
   if (!container) return;
@@ -421,19 +619,20 @@ function renderTrackPanel() {
           : tracks.length === 0
             ? '<p class="placeholder-text" style="padding:20px">Keine Tracks in dieser Playlist</p>'
             : `
+              ${renderWizFilterPanel()}
               <div class="wiz-select-bar">
                 <label class="check" style="font-size:0.82rem">
                   <input
                     type="checkbox"
                     id="wiz-select-all"
                     ${
-                      selectedTrackIds.size === tracks.length && tracks.length > 0
+                      computeAllVisibleSelected()
                         ? "checked"
                         : ""
                     }
                     ${disableTrackActions ? "disabled" : ""}
                   />
-                  Alle auswählen (${selectedTrackIds.size}/${tracks.length})
+                  Alle sichtbaren auswählen (<span id="wiz-select-count">${selectedTrackIds.size}/${wizFilteredTracks.length}</span>)
                 </label>
               </div>
               <div class="table-wrap" style="max-height:520px;margin-top:8px">
@@ -442,61 +641,139 @@ function renderTrackPanel() {
                     <tr>
                       <th style="width:40px"></th>
                       <th>#</th>
-                      <th>Titel</th>
-                      <th>Artist</th>
-                      <th>Genre</th>
-                      <th>BPM</th>
-                      <th>Key</th>
-                      <th>Label</th>
+                      <th data-wiz-sort="title" class="wiz-sort-th">Titel<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="artists" class="wiz-sort-th">Artist<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="genre" class="wiz-sort-th">Genre<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="bpm" class="wiz-sort-th">BPM<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="key" class="wiz-sort-th">Key<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="camelot" class="wiz-sort-th">Camelot<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="drama" class="wiz-sort-th">Drama<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="year" class="wiz-sort-th">Jahr<span class="wiz-lock-indicator"></span></th>
+                      <th data-wiz-sort="label" class="wiz-sort-th">Label<span class="wiz-lock-indicator"></span></th>
                     </tr>
                   </thead>
-                  <tbody>
-                    ${tracks
-                      .map(
-                        (track, index) => `
-                          <tr
-                            class="selection-row ${
-                              selectedTrackIds.has(track.trackId) ? "is-focused" : ""
-                            }"
-                            data-track-id="${esc(track.trackId)}"
-                          >
-                            <td class="selection-checkbox">
-                              <input
-                                type="checkbox"
-                                class="wiz-track-cb"
-                                data-track-id="${esc(track.trackId)}"
-                                ${
-                                  selectedTrackIds.has(track.trackId) ? "checked" : ""
-                                }
-                                ${disableTrackActions ? "disabled" : ""}
-                              />
-                            </td>
-                            <td>${index + 1}</td>
-                            <td class="wrap-cell">
-                              ${esc(track.title)}
-                              ${
-                                track.mixName
-                                  ? `<span style="color:var(--muted)">(${esc(
-                                      track.mixName
-                                    )})</span>`
-                                  : ""
-                              }
-                            </td>
-                            <td class="wrap-cell">${esc(track.artists)}</td>
-                            <td>${esc(track.genre)}</td>
-                            <td>${track.bpm || ""}</td>
-                            <td>${esc(track.key || "")}</td>
-                            <td>${esc(track.label)}</td>
-                          </tr>
-                        `
-                      )
-                      .join("")}
+                  <tbody id="wiz-tracks-tbody">
+                    ${renderWizTrackRows()}
                   </tbody>
                 </table>
               </div>
             `
     }
   `;
+}
+
+function computeAllVisibleSelected() {
+  if (!wizFilteredTracks.length) return false;
+  return wizFilteredTracks.every((t) => selectedTrackIds.has(t.track_id));
+}
+
+function renderWizFilterPanel() {
+  const genres = getWizGenreOptions();
+  const camelots = getWizCamelotOptions();
+  return `
+    <div class="wiz-filter-panel">
+      <div class="wiz-filter-row">
+        <input
+          type="text"
+          id="wiz-q"
+          class="wiz-filter-input"
+          placeholder="Track, Artist, Label suchen (Wildcards * ?)"
+          value="${esc(wizQuery)}"
+        />
+        <span class="wiz-filter-count" id="wiz-filter-count">${wizFilteredTracks.length} von ${adaptedTracks.length}</span>
+        <button type="button" id="wiz-filter-reset" class="wiz-filter-reset">Reset</button>
+      </div>
+      <div class="wiz-filter-row wiz-filter-ranges">
+        <label class="wiz-filter-label">
+          BPM
+          <input type="number" id="wiz-bpm-min" class="wiz-filter-num" placeholder="Min" value="${esc(wizBpmMin)}" min="0" max="999" />
+          <input type="number" id="wiz-bpm-max" class="wiz-filter-num" placeholder="Max" value="${esc(wizBpmMax)}" min="0" max="999" />
+        </label>
+        <label class="wiz-filter-label">
+          Jahr
+          <input type="number" id="wiz-year-min" class="wiz-filter-num" placeholder="von" value="${esc(wizYearMin)}" min="1900" max="2100" />
+          <input type="number" id="wiz-year-max" class="wiz-filter-num" placeholder="bis" value="${esc(wizYearMax)}" min="1900" max="2100" />
+        </label>
+      </div>
+      ${genres.length > 0 ? `
+        <div class="wiz-filter-row wiz-filter-chips-row">
+          <span class="wiz-filter-chip-label">Genre:</span>
+          <div class="wiz-filter-chips">
+            ${genres.map((g) => `
+              <button
+                type="button"
+                class="wiz-filter-chip${wizSelectedGenres.has(g) ? " active" : ""}"
+                data-wiz-genre="${esc(g)}"
+              >${esc(g)}</button>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+      ${camelots.length > 0 ? `
+        <div class="wiz-filter-row wiz-filter-chips-row">
+          <span class="wiz-filter-chip-label">Camelot:</span>
+          <div class="wiz-filter-chips">
+            ${camelots.map((c) => `
+              <button
+                type="button"
+                class="wiz-filter-chip${wizSelectedCamelot.has(c) ? " active" : ""}"
+                data-wiz-camelot="${esc(c)}"
+              >${esc(c)}</button>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+      <div class="wiz-filter-row wiz-filter-locks">
+        <span class="wiz-filter-chip-label">Sortierung:</span>
+        <span class="wiz-filter-hint">Klick auf Spaltenheader (Titel, BPM, Camelot…) = mehrstufige Sortierung mit Priorität.</span>
+        <button type="button" id="wiz-clear-locks" class="wiz-filter-reset">Locks löschen</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderWizTrackRows() {
+  const disableTrackActions = mutationBusy || tracksLoading;
+  if (!wizFilteredTracks.length) {
+    return `
+      <tr>
+        <td colspan="11" class="placeholder-text" style="padding:16px;text-align:center;">
+          Keine Tracks entsprechen dem Filter.
+        </td>
+      </tr>
+    `;
+  }
+  return wizFilteredTracks
+    .map((track, index) => `
+      <tr
+        class="selection-row ${selectedTrackIds.has(track.track_id) ? "is-focused" : ""}"
+        data-track-id="${esc(track.track_id)}"
+      >
+        <td class="selection-checkbox">
+          <input
+            type="checkbox"
+            class="wiz-track-cb"
+            data-track-id="${esc(track.track_id)}"
+            ${selectedTrackIds.has(track.track_id) ? "checked" : ""}
+            ${disableTrackActions ? "disabled" : ""}
+          />
+        </td>
+        <td>${index + 1}</td>
+        <td class="wrap-cell">
+          ${esc(track.title)}
+          ${track.mix_name ? `<span style="color:var(--muted)">(${esc(track.mix_name)})</span>` : ""}
+        </td>
+        <td class="wrap-cell">${esc(track.artists)}</td>
+        <td>${esc(track.genre)}</td>
+        <td>${track.bpm || ""}</td>
+        <td>${esc(track.key || "")}</td>
+        <td>${esc(track.camelot)}</td>
+        <td style="color:${dramaColor(track.drama)};font-weight:600">${track.drama || ""}</td>
+        <td>${track.year ?? ""}</td>
+        <td>${esc(track.label)}</td>
+      </tr>
+    `)
+    .join("");
 }
 
 function bindEvents(container) {
@@ -547,27 +824,100 @@ function bindEvents(container) {
       }
     });
 
-  for (const checkbox of container.querySelectorAll(".wiz-track-cb")) {
-    checkbox.addEventListener("change", (event) => {
-      const trackId = event.target.dataset.trackId;
-      if (event.target.checked) {
-        selectedTrackIds.add(trackId);
-      } else {
-        selectedTrackIds.delete(trackId);
-      }
-      render();
-    });
-  }
+  // Track-Checkboxen via Event-Delegation am tbody — neue Rows nach
+  // inkrementellem Re-Render brauchen keine erneute Bindung.
+  const tbody = container.querySelector("#wiz-tracks-tbody");
+  tbody?.addEventListener("change", (event) => {
+    if (!event.target.classList.contains("wiz-track-cb")) return;
+    const trackId = event.target.dataset.trackId;
+    if (event.target.checked) {
+      selectedTrackIds.add(trackId);
+    } else {
+      selectedTrackIds.delete(trackId);
+    }
+    // Inkrementell statt full render — Filter-Inputs bleiben unangetastet.
+    rerenderWizTrackArea();
+  });
 
   container.querySelector("#wiz-select-all")?.addEventListener("change", (event) => {
     if (event.target.checked) {
-      for (const track of tracks) {
-        selectedTrackIds.add(track.trackId);
+      // Nur sichtbare (gefilterte) Tracks auswaehlen — bewusst, nicht alle.
+      for (const track of wizFilteredTracks) {
+        selectedTrackIds.add(track.track_id);
       }
     } else {
-      selectedTrackIds.clear();
+      for (const track of wizFilteredTracks) {
+        selectedTrackIds.delete(track.track_id);
+      }
     }
-    render();
+    rerenderWizTrackArea();
+  });
+
+  bindWizFilterEvents(container);
+}
+
+// Event-Bindings fuer Track-Filter-Inputs (Backlog-Punkt 33).
+// Inkrementelles Re-Render: rerenderWizTrackArea() ersetzt NUR tbody +
+// Counter/Lock-UI — die Filter-Inputs bleiben im DOM und behalten ihren
+// Cursor/Fokus.
+function bindWizFilterEvents(container) {
+  container.querySelector("#wiz-q")?.addEventListener("input", (event) => {
+    wizQuery = event.target.value;
+    rerenderWizTrackArea();
+  });
+  container.querySelector("#wiz-bpm-min")?.addEventListener("input", (event) => {
+    wizBpmMin = event.target.value;
+    rerenderWizTrackArea();
+  });
+  container.querySelector("#wiz-bpm-max")?.addEventListener("input", (event) => {
+    wizBpmMax = event.target.value;
+    rerenderWizTrackArea();
+  });
+  container.querySelector("#wiz-year-min")?.addEventListener("input", (event) => {
+    wizYearMin = event.target.value;
+    rerenderWizTrackArea();
+  });
+  container.querySelector("#wiz-year-max")?.addEventListener("input", (event) => {
+    wizYearMax = event.target.value;
+    rerenderWizTrackArea();
+  });
+
+  // Genre-Chips — Event-Delegation auf dem Chips-Container.
+  for (const chip of container.querySelectorAll(".wiz-filter-chip[data-wiz-genre]")) {
+    chip.addEventListener("click", () => {
+      const g = chip.dataset.wizGenre;
+      if (wizSelectedGenres.has(g)) wizSelectedGenres.delete(g);
+      else wizSelectedGenres.add(g);
+      chip.classList.toggle("active");
+      rerenderWizTrackArea();
+    });
+  }
+  for (const chip of container.querySelectorAll(".wiz-filter-chip[data-wiz-camelot]")) {
+    chip.addEventListener("click", () => {
+      const c = chip.dataset.wizCamelot;
+      if (wizSelectedCamelot.has(c)) wizSelectedCamelot.delete(c);
+      else wizSelectedCamelot.add(c);
+      chip.classList.toggle("active");
+      rerenderWizTrackArea();
+    });
+  }
+
+  // Sortier-Header (Lock-System)
+  for (const th of container.querySelectorAll("[data-wiz-sort]")) {
+    th.addEventListener("click", () => {
+      toggleWizLock(th.dataset.wizSort);
+      rerenderWizTrackArea();
+    });
+  }
+
+  // Reset-Buttons
+  container.querySelector("#wiz-filter-reset")?.addEventListener("click", () => {
+    resetWizFilters();
+    render(); // hier full render, weil Chips-Set komplett zurueck muss
+  });
+  container.querySelector("#wiz-clear-locks")?.addEventListener("click", () => {
+    clearWizLocks();
+    rerenderWizTrackArea();
   });
 }
 

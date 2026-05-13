@@ -44,48 +44,16 @@ const COLORS = {
 };
 
 // ─── Camelot-Wheel Mappings ─────────────────────────────────────────────────────
+// CAMELOT_MAP + toCamelot konsolidiert in lib/track-utils.js
+// (Backlog-Punkt 33 / v4.4.0). Falsy-Check an Aufrufstellen unveraendert
+// gueltig — "" und null sind beide falsy.
 
-const CAMELOT_MAP = {
-  // Minor keys → Camelot A codes
-  "Ab min": "1A",  "G# min": "1A",
-  "Eb min": "2A",  "D# min": "2A",
-  "Bb min": "3A",  "A# min": "3A",
-  "F min":  "4A",
-  "C min":  "5A",
-  "G min":  "6A",
-  "D min":  "7A",
-  "A min":  "8A",
-  "E min":  "9A",
-  "B min": "10A",
-  "F# min": "11A", "Gb min": "11A",
-  "Db min": "12A", "C# min": "12A",
-  // Major keys → Camelot B codes
-  "B maj":  "1B",
-  "F# maj": "2B",  "Gb maj": "2B",
-  "Db maj": "3B",  "C# maj": "3B",
-  "Ab maj": "4B",  "G# maj": "4B",
-  "Eb maj": "5B",  "D# maj": "5B",
-  "Bb maj": "6B",  "A# maj": "6B",
-  "F maj":  "7B",
-  "C maj":  "8B",
-  "G maj":  "9B",
-  "D maj": "10B",
-  "A maj": "11B",
-  "E maj": "12B",
-};
+import { toCamelot } from "../lib/track-utils.js";
 
 const CAMELOT_LABELS = [
   "1A", "2A", "3A", "4A", "5A", "6A", "7A", "8A", "9A", "10A", "11A", "12A",
   "1B", "2B", "3B", "4B", "5B", "6B", "7B", "8B", "9B", "10B", "11B", "12B",
 ];
-
-function toCamelot(rawKey) {
-  if (!rawKey) return null;
-  const k = rawKey.trim();
-  // Already Camelot notation?
-  if (/^\d{1,2}[AB]$/i.test(k)) return k.toUpperCase();
-  return CAMELOT_MAP[k] || null;
-}
 
 // ─── Daten laden ────────────────────────────────────────────────────────────────
 
