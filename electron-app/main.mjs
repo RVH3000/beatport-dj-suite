@@ -594,6 +594,77 @@ app.whenReady().then(() => {
   // direkt nach suite.db via import_beatport_artists.py.
   // Bei 404 wirft die XHR-Methode `endpoint-not-found` — der Caller (Renderer)
   // zeigt dann die manuelle JSON-Import-Anleitung an.
+  // ── Repertoire (Backlog v4.6.0): aus scoring-data.json aggregierte Artists ─
+  // Semantisch getrennt von bp_artists (Beatport-API followed). Hier sind es
+  // "Artists die im gesamten Scanner-Universum vorkommen" — 25k+ Eintraege.
+  // Wiederverwendung des labelsDbPath (gleiche suite.db, neue Tabellen
+  // bp_repertoire_tracks + bp_repertoire_artists).
+
+  function resolveScoringDataPath() {
+    return path.join(
+      app.getPath("home"),
+      "Documents", "Claude", "Projects", "Beatport PL WIZ", "scoring-data.json"
+    );
+  }
+
+  ipcMain.handle("repertoire:stats", async () => {
+    return runPythonJson(
+      "scripts/query_repertoire_artists.py",
+      ["--db", labelsDbPath, "stats"],
+    );
+  });
+
+  ipcMain.handle("repertoire:filters", async () => {
+    return runPythonJson(
+      "scripts/query_repertoire_artists.py",
+      ["--db", labelsDbPath, "filters"],
+    );
+  });
+
+  ipcMain.handle("repertoire:list", async (_event, options = {}) => {
+    const order = options.order || "track_count";
+    const limit = Math.min(Number(options.limit) || 200, 1000);
+    const offset = Math.max(Number(options.offset) || 0, 0);
+    const args = [
+      "--db", labelsDbPath, "list",
+      "--order", order,
+      "--limit", String(limit),
+      "--offset", String(offset),
+    ];
+    if (options.q) args.push("--q", String(options.q));
+    if (options.yearMin != null) args.push("--year-min", String(options.yearMin));
+    if (options.yearMax != null) args.push("--year-max", String(options.yearMax));
+    if (options.minTracks != null) args.push("--min-tracks", String(options.minTracks));
+    return runPythonJson("scripts/query_repertoire_artists.py", args);
+  });
+
+  // repertoire:sync — liest scoring-data.json, schreibt nach suite.db.
+  // Im Gegensatz zu artists:sync KEIN API-Call — rein lokal.
+  ipcMain.handle("repertoire:sync", async (_event, options = {}) => {
+    try {
+      const scoringPath = options.inputPath || resolveScoringDataPath();
+      if (!existsSync(scoringPath)) {
+        return {
+          ok: false,
+          code: "scoring-data-missing",
+          message: `scoring-data.json nicht gefunden unter ${scoringPath}`,
+          expectedPath: scoringPath,
+        };
+      }
+      const result = runPythonJson(
+        "scripts/import_scoring_repertoire.py",
+        ["--db", labelsDbPath, "--input", scoringPath],
+      );
+      return {
+        ok: true,
+        inputPath: scoringPath,
+        importResult: result,
+      };
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  });
+
   ipcMain.handle("artists:sync", async (_event, options = {}) => {
     try {
       const client = await createXhrClient();
@@ -618,6 +689,13 @@ app.whenReady().then(() => {
         importResult,
       };
     } catch (error) {
+      if (error?.code === "auth-expired") {
+        return {
+          ok: false,
+          code: "auth-expired",
+          message: error.message,
+        };
+      }
       if (error?.code === "endpoint-not-found") {
         return {
           ok: false,

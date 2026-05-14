@@ -115,6 +115,38 @@ function renderEndpointNotFound(candidates) {
   }
 }
 
+function renderAuthExpired() {
+  const grid = document.getElementById("artistsGrid");
+  const stats = document.getElementById("artistsStats");
+  if (stats) {
+    stats.classList.add("empty");
+    stats.innerHTML = `<strong style="color:var(--accent-warn,#E8A040);">⚠ Beatport-Token abgelaufen</strong>`;
+  }
+  if (grid) {
+    grid.innerHTML = `
+      <div class="callout warn" style="grid-column:1/-1;padding:1rem;">
+        <p><strong style="font-size:1.05em;">🔐 Auth-Token ist abgelaufen — der Sync funktioniert nicht mehr.</strong></p>
+        <p style="opacity:.92;margin-top:.6rem;font-size:.94em;">
+          So holst du dir einen frischen Token:
+        </p>
+        <ol style="opacity:.92;font-size:.92em;margin:.5rem 0 .8rem 1.4rem;line-height:1.7;">
+          <li>Stelle sicher, dass du bei <a href="https://www.beatport.com/" target="_blank">beatport.com</a>
+              im Browser eingeloggt bist (zur Sicherheit dort einmal die Seite öffnen).</li>
+          <li>In <strong>dieser App</strong> oben in der <strong>Statusbar</strong> auf
+              den Button <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;">⇪ API-Kontext</code> klicken.</li>
+          <li>Eine kurze Bestätigung erscheint („API-Kontext exportiert").</li>
+          <li>Hier zurück und nochmals auf
+              <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;">Aus Beatport synchronisieren</code> klicken.</li>
+        </ol>
+        <p style="opacity:.75;font-size:.85em;margin-top:.5rem;">
+          Hintergrund: Beatport-Tokens leben max. 1 Stunde. Die App liest den aktuellen Token
+          aus deiner Beatport-Browser-Session.
+        </p>
+      </div>
+    `;
+  }
+}
+
 function renderError(message, detail) {
   const grid = document.getElementById("artistsGrid");
   const stats = document.getElementById("artistsStats");
@@ -181,6 +213,10 @@ async function doSync() {
   setSyncButton(true, "Synchronisiere…");
   try {
     const result = await api.sync({ driftDetect: true });
+    if (result?.code === "auth-expired") {
+      renderAuthExpired();
+      return;
+    }
     if (result?.code === "endpoint-not-found") {
       renderEndpointNotFound(result.candidates);
       return;

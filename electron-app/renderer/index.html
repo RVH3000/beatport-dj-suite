@@ -56,6 +56,7 @@ Pipeline: Beatport → DJPL.fm → Lexicon → Engine DJ → USB / Prime 4+
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-search"     data-tab="search">Suche & Filter</button>
       <button class="tab"        role="tab" data-group="library"  aria-selected="false" aria-controls="tab-labels"     data-tab="labels" title="Gefolgte Beatport-Labels (511 importiert)">Labels</button>
       <button class="tab"        role="tab" data-group="library"  aria-selected="false" aria-controls="tab-artists"    data-tab="artists" title="Gefolgte Beatport-Artists (myBeatport)">Artists</button>
+      <button class="tab"        role="tab" data-group="library"  aria-selected="false" aria-controls="tab-repertoire" data-tab="repertoire" title="Artists aus dem Scanner-Repertoire (25k aus 99k Tracks)">Repertoire</button>
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-analyse"    data-tab="analyse">Analyse</button>
       <button class="tab"        role="tab" data-group="explore"  aria-selected="false" aria-controls="tab-engine-analyze" data-tab="engine-analyze" title="Engine-DJ-Playlisten laden, gegen Beatport matchen und klassifizieren">Engine-Analyse</button>
       <button class="tab"        role="tab" data-group="build"    aria-selected="false" aria-controls="tab-playlist"   data-tab="playlist">Playlist WIZ</button>
@@ -508,6 +509,47 @@ Sicherheit:
           </div>
           <div id="labelsStats" class="detail-summary empty">Lade …</div>
           <div id="labelsGrid" class="labels-grid"></div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: Repertoire (v4.6.0) — Artists aus scoring-data (Scanner)        -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <main id="tab-repertoire" class="tab-panel" role="tabpanel" hidden>
+      <div class="layout" style="grid-template-columns:1fr">
+        <section class="panel span-full">
+          <div class="section-head">
+            <h2>Repertoire <span style="font-size:.7em;color:var(--muted);font-weight:normal;">(aus deinem Scanner-Universum)</span></h2>
+            <div class="actions compact">
+              <button id="repertoireRefreshBtn" type="button">↻ Neu laden</button>
+              <button id="repertoireSyncBtn" type="button" class="primary">Aus scoring-data importieren</button>
+            </div>
+          </div>
+          <div id="repertoireStats" class="detail-summary empty">Lade …</div>
+          <div class="rep-filter-bar">
+            <input id="repertoireSearch" type="search" placeholder="Artist-Name suchen…" />
+            <select id="repertoireOrder">
+              <option value="track_count">Nach Track-Count</option>
+              <option value="plays_total">Nach Plays gesamt</option>
+              <option value="name">Alphabetisch</option>
+              <option value="year_max">Nach letztem Aktiv-Jahr</option>
+              <option value="year_min">Nach erstem Aktiv-Jahr</option>
+            </select>
+            <label class="rep-filter-label">
+              Jahr
+              <input id="repertoireYearMin" type="number" placeholder="von" min="1900" max="2100" />
+              <input id="repertoireYearMax" type="number" placeholder="bis" min="1900" max="2100" />
+            </label>
+            <label class="rep-filter-label">
+              min Tracks
+              <input id="repertoireMinTracks" type="number" placeholder="z.B. 5" min="1" />
+            </label>
+            <button id="repertoireResetBtn" type="button">Reset</button>
+          </div>
+          <div id="repertoireStatus" class="rep-status"></div>
+          <div id="repertoireList" class="rep-list"></div>
+          <div id="repertoirePagination" class="rep-pagination"></div>
         </section>
       </div>
     </main>

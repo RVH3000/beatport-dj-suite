@@ -243,6 +243,7 @@ export class BeatportXhrClient {
     ];
 
     let workingBase = null;
+    let lastAuthError = null;
     for (const candidate of candidatePaths) {
       try {
         const probeUrl = `${candidate}?per_page=1&page=1`;
@@ -251,16 +252,33 @@ export class BeatportXhrClient {
         // results leer ist (User folgt nichts) ist die URL gueltig.
         if (probe && typeof probe === "object") {
           workingBase = candidate;
-          // Wenn Probe-Response schon alle results enthaelt (kein next), kurzschluss
-          if (Array.isArray(probe.results) && !probe.next && probe.results.length <= 1) {
-            // weiter zum vollen Paginierungs-Loop, ggf. mit per_page=100
-          }
           break;
         }
       } catch (error) {
+        // Auth-Fehler (401/403) bedeutet: Endpoint EXISTIERT, aber Token abgelaufen.
+        // Das ist semantisch anders als 404 — wir merken's und werfen einen
+        // dedizierten "auth-expired"-Error nach der Schleife.
+        const isAuthError = /Auth-Fehler\s+(401|403)/.test(error.message);
+        if (isAuthError) {
+          lastAuthError = error;
+          log(`Endpoint-Probe ${candidate}: Auth-Fehler — Token abgelaufen?`);
+          // Weiter probieren ist hier sinnlos: alle Endpoints haetten denselben
+          // Auth-Fehler. Sofort raus aus der Schleife.
+          break;
+        }
         // 404 oder andere Server-Errors → naechsten Kandidaten probieren
         log(`Endpoint-Probe ${candidate} fehlgeschlagen: ${error.message}`);
       }
+    }
+
+    if (lastAuthError) {
+      const err = new Error(
+        `Beatport-Token abgelaufen oder ungueltig. ` +
+        `Bitte oben in der Statusbar den Button "⇪ API-Kontext" klicken, dann erneut synchronisieren.`
+      );
+      err.code = "auth-expired";
+      err.originalMessage = lastAuthError.message;
+      throw err;
     }
 
     if (!workingBase) {

@@ -104,11 +104,19 @@ contextBridge.exposeInMainWorld("labelsApi", {
   stats: () => ipcRenderer.invoke("labels:stats"),
 });
 
-// Backlog-Punkt 31 (v4.5.0): Meine Artists
+// Backlog-Punkt 31 (v4.5.0): Meine Artists (Beatport-API: followed)
 contextBridge.exposeInMainWorld("artistsApi", {
   list: (options) => ipcRenderer.invoke("artists:list", options || {}),
   stats: () => ipcRenderer.invoke("artists:stats"),
   sync: (options) => ipcRenderer.invoke("artists:sync", options || {}),
+});
+
+// Repertoire (v4.6.0): Artists aus scoring-data.json (Scanner-Universum)
+contextBridge.exposeInMainWorld("repertoireApi", {
+  list: (options) => ipcRenderer.invoke("repertoire:list", options || {}),
+  stats: () => ipcRenderer.invoke("repertoire:stats"),
+  filters: () => ipcRenderer.invoke("repertoire:filters"),
+  sync: (options) => ipcRenderer.invoke("repertoire:sync", options || {}),
 });
 
 contextBridge.exposeInMainWorld("authApi", {
