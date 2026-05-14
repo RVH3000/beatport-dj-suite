@@ -85,33 +85,103 @@ function renderGrid() {
 }
 
 function renderEndpointNotFound(candidates) {
+  renderManualImportInstructions({
+    title: "Sync fehlgeschlagen — Endpoint nicht erreichbar",
+    candidates,
+  });
+}
+
+// Plan C (v4.6.2): klare Schritt-fuer-Schritt-Anleitung + Auto-Detect-Button.
+// Wenn ~/_handoff/bp_artists_response.json bereits existiert: 1-Klick-Import.
+async function renderManualImportInstructions(opts = {}) {
   const grid = document.getElementById("artistsGrid");
   const stats = document.getElementById("artistsStats");
   if (stats) {
     stats.classList.add("empty");
-    stats.innerHTML = `<strong style="color:var(--accent-warn,#E8A040);">⚠ Beatport-API-Endpoint für Artists nicht gefunden</strong>`;
+    stats.innerHTML = `<strong style="color:var(--accent-warn,#E8A040);">⚠ ${esc(opts.title || "Manueller JSON-Import noetig")}</strong>`;
   }
-  if (grid) {
-    grid.innerHTML = `
-      <div class="callout warn" style="grid-column:1/-1;padding:1rem;">
-        <p><strong>Sync fehlgeschlagen — Endpoint nicht erreichbar</strong></p>
-        <p style="opacity:.85;font-size:.92em;margin-top:.5rem;">
-          Folgende URLs wurden probiert:
-        </p>
-        <ul style="opacity:.8;font-size:.85em;margin:.3rem 0 .8rem 1.2rem;">
-          ${(candidates || []).map((c) => `<li><code>${esc(c)}</code></li>`).join("")}
-        </ul>
-        <p style="opacity:.85;font-size:.92em;">
-          <strong>Fallback (manueller Import):</strong> JSON über
-          <a href="https://my.beatport.com/artists" target="_blank">my.beatport.com/artists</a>
-          via Browser-DevTools holen und ablegen unter
-          <code>~/_handoff/bp_artists_response.json</code>, dann:
-        </p>
-        <pre style="font-size:.78em;background:rgba(255,255,255,.05);padding:.5rem;border-radius:4px;margin-top:.5rem;overflow-x:auto;">python3 scripts/import_beatport_artists.py \\
-    --db "$HOME/Library/Application Support/beatport-dj-suite/suite.db" \\
-    --input ~/_handoff/bp_artists_response.json</pre>
-      </div>
-    `;
+  if (!grid) return;
+
+  // Auto-Detect: existiert die Datei schon?
+  let handoffInfo = null;
+  try {
+    handoffInfo = await window.artistsApi?.checkHandoffJson?.();
+  } catch { /* ignore */ }
+
+  const fileReady = handoffInfo?.exists && !handoffInfo?.empty && !handoffInfo?.invalid_json;
+  const fileItems = handoffInfo?.item_count || 0;
+
+  grid.innerHTML = `
+    <div class="callout warn" style="grid-column:1/-1;padding:1rem;">
+      <p><strong style="font-size:1.05em;">${esc(opts.title || "Manueller JSON-Import noetig")}</strong></p>
+
+      ${fileReady ? `
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:6px;padding:.8rem;margin:.8rem 0;">
+          <p style="margin:0 0 .4rem;color:var(--success,#4ade80);">
+            ✓ Datei gefunden: <code>${esc(handoffInfo.path)}</code>
+          </p>
+          <p style="margin:.2rem 0;opacity:.85;font-size:.88em;">
+            ${fmt(fileItems)} Artists in der JSON-Datei.
+            Letzte Aenderung: ${esc(handoffInfo.mtime ? new Date(handoffInfo.mtime).toLocaleString("de-DE") : "?")}
+          </p>
+          <button id="artistsImportHandoffBtn" type="button" class="primary" style="margin-top:.5rem;">
+            Jetzt importieren (${fmt(fileItems)} Artists)
+          </button>
+        </div>
+      ` : ""}
+
+      <p style="opacity:.92;margin-top:.6rem;font-size:.94em;">
+        ${fileReady ? "<strong>Oder:</strong> JSON-Datei neu holen:" : "<strong>JSON-Datei holen (einmalig):</strong>"}
+      </p>
+      <ol style="opacity:.92;font-size:.92em;margin:.5rem 0 .8rem 1.4rem;line-height:1.7;">
+        <li>Im normalen Browser <a href="https://my.beatport.com/artists" target="_blank">my.beatport.com/artists</a> oeffnen (eingeloggt)</li>
+        <li>DevTools oeffnen: <code>Cmd+Option+I</code> → Tab <strong>Network</strong></li>
+        <li>Filter-Feld: <code>artists</code> eintippen, dann <code>Cmd+R</code> (Reload)</li>
+        <li>Den Request auf <code>api.beatport.com/v4/my/beatport/artists/</code> anklicken</li>
+        <li>Tab <strong>Response</strong> → Rechtsklick aufs JSON → <strong>Copy Response</strong></li>
+        <li>In Terminal:
+          <pre style="font-size:.78em;background:rgba(255,255,255,.05);padding:.5rem;border-radius:4px;margin-top:.3rem;overflow-x:auto;">mkdir -p ~/_handoff && pbpaste > ~/_handoff/bp_artists_response.json</pre>
+        </li>
+        <li>Danach: hier auf "↻ Neu laden" klicken — der Import-Button erscheint automatisch</li>
+      </ol>
+
+      ${opts.candidates && opts.candidates.length > 0 ? `
+        <details style="margin-top:.8rem;">
+          <summary style="opacity:.7;cursor:pointer;font-size:.82em;">Details: probierte API-URLs (${opts.candidates.length})</summary>
+          <ul style="opacity:.75;font-size:.8em;margin:.3rem 0 0 1.2rem;">
+            ${opts.candidates.map((c) => `<li><code>${esc(c)}</code></li>`).join("")}
+          </ul>
+        </details>
+      ` : ""}
+
+      <p style="opacity:.65;font-size:.8em;margin-top:.8rem;">
+        Hintergrund: der automatische Sync via API funktioniert aktuell nicht zuverlaessig
+        (NextAuth-Cookies fehlen in der App-Webview). Manueller Import ist der etablierte Pfad
+        analog Labels. Plan C v4.6.2.
+      </p>
+    </div>
+  `;
+
+  // Auto-Import-Button binden
+  if (fileReady) {
+    document.getElementById("artistsImportHandoffBtn")?.addEventListener("click", async () => {
+      const btn = document.getElementById("artistsImportHandoffBtn");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Importiere...";
+      }
+      try {
+        const result = await window.artistsApi.importFromHandoff({ driftDetect: false });
+        if (result?.ok) {
+          // Erfolg — Tab neu laden
+          await fetchAndRender();
+        } else {
+          renderError(`Import fehlgeschlagen: ${result?.message || "unbekannt"}`, "");
+        }
+      } catch (err) {
+        renderError("Import-Fehler", String(err?.message || err));
+      }
+    });
   }
 }
 

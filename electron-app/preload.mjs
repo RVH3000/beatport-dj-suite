@@ -105,10 +105,13 @@ contextBridge.exposeInMainWorld("labelsApi", {
 });
 
 // Backlog-Punkt 31 (v4.5.0): Meine Artists (Beatport-API: followed)
+// v4.6.2: + checkHandoffJson, importFromHandoff (Plan C — Manuell-JSON)
 contextBridge.exposeInMainWorld("artistsApi", {
   list: (options) => ipcRenderer.invoke("artists:list", options || {}),
   stats: () => ipcRenderer.invoke("artists:stats"),
   sync: (options) => ipcRenderer.invoke("artists:sync", options || {}),
+  checkHandoffJson: () => ipcRenderer.invoke("artists:check-handoff-json"),
+  importFromHandoff: (options) => ipcRenderer.invoke("artists:import-from-handoff", options || {}),
 });
 
 // Repertoire (v4.6.0): Artists aus scoring-data.json (Scanner-Universum)

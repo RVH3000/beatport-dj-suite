@@ -665,6 +665,82 @@ app.whenReady().then(() => {
     }
   });
 
+  // Plan C (v4.6.2): Manueller JSON-Import-Pfad analog Labels.
+  // Checkt ~/_handoff/bp_artists_response.json, gibt Status + Datei-Info
+  // zurueck. Renderer kann damit auto-detect machen.
+  ipcMain.handle("artists:check-handoff-json", async () => {
+    const handoffPath = path.join(app.getPath("home"), "_handoff", "bp_artists_response.json");
+    try {
+      const stats = await fs.stat(handoffPath);
+      if (stats.size < 100) {
+        return {
+          exists: true,
+          path: handoffPath,
+          size: stats.size,
+          mtime: stats.mtime.toISOString(),
+          empty: true,
+          message: "Datei existiert, ist aber leer/zu klein",
+        };
+      }
+      // Validitaets-Check: ist es ein gueltiges JSON mit results-Array?
+      const raw = await fs.readFile(handoffPath, "utf-8");
+      try {
+        const json = JSON.parse(raw);
+        const count = Array.isArray(json?.results) ? json.results.length
+                    : Array.isArray(json) ? json.length
+                    : 0;
+        return {
+          exists: true,
+          path: handoffPath,
+          size: stats.size,
+          mtime: stats.mtime.toISOString(),
+          empty: count === 0,
+          item_count: count,
+        };
+      } catch (e) {
+        return {
+          exists: true,
+          path: handoffPath,
+          size: stats.size,
+          empty: false,
+          invalid_json: true,
+          parse_error: e.message,
+        };
+      }
+    } catch (e) {
+      return { exists: false, path: handoffPath };
+    }
+  });
+
+  // Plan C (v4.6.2): Manueller Import der ~/_handoff/bp_artists_response.json
+  // ueber das bestehende import_beatport_artists.py-Script.
+  ipcMain.handle("artists:import-from-handoff", async (_event, options = {}) => {
+    const handoffPath = options.path || path.join(app.getPath("home"), "_handoff", "bp_artists_response.json");
+    try {
+      const stats = await fs.stat(handoffPath);
+      if (stats.size < 100) {
+        return {
+          ok: false,
+          code: "handoff-file-empty",
+          message: `Datei ${handoffPath} ist leer oder zu klein (${stats.size} Bytes)`,
+        };
+      }
+    } catch (e) {
+      return {
+        ok: false,
+        code: "handoff-file-missing",
+        message: `Datei ${handoffPath} nicht gefunden. ` +
+                 `Bitte zuerst aus my.beatport.com/artists via DevTools holen ` +
+                 `(siehe Artists-Tab-Anleitung).`,
+      };
+    }
+    const importArgs = options.driftDetect
+      ? ["--db", labelsDbPath, "--input", handoffPath, "--diff"]
+      : ["--db", labelsDbPath, "--input", handoffPath];
+    const result = runPythonJson("scripts/import_beatport_artists.py", importArgs);
+    return { ok: true, importResult: result, inputPath: handoffPath };
+  });
+
   ipcMain.handle("artists:sync", async (_event, options = {}) => {
     try {
       const client = await createXhrClient();
@@ -883,55 +959,33 @@ app.whenReady().then(() => {
       }
     }
 
-    // 2. Token holen — Priorität:
-    //    a) Aktiver NextAuth-Pull via /api/auth/session (v4.6.1, immer frisch)
-    //    b) Passiv gecaptureter Token (Fallback, max 10 Min alt)
-    //    c) Soft-Reload + warten auf SPA-Activity (Legacy-Fallback)
-    let token = null;
-    let tokenSource = "";
+    // 2. Passiv gecaptureten Token prüfen (webRequest-Listener)
+    //    v4.6.1 NextAuth-Pfad in v4.6.2 entfernt nach Pre-Flight-Verifikation:
+    //    /api/auth/session liefert kein Token in der App-Partition (kein
+    //    www.beatport.com-Login). Plan C (Manuell-JSON) ist der etablierte
+    //    Pfad analog Labels.
+    let token = sessionManager.getCapturedToken();
 
-    // 2a) Aktiver Pull — funktioniert solange das Beatport-Fenster offen
-    // und der User eingeloggt ist. Liefert immer frischen Token.
-    const nextAuthResult = await sessionManager.fetchTokenViaNextAuth();
-    if (nextAuthResult.token) {
-      token = nextAuthResult.token;
-      tokenSource = "nextauth";
-    } else {
-      // 2b) Fallback: passiv gecaptureter Token (kann bis zu 10 Min alt sein)
-      token = sessionManager.getCapturedToken();
-      if (token) tokenSource = "passive";
-    }
-
-    // 2c) Letzter Fallback: Reload + Wait (Legacy-Pfad)
+    // 3. Kein Token? Soft-Reload der aktuellen Seite, damit die SPA API-Calls macht
     if (!token) {
       const win = await sessionManager.ensureWindow({ show: false });
       win.webContents.reload();
-      // Erst NextAuth nochmal probieren nach Reload
+      // Warten bis die SPA API-Calls abfeuert (Token wird passiv gecaptured)
       for (let i = 0; i < 10; i++) {
         await waitMs(500);
-        const retry = await sessionManager.fetchTokenViaNextAuth();
-        if (retry.token) {
-          token = retry.token;
-          tokenSource = "nextauth-after-reload";
-          break;
-        }
         token = sessionManager.getCapturedToken();
-        if (token) {
-          tokenSource = "passive-after-reload";
-          break;
-        }
+        if (token) break;
       }
     }
 
     if (!token) {
       throw new Error(
-        "Bearer-Token konnte nicht geholt werden. Stelle sicher dass das " +
-        "Beatport-Fenster offen ist und du eingeloggt bist " +
-        `(NextAuth-Fehler: ${nextAuthResult.error || "unbekannt"}).`
+        "Bearer-Token konnte nicht abgefangen werden. Bitte im Scanner-Tab " +
+        "das Beatport-Fenster oeffnen, einloggen, und nochmal versuchen. " +
+        "Als Alternative: manueller JSON-Import via DevTools (Plan C, siehe " +
+        "Artists-Tab-Fallback-Anleitung)."
       );
     }
-    // Token-Source ist hilfreich beim Debuggen — als Header an den XHR-Client.
-    // (kein Logging hier, weil Token sensitiv ist)
 
     // 4. BeatportXhrClient mit dem frischen Token erstellen
     //    session.fetch() sendet automatisch Cookies + User-Agent der Partition.
@@ -1057,52 +1111,16 @@ app.whenReady().then(() => {
 
   // API-Kontext für externe Tools exportieren (z.B. beatport_xhr_tool.mjs)
   ipcHandle("auth:export-api-context", async (config) => {
-    // v4.6.1: Aktiver NextAuth-Pull statt passivem CDP-Capture.
-    // Stellt sicher dass das Fenster offen + eingeloggt ist, dann holt
-    // den frischen JWT direkt vom /api/auth/session-Endpoint.
-    let status = await sessionManager.probe(config || {}, { ensureHome: true, show: false });
-    if (status.sessionState !== "valid") {
-      throw new Error(
-        "Beatport-Session nicht aktiv. Bitte im Scanner-Tab das Beatport-" +
-        "Fenster oeffnen und einloggen, dann nochmal '⇪ API-Kontext' klicken."
-      );
-    }
-
-    const nextAuth = await sessionManager.fetchTokenViaNextAuth();
-    let context = null;
-
-    if (nextAuth.token) {
-      // Erfolg via NextAuth — Token direkt verpacken
-      const captured = sessionManager.getCapturedHeaders() || {};
-      context = {
-        authorization: nextAuth.token,
-        accept: captured["Accept"] || captured["accept"] || "application/json, text/plain, */*",
-        referer: captured["Referer"] || captured["referer"] || "https://dj.beatport.com/",
-        origin: captured["Origin"] || captured["origin"] || "https://dj.beatport.com",
-        userAgent: captured["User-Agent"] || captured["user-agent"] || "",
-        discoveryTemplate: "https://api.beatport.com/v4/my/playlists/{playlistId}?per_page={perPage}",
-        playlistTemplate: "https://api.beatport.com/v4/my/playlists/{playlistId}/",
-        tracksTemplate: "https://api.beatport.com/v4/my/playlists/{playlistId}/tracks/?per_page={perPage}&page={page}",
-        observedAt: new Date().toISOString(),
-        source: "nextauth",
-      };
-    } else {
-      // Fallback: alte Methode (passiver Capture nach Reload)
-      const fallback = await sessionManager.resolveBeatportApiContext(config, {
-        forceRefresh: true,
-      });
-      if (fallback?.authorization) {
-        context = { ...fallback, source: "passive-fallback" };
-      }
-    }
-
+    // v4.6.0/v4.6.2: Passiver CDP-Capture nach Force-Refresh.
+    // NextAuth-Pull (v4.6.1) entfernt nach Pre-Flight-Verifikation
+    // (siehe scripts/test_*.mjs — /api/auth/session liefert kein Token
+    // in der App-Partition ohne separaten www.beatport.com-Login).
+    const context = await sessionManager.resolveBeatportApiContext(config, {
+      forceRefresh: true,
+    });
     if (!context?.authorization) {
-      throw new Error(
-        `Kein gültiger API-Kontext verfügbar. NextAuth-Pull: ${nextAuth.error || "leer"}. ` +
-        `Stelle sicher dass du auf dj.beatport.com eingeloggt bist.`
-      );
+      throw new Error("Kein gültiger API-Kontext verfügbar. Bitte erst einloggen.");
     }
-
     const exportPath = path.join(
       app.getPath("userData"),
       "api-context.json"
@@ -1116,7 +1134,7 @@ app.whenReady().then(() => {
       ),
       "utf-8"
     );
-    return { ok: true, path: exportPath, context, source: context.source };
+    return { ok: true, path: exportPath, context };
   });
 
   ipcMain.handle("auth:save-credentials", async () => {

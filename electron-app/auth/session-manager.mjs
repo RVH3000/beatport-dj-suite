@@ -165,72 +165,13 @@ class SessionManager {
     return this._capturedHeaders || null;
   }
 
-  /**
-   * AKTIVES Token-Refresh via NextAuth-Endpoint (v4.6.1).
-   *
-   * Inspiriert vom externen Projekt `~/Desktop/beatport-playlist-creator/`
-   * (`bp_cdp_automation.py` get_jwt()): NextAuth-Sessions exponieren den
-   * aktuellen JWT via `/api/auth/session`. Solange ein gueltiges Session-
-   * Cookie existiert (User ist eingeloggt), liefert dieser Endpoint
-   * AUTO-REFRESHED einen frischen Bearer-Token — keine Wartezeit auf
-   * SPA-Activity, kein passives Lauschen, kein 10-Min-Timeout-Problem.
-   *
-   * Liest das Token via webContents.executeJavaScript() in dem Browser-
-   * Fenster das auf dj.beatport.com sitzt. Falls dort kein Fenster
-   * vorhanden ist (z.B. erster Aufruf): wird kein Token zurueckgegeben,
-   * der Caller muss erst ensureWindow() aufrufen.
-   *
-   * @returns {Promise<{token: string|null, source: string, error?: string}>}
-   */
-  async fetchTokenViaNextAuth() {
-    const win = this.authWindow;
-    if (!win || win.isDestroyed()) {
-      return { token: null, source: "nextauth", error: "Kein Auth-Fenster offen" };
-    }
-    try {
-      // Inspiriert von bp_cdp_automation.py get_jwt(): NextAuth-Session-
-      // Endpoint exponiert den aktuellen JWT. Wir holen ihn aktiv via
-      // executeJavaScript im Beatport-Tab. Mehrere Token-Key-Pfade probieren
-      // (Beatport-NextAuth hat varianten je nach Version).
-      const code = `(async () => {
-        try {
-          const r = await fetch('/api/auth/session', { credentials: 'include' });
-          if (!r.ok) return { error: 'HTTP ' + r.status };
-          const d = await r.json();
-          const token = d?.token?.accessToken
-            || d?.accessToken
-            || d?.user?.accessToken
-            || '';
-          return { token, raw_keys: Object.keys(d || {}) };
-        } catch (e) {
-          return { error: String(e && e.message || e) };
-        }
-      })()`;
-      const result = await win.webContents.executeJavaScript(code, true);
-      if (result?.error) {
-        return { token: null, source: "nextauth", error: result.error };
-      }
-      const token = result?.token || "";
-      if (!token) {
-        return {
-          token: null,
-          source: "nextauth",
-          error: `Leer/kein token-Feld im NextAuth-Response (keys: ${result?.raw_keys?.join(",") || "?"})`,
-        };
-      }
-      const bearerToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
-      // Cache aktualisieren — auch fuer getCapturedToken-Konsumenten
-      this._capturedToken = bearerToken;
-      this._capturedTokenAt = Date.now();
-      return { token: bearerToken, source: "nextauth" };
-    } catch (error) {
-      return {
-        token: null,
-        source: "nextauth",
-        error: `executeJavaScript fehlgeschlagen: ${error.message}`,
-      };
-    }
-  }
+  // v4.6.1 fetchTokenViaNextAuth() wurde in v4.6.2 entfernt — Pre-Flight-Tests
+  // (siehe scripts/test_nextauth_endpoint.mjs + scripts/test_bp_user_cookie_auth.mjs)
+  // haben verifiziert dass NextAuth-Cookies in der App-Partition fehlen und
+  // /api/auth/session entweder 404 (dj.beatport.com) oder leeres JSON
+  // (www.beatport.com) zurueckgibt. Der aktive NextAuth-Pull funktioniert
+  // ohne separaten www.beatport.com-Login nicht. Plan C (Manuell-JSON-
+  // Import) ist der etablierte Pfad analog Labels.
 
   applyRuntimeConfig(rawConfig = {}) {
     const mode = normalizeText(rawConfig.authMode || this.status.mode || "internal");
